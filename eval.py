@@ -12,7 +12,7 @@ from PIL import Image, ImageOps, ImageDraw
 from app.services import PlateRecognizerFactory
 from app.schemas.plate import ProviderEnum
 from app.services.yolo_filter import filter_vehicle_and_occupancy
-from app.services.strategies.paddle_ocr import PaddleOCRStrategy
+from app.services.image_processing import save_debug_images
 from app.core.config import settings
 
 TRAIN_DIR = "data/images/train"
@@ -22,67 +22,6 @@ pp = pprint.PrettyPrinter(indent=2, sort_dicts=False)
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
-
-def save_debug_images(
-    img_bytes: bytes,
-    filename: str,
-    vehicle_boxes: list,
-    vehicle_type: str,
-    output_dir: str = "eval_debug_crops",
-    bottom_crop_ratio: float = 0.50
-) -> None:
-    """Save annotated YOLO box image, vehicle crops, and bottom ROI crops for OCR debugging."""
-    os.makedirs(output_dir, exist_ok=True)
-
-    base_stem, _ = os.path.splitext(filename)
-    pil_img = ImageOps.exif_transpose(Image.open(io.BytesIO(img_bytes))).convert("RGB")
-    w, h = pil_img.size
-
-    # 1. Annotated image showing YOLO bounding box(es)
-    annotated = pil_img.copy()
-    draw = ImageDraw.Draw(annotated)
-
-    if vehicle_boxes:
-        for idx, box in enumerate(vehicle_boxes):
-            if len(box) == 4:
-                x1, y1, x2, y2 = box
-                draw.rectangle([x1, y1, x2, y2], outline="red", width=3)
-                label = f"{vehicle_type}" if len(vehicle_boxes) == 1 else f"{vehicle_type} #{idx+1}"
-                draw.rectangle([x1, max(0, y1 - 20), x1 + len(label) * 9 + 6, max(0, y1)], fill="red")
-                draw.text((x1 + 3, max(0, y1 - 18)), label, fill="white")
-    else:
-        draw.rectangle([10, 10, 150, 35], fill="gray")
-        draw.text((15, 15), "No Vehicle Box", fill="white")
-
-    annotated_path = os.path.join(output_dir, f"{base_stem}_yolo_boxes.jpg")
-    annotated.save(annotated_path)
-
-    # 2. Save cropped vehicle image(s) and their bottom ROI crops (bumper level)
-    if vehicle_boxes:
-        for idx, box in enumerate(vehicle_boxes):
-            if len(box) == 4:
-                x1, y1, x2, y2 = box
-                crop_box = (max(0, x1), max(0, y1), min(w, x2), min(h, y2))
-                if crop_box[2] > crop_box[0] and crop_box[3] > crop_box[1]:
-                    cropped_img = pil_img.crop(crop_box)
-                    crop_suffix = "" if len(vehicle_boxes) == 1 else f"_{idx}"
-
-                    # Full vehicle crop from YOLO
-                    crop_path = os.path.join(output_dir, f"{base_stem}_crop{crop_suffix}.jpg")
-                    cropped_img.save(crop_path)
-
-                    # Bottom ROI cropped directly from the vehicle crop
-                    vw, vh = cropped_img.size
-                    v_crop_top = int(vh * (1.0 - bottom_crop_ratio))
-                    v_bottom_roi = cropped_img.crop((0, v_crop_top, vw, vh))
-                    roi_path = os.path.join(output_dir, f"{base_stem}_crop_bottom_roi{crop_suffix}.jpg")
-                    v_bottom_roi.save(roi_path)
-    else:
-        # Fallback: if no vehicle box detected, crop bottom 50% of the full image
-        crop_top = int(h * (1.0 - bottom_crop_ratio))
-        full_bottom_roi = pil_img.crop((0, crop_top, w, h))
-        crop_path = os.path.join(output_dir, f"{base_stem}_crop_bottom_roi.jpg")
-        full_bottom_roi.save(crop_path)
 
 def get_all_vehicle_boxes(img_bytes: bytes) -> list:
     """Re-run YOLO to get all 4-wheeler bounding boxes from an image."""
@@ -101,15 +40,6 @@ def get_all_vehicle_boxes(img_bytes: bytes) -> list:
                 if xyxy is not None and idx < len(xyxy):
                     boxes.append(tuple(map(int, xyxy[idx])))
     return boxes
-
-
-def run_paddle_ocr(img_bytes: bytes, vehicle_box) -> list:
-    """Run PaddleOCR on a single box via the strategy."""
-    engine = PaddleOCRStrategy()
-    results = engine.recognize(img_bytes, vehicle_box=vehicle_box)
-    if not results and vehicle_box is not None:
-        results = engine.recognize(img_bytes, vehicle_box=None)
-    return results or []
 
 
 def print_detailed_table(rows: list) -> None:
@@ -268,11 +198,8 @@ def evaluate_dataset(
                     box_plate, box_state, box_provider = "N/A", "N/A", "N/A"
                     for provider in providers:
                         try:
-                            if provider == ProviderEnum.PADDLEOCR:
-                                plates = run_paddle_ocr(img_bytes, box)
-                            else:
-                                engine = PlateRecognizerFactory.get_recognizer(provider.value)
-                                plates = engine.recognize(img_path)
+                            engine = PlateRecognizerFactory.get_recognizer(provider.value)
+                            plates = engine.recognize(img_bytes, filename=img_name, vehicle_box=box)
 
                             if plates:
                                 box_plate    = plates[0].get("plate", "N/A")
@@ -308,14 +235,12 @@ def evaluate_dataset(
             else:
                 # Single vehicle (or no box): waterfall
                 plate_num, state_val, used_provider = "N/A", "N/A", "N/A"
+                box = vehicle_boxes[0] if vehicle_boxes else None
+
                 for provider in providers:
                     try:
-                        if provider == ProviderEnum.PADDLEOCR:
-                            box    = vehicle_boxes[0] if vehicle_boxes else None
-                            plates = run_paddle_ocr(img_bytes, box)
-                        else:
-                            engine = PlateRecognizerFactory.get_recognizer(provider.value)
-                            plates = engine.recognize(img_path)
+                        engine = PlateRecognizerFactory.get_recognizer(provider.value)
+                        plates = engine.recognize(img_bytes, filename=img_name, vehicle_box=box)
 
                         if plates:
                             plate_num     = plates[0].get("plate", "N/A")

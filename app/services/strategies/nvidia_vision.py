@@ -1,6 +1,5 @@
 import os
 import base64
-import re
 import requests
 from typing import List, Dict, Any, Union, Tuple
 from app.core.config import settings
@@ -8,10 +7,11 @@ from app.core.logging import logger
 from app.services.base import BasePlateRecognizer
 from app.services.constants import INDIAN_PLATE_REGEX
 
+
 class NvidiaVisionStrategy(BasePlateRecognizer):
     """
     Concrete Strategy using NVIDIA Vision API (Llama 3.2 11B Vision / Nemotron).
-    Supports multi-key authentication across LLAMA_API_KEY and NEMOTRON_API_KEY.
+    Inherits 3-tier vehicle crop & bottom ROI fallback pipeline from BasePlateRecognizer.
     """
 
     def __init__(self, api_key: str = None, invoke_url: str = None, model_name: str = None):
@@ -43,7 +43,12 @@ class NvidiaVisionStrategy(BasePlateRecognizer):
         mime_type = "image/jpeg" if ext in ("jpg", "jpeg", "") else f"image/{ext}"
         return base64_str, mime_type
 
-    def recognize(self, image_input: Union[str, bytes], filename: str = "image.jpg") -> List[Dict[str, Any]]:
+    def _recognize_single_image(
+        self,
+        image_input: Union[str, bytes],
+        filename: str = "image.jpg"
+    ) -> List[Dict[str, Any]]:
+        """Process a single image crop or full image with NVIDIA Vision API."""
         keys_to_try = self._get_api_keys()
         if not keys_to_try:
             raise ValueError("No NVIDIA API keys (LLAMA_API_KEY / NEMOTRON_API_KEY) configured in settings/env.")

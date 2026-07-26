@@ -5,9 +5,11 @@ from app.core.logging import logger
 from app.services.base import BasePlateRecognizer
 from app.services.constants import INDIAN_PLATE_REGEX
 
+
 class PlateRecognizerStrategy(BasePlateRecognizer):
     """
-    Concrete Strategy using Plate Recognizer API.
+    Concrete Strategy using Plate Recognizer Cloud API.
+    Inherits 3-tier vehicle crop & bottom ROI fallback pipeline from BasePlateRecognizer.
     """
 
     def __init__(self, token: str = None, regions: List[str] = None):
@@ -15,7 +17,12 @@ class PlateRecognizerStrategy(BasePlateRecognizer):
         self.regions = regions or ["in"]
         self.api_url = "https://api.platerecognizer.com/v1/plate-reader/"
 
-    def recognize(self, image_input: Union[str, bytes], filename: str = "image.jpg") -> List[Dict[str, Any]]:
+    def _recognize_single_image(
+        self,
+        image_input: Union[str, bytes],
+        filename: str = "image.jpg"
+    ) -> List[Dict[str, Any]]:
+        """Process a single image crop or full image with Plate Recognizer API."""
         if not self.api_token:
             raise ValueError("PLATE_RECOGNIZER_TOKEN is missing in settings/env.")
 

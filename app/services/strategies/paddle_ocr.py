@@ -1,7 +1,7 @@
 import io
 import re
 import numpy as np
-from typing import List, Dict, Any, Union, Optional, Tuple
+from typing import List, Dict, Any, Union
 from PIL import Image, ImageOps
 from app.core.config import settings
 from app.core.logging import logger
@@ -26,10 +26,11 @@ def get_paddle_ocr_engine():
         )
     return _PADDLE_OCR_INSTANCE
 
+
 class PaddleOCRStrategy(BasePlateRecognizer):
     """
-    Concrete Strategy using PaddleOCR with Smart Vehicle Box & Bottom ROI Cropping.
-    Processes camera crops directly without extra image scaling overhead.
+    Concrete Strategy using PaddleOCR for local license plate detection & recognition.
+    Inherits 3-tier vehicle crop & bottom ROI fallback pipeline from BasePlateRecognizer.
     """
 
     def __init__(self, bottom_crop_ratio: float = 0.50):
@@ -92,47 +93,16 @@ class PaddleOCRStrategy(BasePlateRecognizer):
 
         return detected_plates
 
-    def recognize(
+    def _recognize_single_image(
         self,
         image_input: Union[str, bytes],
-        filename: str = "image.jpg",
-        vehicle_box: Optional[Tuple[int, int, int, int]] = None,
-        **kwargs
+        filename: str = "image.jpg"
     ) -> List[Dict[str, Any]]:
+        """Process a single image crop or full image with PaddleOCR."""
         if isinstance(image_input, bytes):
             pil_img = Image.open(io.BytesIO(image_input))
         else:
             pil_img = Image.open(image_input)
 
         pil_img = ImageOps.exif_transpose(pil_img).convert("RGB")
-
-        # 1. Priority 1: Tight Vehicle Bounding Box Crop (from YOLO)
-        if vehicle_box is not None and len(vehicle_box) == 4:
-            x1, y1, x2, y2 = vehicle_box
-            w, h = pil_img.size
-            crop_box = (max(0, x1), max(0, y1), min(w, x2), min(h, y2))
-            if crop_box[2] > crop_box[0] and crop_box[3] > crop_box[1]:
-                vehicle_crop = pil_img.crop(crop_box)
-                plates = self._extract_plates_from_image_array(np.array(vehicle_crop))
-                if plates:
-                    return plates
-
-                # Priority 1b: Bottom ROI of the Vehicle Crop (bumper level)
-                vw, vh = vehicle_crop.size
-                v_crop_top = int(vh * (1.0 - self.bottom_crop_ratio))
-                v_bottom_roi = vehicle_crop.crop((0, v_crop_top, vw, vh))
-                plates = self._extract_plates_from_image_array(np.array(v_bottom_roi))
-                if plates:
-                    return plates
-
-        # 2. Priority 2: Smart Bottom ROI Crop (Default 50% bottom)
-        width, height = pil_img.size
-        crop_top = int(height * (1.0 - self.bottom_crop_ratio))
-        bottom_roi_crop = pil_img.crop((0, crop_top, width, height))
-
-        plates = self._extract_plates_from_image_array(np.array(bottom_roi_crop))
-        if plates:
-            return plates
-
-        # 3. Priority 3: Full Image Frame Fallback
         return self._extract_plates_from_image_array(np.array(pil_img))
