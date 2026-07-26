@@ -31,6 +31,7 @@ NVIDIA_API_KEY=your_nvidia_api_key
 NVIDIA_INVOKE_URL=https://integrate.api.nvidia.com/v1/chat/completions
 DEFAULT_PROVIDER=platerecognizer
 YOLO_MODEL_NAME=yolo11n.pt
+YOLO_CONFIG_DIR=/tmp/Ultralytics
 HUMAN_CONF_THRESH=0.30
 VEHICLE_CONF_THRESH=0.35
 ```

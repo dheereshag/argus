@@ -1,3 +1,4 @@
+import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List
 from app.schemas.plate import ProviderEnum
@@ -14,6 +15,7 @@ class Settings(BaseSettings):
 
     # YOLO Model Settings
     YOLO_MODEL_NAME: str = "yolo11n.pt"
+    YOLO_CONFIG_DIR: str = "/tmp/Ultralytics"
     HUMAN_CONF_THRESH: float = 0.30
     VEHICLE_CONF_THRESH: float = 0.35
 
@@ -27,3 +29,5 @@ class Settings(BaseSettings):
     )
 
 settings = Settings()
+os.environ["YOLO_CONFIG_DIR"] = settings.YOLO_CONFIG_DIR
+
