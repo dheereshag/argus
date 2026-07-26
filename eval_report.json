@@ -1,0 +1,1620 @@
+[
+  {
+    "split": "train",
+    "filename": "01.jpg",
+    "status": "NO_PLATE_DETECTED",
+    "vehicle_type": "unfiltered",
+    "provider": "N/A",
+    "plate": "N/A",
+    "state": "N/A",
+    "exec_time_ms": 4853.76
+  },
+  {
+    "split": "train",
+    "filename": "02.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "truck (x3)",
+    "detections": [
+      {
+        "box_index": 0,
+        "box": [
+          376,
+          10,
+          731,
+          455
+        ],
+        "plate": "RJ43GA2012",
+        "state": "Rajasthan",
+        "provider": "paddleocr"
+      },
+      {
+        "box_index": 1,
+        "box": [
+          21,
+          51,
+          392,
+          449
+        ],
+        "plate": "RJ43GA2012",
+        "state": "Rajasthan",
+        "provider": "paddleocr"
+      },
+      {
+        "box_index": 2,
+        "box": [
+          0,
+          279,
+          46,
+          314
+        ],
+        "plate": "RJ43GA2012",
+        "state": "Rajasthan",
+        "provider": "paddleocr"
+      }
+    ],
+    "exec_time_ms": 787.16
+  },
+  {
+    "split": "train",
+    "filename": "03.jpg",
+    "status": "NO_PLATE_DETECTED",
+    "vehicle_type": "truck (x2)",
+    "detections": [
+      {
+        "box_index": 0,
+        "box": [
+          140,
+          4,
+          769,
+          676
+        ],
+        "plate": "N/A",
+        "state": "N/A",
+        "provider": "N/A"
+      },
+      {
+        "box_index": 1,
+        "box": [
+          110,
+          343,
+          283,
+          430
+        ],
+        "plate": "N/A",
+        "state": "N/A",
+        "provider": "N/A"
+      }
+    ],
+    "exec_time_ms": 2672.14
+  },
+  {
+    "split": "train",
+    "filename": "04.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "bus",
+    "provider": "paddleocr",
+    "plate": "OR02BU3389",
+    "state": "Odisha",
+    "exec_time_ms": 605.25
+  },
+  {
+    "split": "train",
+    "filename": "05.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "truck",
+    "provider": "paddleocr",
+    "plate": "RJ09G4017",
+    "state": "Rajasthan",
+    "exec_time_ms": 1424.98
+  },
+  {
+    "split": "train",
+    "filename": "06.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "truck",
+    "provider": "paddleocr",
+    "plate": "KA25B3155",
+    "state": "Karnataka",
+    "exec_time_ms": 1157.53
+  },
+  {
+    "split": "train",
+    "filename": "07.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "truck",
+    "provider": "paddleocr",
+    "plate": "RJ14GJ4976",
+    "state": "Rajasthan",
+    "exec_time_ms": 873.06
+  },
+  {
+    "split": "train",
+    "filename": "08.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "unfiltered",
+    "provider": "paddleocr",
+    "plate": "RJ40GH3115",
+    "state": "Rajasthan",
+    "exec_time_ms": 303.5
+  },
+  {
+    "split": "train",
+    "filename": "09.jpg",
+    "status": "NO_PLATE_DETECTED",
+    "vehicle_type": "unfiltered",
+    "provider": "N/A",
+    "plate": "N/A",
+    "state": "N/A",
+    "exec_time_ms": 2924.3
+  },
+  {
+    "split": "train",
+    "filename": "10.jpg",
+    "status": "NO_PLATE_DETECTED",
+    "vehicle_type": "bus",
+    "provider": "N/A",
+    "plate": "N/A",
+    "state": "N/A",
+    "exec_time_ms": 1271.12
+  },
+  {
+    "split": "train",
+    "filename": "11.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "truck (x2)",
+    "detections": [
+      {
+        "box_index": 0,
+        "box": [
+          323,
+          2,
+          1712,
+          1051
+        ],
+        "plate": "AS01LC7377",
+        "state": "Assam",
+        "provider": "paddleocr"
+      },
+      {
+        "box_index": 1,
+        "box": [
+          102,
+          57,
+          355,
+          540
+        ],
+        "plate": "AS01LC7377",
+        "state": "Assam",
+        "provider": "paddleocr"
+      }
+    ],
+    "exec_time_ms": 980.41
+  },
+  {
+    "split": "train",
+    "filename": "12.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "unfiltered",
+    "provider": "paddleocr",
+    "plate": "MH04BU8968",
+    "state": "Maharashtra",
+    "exec_time_ms": 912.14
+  },
+  {
+    "split": "train",
+    "filename": "13.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "unfiltered",
+    "provider": "paddleocr",
+    "plate": "HR55X1746",
+    "state": "Haryana",
+    "exec_time_ms": 428.35
+  },
+  {
+    "split": "train",
+    "filename": "14.jpg",
+    "status": "NO_PLATE_DETECTED",
+    "vehicle_type": "truck (x4)",
+    "detections": [
+      {
+        "box_index": 0,
+        "box": [
+          0,
+          46,
+          236,
+          860
+        ],
+        "plate": "N/A",
+        "state": "N/A",
+        "provider": "N/A"
+      },
+      {
+        "box_index": 1,
+        "box": [
+          215,
+          0,
+          1138,
+          788
+        ],
+        "plate": "N/A",
+        "state": "N/A",
+        "provider": "N/A"
+      },
+      {
+        "box_index": 2,
+        "box": [
+          214,
+          0,
+          1135,
+          787
+        ],
+        "plate": "N/A",
+        "state": "N/A",
+        "provider": "N/A"
+      },
+      {
+        "box_index": 3,
+        "box": [
+          3,
+          50,
+          235,
+          857
+        ],
+        "plate": "N/A",
+        "state": "N/A",
+        "provider": "N/A"
+      }
+    ],
+    "exec_time_ms": 10522.1
+  },
+  {
+    "split": "train",
+    "filename": "15.jpg",
+    "status": "NO_PLATE_DETECTED",
+    "vehicle_type": "bus (x2)",
+    "detections": [
+      {
+        "box_index": 0,
+        "box": [
+          103,
+          12,
+          972,
+          844
+        ],
+        "plate": "N/A",
+        "state": "N/A",
+        "provider": "N/A"
+      },
+      {
+        "box_index": 1,
+        "box": [
+          742,
+          121,
+          971,
+          834
+        ],
+        "plate": "N/A",
+        "state": "N/A",
+        "provider": "N/A"
+      }
+    ],
+    "exec_time_ms": 1856.28
+  },
+  {
+    "split": "train",
+    "filename": "16.jpg",
+    "status": "NO_PLATE_DETECTED",
+    "vehicle_type": "truck (x2)",
+    "detections": [
+      {
+        "box_index": 0,
+        "box": [
+          672,
+          451,
+          1998,
+          1716
+        ],
+        "plate": "N/A",
+        "state": "N/A",
+        "provider": "N/A"
+      },
+      {
+        "box_index": 1,
+        "box": [
+          1,
+          942,
+          501,
+          1803
+        ],
+        "plate": "N/A",
+        "state": "N/A",
+        "provider": "N/A"
+      }
+    ],
+    "exec_time_ms": 2924.94
+  },
+  {
+    "split": "train",
+    "filename": "17.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "truck (x2)",
+    "detections": [
+      {
+        "box_index": 0,
+        "box": [
+          533,
+          512,
+          2646,
+          2458
+        ],
+        "plate": "TN37CC3205",
+        "state": "Tamil Nadu",
+        "provider": "paddleocr"
+      },
+      {
+        "box_index": 1,
+        "box": [
+          2526,
+          612,
+          3116,
+          2126
+        ],
+        "plate": "TN37CC3205",
+        "state": "Tamil Nadu",
+        "provider": "paddleocr"
+      }
+    ],
+    "exec_time_ms": 3300.78
+  },
+  {
+    "split": "train",
+    "filename": "18.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "truck (x4)",
+    "detections": [
+      {
+        "box_index": 0,
+        "box": [
+          1102,
+          328,
+          2425,
+          1547
+        ],
+        "plate": "OR09J1382",
+        "state": "Odisha",
+        "provider": "paddleocr"
+      },
+      {
+        "box_index": 1,
+        "box": [
+          2375,
+          917,
+          2660,
+          1261
+        ],
+        "plate": "OD22N4044",
+        "state": "Odisha",
+        "provider": "paddleocr"
+      },
+      {
+        "box_index": 2,
+        "box": [
+          2358,
+          881,
+          2757,
+          1262
+        ],
+        "plate": "OD22N4044",
+        "state": "Odisha",
+        "provider": "paddleocr"
+      },
+      {
+        "box_index": 3,
+        "box": [
+          0,
+          967,
+          395,
+          1292
+        ],
+        "plate": "N/A",
+        "state": "N/A",
+        "provider": "N/A"
+      }
+    ],
+    "exec_time_ms": 3432.44
+  },
+  {
+    "split": "train",
+    "filename": "19.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "truck",
+    "provider": "paddleocr",
+    "plate": "OD22N4044",
+    "state": "Odisha",
+    "exec_time_ms": 1647.17
+  },
+  {
+    "split": "train",
+    "filename": "20.jpg",
+    "status": "NO_PLATE_DETECTED",
+    "vehicle_type": "truck",
+    "provider": "N/A",
+    "plate": "N/A",
+    "state": "N/A",
+    "exec_time_ms": 1621.4
+  },
+  {
+    "split": "train",
+    "filename": "21.jpg",
+    "status": "NO_PLATE_DETECTED",
+    "vehicle_type": "truck",
+    "provider": "N/A",
+    "plate": "N/A",
+    "state": "N/A",
+    "exec_time_ms": 819.4
+  },
+  {
+    "split": "train",
+    "filename": "22.jpg",
+    "status": "NO_PLATE_DETECTED",
+    "vehicle_type": "truck",
+    "provider": "N/A",
+    "plate": "N/A",
+    "state": "N/A",
+    "exec_time_ms": 1332.99
+  },
+  {
+    "split": "train",
+    "filename": "23.jpg",
+    "status": "NO_PLATE_DETECTED",
+    "vehicle_type": "truck (x2)",
+    "detections": [
+      {
+        "box_index": 0,
+        "box": [
+          657,
+          474,
+          1679,
+          1900
+        ],
+        "plate": "N/A",
+        "state": "N/A",
+        "provider": "N/A"
+      },
+      {
+        "box_index": 1,
+        "box": [
+          1,
+          688,
+          565,
+          1689
+        ],
+        "plate": "N/A",
+        "state": "N/A",
+        "provider": "N/A"
+      }
+    ],
+    "exec_time_ms": 2983.47
+  },
+  {
+    "split": "train",
+    "filename": "24.jpg",
+    "status": "NO_PLATE_DETECTED",
+    "vehicle_type": "truck",
+    "provider": "N/A",
+    "plate": "N/A",
+    "state": "N/A",
+    "exec_time_ms": 2538.89
+  },
+  {
+    "split": "train",
+    "filename": "25.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "bus (x2)",
+    "detections": [
+      {
+        "box_index": 0,
+        "box": [
+          1003,
+          1289,
+          2132,
+          2724
+        ],
+        "plate": "KL22N2761",
+        "state": "Kerala",
+        "provider": "paddleocr"
+      },
+      {
+        "box_index": 1,
+        "box": [
+          998,
+          1293,
+          2132,
+          2711
+        ],
+        "plate": "KL22N2761",
+        "state": "Kerala",
+        "provider": "paddleocr"
+      }
+    ],
+    "exec_time_ms": 2132.99
+  },
+  {
+    "split": "train",
+    "filename": "26.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "truck",
+    "provider": "paddleocr",
+    "plate": "MH15CI2859",
+    "state": "Maharashtra",
+    "exec_time_ms": 1806.07
+  },
+  {
+    "split": "train",
+    "filename": "27.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "truck",
+    "provider": "paddleocr",
+    "plate": "MH40N5577",
+    "state": "Maharashtra",
+    "exec_time_ms": 827.32
+  },
+  {
+    "split": "train",
+    "filename": "28.jpg",
+    "status": "NO_PLATE_DETECTED",
+    "vehicle_type": "truck (x2)",
+    "detections": [
+      {
+        "box_index": 0,
+        "box": [
+          673,
+          237,
+          2118,
+          2083
+        ],
+        "plate": "N/A",
+        "state": "N/A",
+        "provider": "N/A"
+      },
+      {
+        "box_index": 1,
+        "box": [
+          2272,
+          364,
+          3092,
+          1644
+        ],
+        "plate": "N/A",
+        "state": "N/A",
+        "provider": "N/A"
+      }
+    ],
+    "exec_time_ms": 1810.51
+  },
+  {
+    "split": "train",
+    "filename": "29.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "truck",
+    "provider": "paddleocr",
+    "plate": "WB73B3213",
+    "state": "West Bengal",
+    "exec_time_ms": 1386.63
+  },
+  {
+    "split": "train",
+    "filename": "30.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "truck (x2)",
+    "detections": [
+      {
+        "box_index": 0,
+        "box": [
+          953,
+          975,
+          1837,
+          1787
+        ],
+        "plate": "HR55X3179",
+        "state": "Haryana",
+        "provider": "paddleocr"
+      },
+      {
+        "box_index": 1,
+        "box": [
+          1988,
+          1386,
+          2147,
+          1612
+        ],
+        "plate": "N/A",
+        "state": "N/A",
+        "provider": "N/A"
+      }
+    ],
+    "exec_time_ms": 2477.79
+  },
+  {
+    "split": "train",
+    "filename": "31.jpg",
+    "status": "NO_PLATE_DETECTED",
+    "vehicle_type": "truck (x2)",
+    "detections": [
+      {
+        "box_index": 0,
+        "box": [
+          2,
+          1226,
+          1234,
+          2535
+        ],
+        "plate": "N/A",
+        "state": "N/A",
+        "provider": "N/A"
+      },
+      {
+        "box_index": 1,
+        "box": [
+          1182,
+          1259,
+          2127,
+          2511
+        ],
+        "plate": "N/A",
+        "state": "N/A",
+        "provider": "N/A"
+      }
+    ],
+    "exec_time_ms": 4304.43
+  },
+  {
+    "split": "train",
+    "filename": "32.jpg",
+    "status": "NO_PLATE_DETECTED",
+    "vehicle_type": "truck",
+    "provider": "N/A",
+    "plate": "N/A",
+    "state": "N/A",
+    "exec_time_ms": 983.26
+  },
+  {
+    "split": "train",
+    "filename": "33.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "bus",
+    "provider": "paddleocr",
+    "plate": "TN23CC1561",
+    "state": "Tamil Nadu",
+    "exec_time_ms": 1059.68
+  },
+  {
+    "split": "train",
+    "filename": "34.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "truck",
+    "provider": "paddleocr",
+    "plate": "KA13B6177",
+    "state": "Karnataka",
+    "exec_time_ms": 1669.26
+  },
+  {
+    "split": "train",
+    "filename": "35.jpg",
+    "status": "NO_PLATE_DETECTED",
+    "vehicle_type": "truck",
+    "provider": "N/A",
+    "plate": "N/A",
+    "state": "N/A",
+    "exec_time_ms": 807.25
+  },
+  {
+    "split": "train",
+    "filename": "36.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "truck",
+    "provider": "paddleocr",
+    "plate": "KL02T7649",
+    "state": "Kerala",
+    "exec_time_ms": 762.01
+  },
+  {
+    "split": "train",
+    "filename": "37.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "truck (x3)",
+    "detections": [
+      {
+        "box_index": 0,
+        "box": [
+          218,
+          560,
+          1934,
+          2444
+        ],
+        "plate": "WB11E0353",
+        "state": "West Bengal",
+        "provider": "paddleocr"
+      },
+      {
+        "box_index": 1,
+        "box": [
+          1907,
+          1462,
+          2020,
+          1610
+        ],
+        "plate": "WB11E0353",
+        "state": "West Bengal",
+        "provider": "paddleocr"
+      },
+      {
+        "box_index": 2,
+        "box": [
+          2021,
+          1476,
+          2168,
+          1579
+        ],
+        "plate": "WB11E0353",
+        "state": "West Bengal",
+        "provider": "paddleocr"
+      }
+    ],
+    "exec_time_ms": 2758.98
+  },
+  {
+    "split": "train",
+    "filename": "38.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "truck (x3)",
+    "detections": [
+      {
+        "box_index": 0,
+        "box": [
+          1532,
+          1431,
+          2425,
+          2030
+        ],
+        "plate": "KA14A2223",
+        "state": "Karnataka",
+        "provider": "paddleocr"
+      },
+      {
+        "box_index": 1,
+        "box": [
+          2748,
+          1461,
+          3069,
+          1941
+        ],
+        "plate": "N/A",
+        "state": "N/A",
+        "provider": "N/A"
+      },
+      {
+        "box_index": 2,
+        "box": [
+          2375,
+          2416,
+          3070,
+          3946
+        ],
+        "plate": "N/A",
+        "state": "N/A",
+        "provider": "N/A"
+      }
+    ],
+    "exec_time_ms": 2552.37
+  },
+  {
+    "split": "train",
+    "filename": "39.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "truck (x3)",
+    "detections": [
+      {
+        "box_index": 0,
+        "box": [
+          741,
+          440,
+          2368,
+          1510
+        ],
+        "plate": "WB74AN6243",
+        "state": "West Bengal",
+        "provider": "paddleocr"
+      },
+      {
+        "box_index": 1,
+        "box": [
+          1248,
+          441,
+          2369,
+          1513
+        ],
+        "plate": "N/A",
+        "state": "N/A",
+        "provider": "N/A"
+      },
+      {
+        "box_index": 2,
+        "box": [
+          744,
+          932,
+          1354,
+          1490
+        ],
+        "plate": "WB74AN6243",
+        "state": "West Bengal",
+        "provider": "paddleocr"
+      }
+    ],
+    "exec_time_ms": 2360.75
+  },
+  {
+    "split": "train",
+    "filename": "40.jpg",
+    "status": "NO_PLATE_DETECTED",
+    "vehicle_type": "truck",
+    "provider": "N/A",
+    "plate": "N/A",
+    "state": "N/A",
+    "exec_time_ms": 1366.42
+  },
+  {
+    "split": "train",
+    "filename": "41.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "truck (x2)",
+    "detections": [
+      {
+        "box_index": 0,
+        "box": [
+          748,
+          575,
+          1781,
+          1651
+        ],
+        "plate": "MH17AG3420",
+        "state": "Maharashtra",
+        "provider": "paddleocr"
+      },
+      {
+        "box_index": 1,
+        "box": [
+          749,
+          570,
+          1774,
+          1652
+        ],
+        "plate": "MH17AG3420",
+        "state": "Maharashtra",
+        "provider": "paddleocr"
+      }
+    ],
+    "exec_time_ms": 3078.78
+  },
+  {
+    "split": "train",
+    "filename": "42.jpg",
+    "status": "NO_PLATE_DETECTED",
+    "vehicle_type": "truck",
+    "provider": "N/A",
+    "plate": "N/A",
+    "state": "N/A",
+    "exec_time_ms": 833.01
+  },
+  {
+    "split": "train",
+    "filename": "43.jpg",
+    "status": "NO_PLATE_DETECTED",
+    "vehicle_type": "truck",
+    "provider": "N/A",
+    "plate": "N/A",
+    "state": "N/A",
+    "exec_time_ms": 3680.41
+  },
+  {
+    "split": "train",
+    "filename": "44.jpg",
+    "status": "NO_PLATE_DETECTED",
+    "vehicle_type": "bus",
+    "provider": "N/A",
+    "plate": "N/A",
+    "state": "N/A",
+    "exec_time_ms": 1029.07
+  },
+  {
+    "split": "train",
+    "filename": "45.jpg",
+    "status": "NO_PLATE_DETECTED",
+    "vehicle_type": "truck",
+    "provider": "N/A",
+    "plate": "N/A",
+    "state": "N/A",
+    "exec_time_ms": 538.56
+  },
+  {
+    "split": "train",
+    "filename": "46.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "truck (x2)",
+    "detections": [
+      {
+        "box_index": 0,
+        "box": [
+          953,
+          1,
+          1637,
+          794
+        ],
+        "plate": "MH40N5764",
+        "state": "Maharashtra",
+        "provider": "paddleocr"
+      },
+      {
+        "box_index": 1,
+        "box": [
+          481,
+          424,
+          648,
+          568
+        ],
+        "plate": "N/A",
+        "state": "N/A",
+        "provider": "N/A"
+      }
+    ],
+    "exec_time_ms": 1466.64
+  },
+  {
+    "split": "train",
+    "filename": "47.jpg",
+    "status": "NO_PLATE_DETECTED",
+    "vehicle_type": "truck",
+    "provider": "N/A",
+    "plate": "N/A",
+    "state": "N/A",
+    "exec_time_ms": 3030.43
+  },
+  {
+    "split": "train",
+    "filename": "48.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "truck",
+    "provider": "paddleocr",
+    "plate": "KL04AQ8039",
+    "state": "Kerala",
+    "exec_time_ms": 2819.37
+  },
+  {
+    "split": "train",
+    "filename": "49.jpg",
+    "status": "NO_PLATE_DETECTED",
+    "vehicle_type": "truck (x2)",
+    "detections": [
+      {
+        "box_index": 0,
+        "box": [
+          1346,
+          577,
+          2449,
+          1649
+        ],
+        "plate": "N/A",
+        "state": "N/A",
+        "provider": "N/A"
+      },
+      {
+        "box_index": 1,
+        "box": [
+          1,
+          702,
+          376,
+          1733
+        ],
+        "plate": "N/A",
+        "state": "N/A",
+        "provider": "N/A"
+      }
+    ],
+    "exec_time_ms": 2957.03
+  },
+  {
+    "split": "train",
+    "filename": "50.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "truck",
+    "provider": "paddleocr",
+    "plate": "AR19GA5270",
+    "state": "Arunachal Pradesh",
+    "exec_time_ms": 1995.88
+  },
+  {
+    "split": "train",
+    "filename": "51.jpg",
+    "status": "NO_PLATE_DETECTED",
+    "vehicle_type": "truck",
+    "provider": "N/A",
+    "plate": "N/A",
+    "state": "N/A",
+    "exec_time_ms": 740.03
+  },
+  {
+    "split": "train",
+    "filename": "52.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "truck (x2)",
+    "detections": [
+      {
+        "box_index": 0,
+        "box": [
+          1992,
+          1107,
+          2445,
+          1443
+        ],
+        "plate": "WB68AA2159",
+        "state": "West Bengal",
+        "provider": "paddleocr"
+      },
+      {
+        "box_index": 1,
+        "box": [
+          11,
+          428,
+          1903,
+          1990
+        ],
+        "plate": "WB07J4360",
+        "state": "West Bengal",
+        "provider": "paddleocr"
+      }
+    ],
+    "exec_time_ms": 923.42
+  },
+  {
+    "split": "train",
+    "filename": "53.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "truck (x2)",
+    "detections": [
+      {
+        "box_index": 0,
+        "box": [
+          109,
+          392,
+          2023,
+          1852
+        ],
+        "plate": "WB07J4360",
+        "state": "West Bengal",
+        "provider": "paddleocr"
+      },
+      {
+        "box_index": 1,
+        "box": [
+          2048,
+          989,
+          2225,
+          1060
+        ],
+        "plate": "WB07J4360",
+        "state": "West Bengal",
+        "provider": "paddleocr"
+      }
+    ],
+    "exec_time_ms": 2146.77
+  },
+  {
+    "split": "train",
+    "filename": "54.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "truck",
+    "provider": "paddleocr",
+    "plate": "BR06G0660",
+    "state": "Bihar",
+    "exec_time_ms": 1577.96
+  },
+  {
+    "split": "train",
+    "filename": "55.jpg",
+    "status": "NO_PLATE_DETECTED",
+    "vehicle_type": "truck",
+    "provider": "N/A",
+    "plate": "N/A",
+    "state": "N/A",
+    "exec_time_ms": 2089.85
+  },
+  {
+    "split": "train",
+    "filename": "56.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "truck (x2)",
+    "detections": [
+      {
+        "box_index": 0,
+        "box": [
+          544,
+          117,
+          1634,
+          1506
+        ],
+        "plate": "MH04P4644",
+        "state": "Maharashtra",
+        "provider": "paddleocr"
+      },
+      {
+        "box_index": 1,
+        "box": [
+          543,
+          114,
+          1632,
+          1500
+        ],
+        "plate": "MH04P4644",
+        "state": "Maharashtra",
+        "provider": "paddleocr"
+      }
+    ],
+    "exec_time_ms": 1585.11
+  },
+  {
+    "split": "train",
+    "filename": "57.jpg",
+    "status": "NO_PLATE_DETECTED",
+    "vehicle_type": "truck",
+    "provider": "N/A",
+    "plate": "N/A",
+    "state": "N/A",
+    "exec_time_ms": 594.61
+  },
+  {
+    "split": "train",
+    "filename": "58.jpg",
+    "status": "NO_PLATE_DETECTED",
+    "vehicle_type": "truck",
+    "provider": "N/A",
+    "plate": "N/A",
+    "state": "N/A",
+    "exec_time_ms": 703.52
+  },
+  {
+    "split": "train",
+    "filename": "59.jpg",
+    "status": "NO_PLATE_DETECTED",
+    "vehicle_type": "truck (x5)",
+    "detections": [
+      {
+        "box_index": 0,
+        "box": [
+          459,
+          171,
+          1432,
+          1221
+        ],
+        "plate": "N/A",
+        "state": "N/A",
+        "provider": "N/A"
+      },
+      {
+        "box_index": 1,
+        "box": [
+          227,
+          818,
+          332,
+          896
+        ],
+        "plate": "N/A",
+        "state": "N/A",
+        "provider": "N/A"
+      },
+      {
+        "box_index": 2,
+        "box": [
+          150,
+          824,
+          215,
+          911
+        ],
+        "plate": "N/A",
+        "state": "N/A",
+        "provider": "N/A"
+      },
+      {
+        "box_index": 3,
+        "box": [
+          0,
+          671,
+          87,
+          1014
+        ],
+        "plate": "N/A",
+        "state": "N/A",
+        "provider": "N/A"
+      },
+      {
+        "box_index": 4,
+        "box": [
+          0,
+          669,
+          89,
+          1013
+        ],
+        "plate": "N/A",
+        "state": "N/A",
+        "provider": "N/A"
+      }
+    ],
+    "exec_time_ms": 3240.09
+  },
+  {
+    "split": "train",
+    "filename": "60.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "truck",
+    "provider": "paddleocr",
+    "plate": "AP21TE5236",
+    "state": "Andhra Pradesh",
+    "exec_time_ms": 1031.4
+  },
+  {
+    "split": "train",
+    "filename": "61.jpg",
+    "status": "NO_PLATE_DETECTED",
+    "vehicle_type": "truck",
+    "provider": "N/A",
+    "plate": "N/A",
+    "state": "N/A",
+    "exec_time_ms": 1244.44
+  },
+  {
+    "split": "train",
+    "filename": "62.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "truck (x3)",
+    "detections": [
+      {
+        "box_index": 0,
+        "box": [
+          555,
+          648,
+          1766,
+          1874
+        ],
+        "plate": "KL08BM1429",
+        "state": "Kerala",
+        "provider": "paddleocr"
+      },
+      {
+        "box_index": 1,
+        "box": [
+          22,
+          1213,
+          190,
+          1343
+        ],
+        "plate": "KL08BM1429",
+        "state": "Kerala",
+        "provider": "paddleocr"
+      },
+      {
+        "box_index": 2,
+        "box": [
+          211,
+          1209,
+          389,
+          1360
+        ],
+        "plate": "KL08BM1429",
+        "state": "Kerala",
+        "provider": "paddleocr"
+      }
+    ],
+    "exec_time_ms": 1965.17
+  },
+  {
+    "split": "train",
+    "filename": "63.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "bus",
+    "provider": "paddleocr",
+    "plate": "OR02BU3389",
+    "state": "Odisha",
+    "exec_time_ms": 647.66
+  },
+  {
+    "split": "train",
+    "filename": "64.jpg",
+    "status": "NO_PLATE_DETECTED",
+    "vehicle_type": "truck (x2)",
+    "detections": [
+      {
+        "box_index": 0,
+        "box": [
+          310,
+          385,
+          1136,
+          1126
+        ],
+        "plate": "N/A",
+        "state": "N/A",
+        "provider": "N/A"
+      },
+      {
+        "box_index": 1,
+        "box": [
+          0,
+          1142,
+          202,
+          1427
+        ],
+        "plate": "N/A",
+        "state": "N/A",
+        "provider": "N/A"
+      }
+    ],
+    "exec_time_ms": 1873.99
+  },
+  {
+    "split": "train",
+    "filename": "65.jpg",
+    "status": "NO_PLATE_DETECTED",
+    "vehicle_type": "truck",
+    "provider": "N/A",
+    "plate": "N/A",
+    "state": "N/A",
+    "exec_time_ms": 1439.5
+  },
+  {
+    "split": "train",
+    "filename": "66.jpg",
+    "status": "NO_PLATE_DETECTED",
+    "vehicle_type": "truck",
+    "provider": "N/A",
+    "plate": "N/A",
+    "state": "N/A",
+    "exec_time_ms": 750.51
+  },
+  {
+    "split": "train",
+    "filename": "67.jpg",
+    "status": "ERROR",
+    "vehicle_type": "N/A",
+    "provider": "N/A",
+    "plate": "N/A",
+    "state": "image file is truncated (8 bytes not processed)",
+    "exec_time_ms": 21.54
+  },
+  {
+    "split": "train",
+    "filename": "68.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "truck",
+    "provider": "paddleocr",
+    "plate": "HR38T3179",
+    "state": "Haryana",
+    "exec_time_ms": 1288.82
+  },
+  {
+    "split": "train",
+    "filename": "69.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "truck",
+    "provider": "paddleocr",
+    "plate": "TN24P6399",
+    "state": "Tamil Nadu",
+    "exec_time_ms": 672.51
+  },
+  {
+    "split": "train",
+    "filename": "70.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "bus",
+    "provider": "paddleocr",
+    "plate": "MH40BL3606",
+    "state": "Maharashtra",
+    "exec_time_ms": 1213.28
+  },
+  {
+    "split": "train",
+    "filename": "71.jpg",
+    "status": "NO_PLATE_DETECTED",
+    "vehicle_type": "truck (x2)",
+    "detections": [
+      {
+        "box_index": 0,
+        "box": [
+          579,
+          126,
+          1530,
+          1062
+        ],
+        "plate": "N/A",
+        "state": "N/A",
+        "provider": "N/A"
+      },
+      {
+        "box_index": 1,
+        "box": [
+          7,
+          578,
+          229,
+          814
+        ],
+        "plate": "N/A",
+        "state": "N/A",
+        "provider": "N/A"
+      }
+    ],
+    "exec_time_ms": 2128.0
+  },
+  {
+    "split": "train",
+    "filename": "72.jpg",
+    "status": "NO_PLATE_DETECTED",
+    "vehicle_type": "truck (x2)",
+    "detections": [
+      {
+        "box_index": 0,
+        "box": [
+          496,
+          1,
+          2835,
+          2320
+        ],
+        "plate": "N/A",
+        "state": "N/A",
+        "provider": "N/A"
+      },
+      {
+        "box_index": 1,
+        "box": [
+          3176,
+          1442,
+          3454,
+          2086
+        ],
+        "plate": "N/A",
+        "state": "N/A",
+        "provider": "N/A"
+      }
+    ],
+    "exec_time_ms": 2042.23
+  },
+  {
+    "split": "train",
+    "filename": "73.jpg",
+    "status": "NO_PLATE_DETECTED",
+    "vehicle_type": "bus (x2)",
+    "detections": [
+      {
+        "box_index": 0,
+        "box": [
+          151,
+          10,
+          3091,
+          2987
+        ],
+        "plate": "N/A",
+        "state": "N/A",
+        "provider": "N/A"
+      },
+      {
+        "box_index": 1,
+        "box": [
+          148,
+          27,
+          3085,
+          3295
+        ],
+        "plate": "N/A",
+        "state": "N/A",
+        "provider": "N/A"
+      }
+    ],
+    "exec_time_ms": 3010.98
+  },
+  {
+    "split": "val",
+    "filename": "74.jpg",
+    "status": "NO_PLATE_DETECTED",
+    "vehicle_type": "truck",
+    "provider": "N/A",
+    "plate": "N/A",
+    "state": "N/A",
+    "exec_time_ms": 1314.79
+  },
+  {
+    "split": "val",
+    "filename": "75.jpg",
+    "status": "NO_PLATE_DETECTED",
+    "vehicle_type": "truck",
+    "provider": "N/A",
+    "plate": "N/A",
+    "state": "N/A",
+    "exec_time_ms": 1068.67
+  },
+  {
+    "split": "val",
+    "filename": "76.jpg",
+    "status": "NO_PLATE_DETECTED",
+    "vehicle_type": "truck",
+    "provider": "N/A",
+    "plate": "N/A",
+    "state": "N/A",
+    "exec_time_ms": 1761.21
+  },
+  {
+    "split": "val",
+    "filename": "77.jpg",
+    "status": "NO_PLATE_DETECTED",
+    "vehicle_type": "truck",
+    "provider": "N/A",
+    "plate": "N/A",
+    "state": "N/A",
+    "exec_time_ms": 833.24
+  },
+  {
+    "split": "val",
+    "filename": "78.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "truck",
+    "provider": "paddleocr",
+    "plate": "WB61A4250",
+    "state": "West Bengal",
+    "exec_time_ms": 771.87
+  },
+  {
+    "split": "val",
+    "filename": "79.jpg",
+    "status": "NO_PLATE_DETECTED",
+    "vehicle_type": "truck",
+    "provider": "N/A",
+    "plate": "N/A",
+    "state": "N/A",
+    "exec_time_ms": 1328.41
+  },
+  {
+    "split": "val",
+    "filename": "80.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "truck",
+    "provider": "paddleocr",
+    "plate": "PB05H9166",
+    "state": "Punjab",
+    "exec_time_ms": 628.02
+  },
+  {
+    "split": "val",
+    "filename": "81.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "truck",
+    "provider": "paddleocr",
+    "plate": "KA02B0468",
+    "state": "Karnataka",
+    "exec_time_ms": 977.28
+  },
+  {
+    "split": "val",
+    "filename": "82.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "unfiltered",
+    "provider": "paddleocr",
+    "plate": "UK15CA4998",
+    "state": "Uttarakhand",
+    "exec_time_ms": 420.21
+  },
+  {
+    "split": "val",
+    "filename": "83.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "truck",
+    "provider": "paddleocr",
+    "plate": "TN23Z6696",
+    "state": "Tamil Nadu",
+    "exec_time_ms": 1157.92
+  }
+]
