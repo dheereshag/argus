@@ -201,3 +201,10 @@ def test_plate_recognizer_strategy_mocked(mock_post, sample_image_bytes):
     assert len(results) == 1
     assert results[0]["plate"] == "RJ09GA0165"
     assert results[0]["state"] == "Rajasthan"
+
+
+def test_plate_recognizer_skips_large_file():
+    recognizer = PlateRecognizerStrategy(token="dummy_token")
+    large_bytes = b"0" * int(3.6 * 1024 * 1024)
+    res = recognizer._recognize_single_image(large_bytes)
+    assert res == []

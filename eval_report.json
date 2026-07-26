@@ -8,7 +8,7 @@
     "plate": "BP2A4904",
     "state": "Bharat / Police / Custom Series",
     "raw_text": "ALAMYD BP2A4904 ALAMY IMAGEIDCRE1JF WWWALAMYCOM",
-    "exec_time_ms": 2278.16
+    "exec_time_ms": 2970.45
   },
   {
     "split": "train",
@@ -19,7 +19,7 @@
     "plate": "RJ43GA2012",
     "state": "Rajasthan",
     "raw_text": "RJ43GA2012 SUPER FAS",
-    "exec_time_ms": 261.5
+    "exec_time_ms": 246.76
   },
   {
     "split": "train",
@@ -30,7 +30,7 @@
     "plate": "NL02K7556",
     "state": "Nagaland",
     "raw_text": "NL02 K7556",
-    "exec_time_ms": 224.57
+    "exec_time_ms": 211.57
   },
   {
     "split": "train",
@@ -41,7 +41,7 @@
     "plate": "OR02BU3389",
     "state": "Odisha",
     "raw_text": "OR02 BU3389",
-    "exec_time_ms": 406.47
+    "exec_time_ms": 450.04
   },
   {
     "split": "train",
@@ -52,7 +52,7 @@
     "plate": "RJ09G4017",
     "state": "Rajasthan",
     "raw_text": "RJ09G 4017",
-    "exec_time_ms": 254.01
+    "exec_time_ms": 237.92
   },
   {
     "split": "train",
@@ -63,7 +63,7 @@
     "plate": "KA25B3155",
     "state": "Karnataka",
     "raw_text": "KA25 B3155",
-    "exec_time_ms": 404.77
+    "exec_time_ms": 347.37
   },
   {
     "split": "train",
@@ -74,7 +74,7 @@
     "plate": "RJ14GJ4976",
     "state": "Rajasthan",
     "raw_text": "RJ14 GJ4976",
-    "exec_time_ms": 866.78
+    "exec_time_ms": 562.53
   },
   {
     "split": "train",
@@ -85,7 +85,7 @@
     "plate": "RJ40GH315",
     "state": "Rajasthan",
     "raw_text": "RJ40GH315 PRIAICR",
-    "exec_time_ms": 298.94
+    "exec_time_ms": 268.86
   },
   {
     "split": "train",
@@ -96,18 +96,18 @@
     "plate": "MH04B6649",
     "state": "Maharashtra",
     "raw_text": "STOP MH04 B6649 HRTHRAHSTO",
-    "exec_time_ms": 422.6
+    "exec_time_ms": 383.82
   },
   {
     "split": "train",
     "filename": "10.jpg",
-    "status": "NO_PLATE_DETECTED",
+    "status": "SUCCESS",
     "vehicle_type": "bus",
-    "provider": "paddleocr",
-    "plate": "N/A",
-    "state": "N/A",
-    "raw_text": "HR398 6062",
-    "exec_time_ms": 2168.33
+    "provider": "nvidia",
+    "plate": "HR39B6052",
+    "state": "Haryana",
+    "raw_text": "The license plate number is HR39B 6052.",
+    "exec_time_ms": 2756.14
   },
   {
     "split": "train",
@@ -118,7 +118,7 @@
     "plate": "ASULC7377",
     "state": "Assam",
     "raw_text": "ASU LC7377",
-    "exec_time_ms": 416.09
+    "exec_time_ms": 345.56
   },
   {
     "split": "train",
@@ -129,7 +129,7 @@
     "plate": "MH04BU8968",
     "state": "Maharashtra",
     "raw_text": "MH04 BU8968 M53 O00 RESHMA 74060 ALGRE",
-    "exec_time_ms": 1341.41
+    "exec_time_ms": 1094.05
   },
   {
     "split": "train",
@@ -140,7 +140,7 @@
     "plate": "HR55X1746",
     "state": "Haryana",
     "raw_text": "HR55 X1746",
-    "exec_time_ms": 701.36
+    "exec_time_ms": 611.69
   },
   {
     "split": "train",
@@ -151,7 +151,7 @@
     "plate": "GJ7UU1804",
     "state": "Gujarat",
     "raw_text": "GJ7UU1804",
-    "exec_time_ms": 732.69
+    "exec_time_ms": 664.38
   },
   {
     "split": "train",
@@ -162,7 +162,7 @@
     "plate": "WB29AO511",
     "state": "West Bengal",
     "raw_text": "W829 AO511",
-    "exec_time_ms": 270.45
+    "exec_time_ms": 250.46
   },
   {
     "split": "train",
@@ -173,7 +173,7 @@
     "plate": "UP75M7559",
     "state": "Uttar Pradesh",
     "raw_text": "SUPER ROADUP75 KINGFAS M7559 TGORAREROR",
-    "exec_time_ms": 1073.64
+    "exec_time_ms": 986.2
   },
   {
     "split": "train",
@@ -184,7 +184,7 @@
     "plate": "TN37CC3205",
     "state": "Tamil Nadu",
     "raw_text": "TN37 CC3205",
-    "exec_time_ms": 888.45
+    "exec_time_ms": 761.96
   },
   {
     "split": "train",
@@ -195,7 +195,7 @@
     "plate": "OR09J1382",
     "state": "Odisha",
     "raw_text": "GOODOSPEE 40KMOLUCK OR09J 1382",
-    "exec_time_ms": 1063.97
+    "exec_time_ms": 791.66
   },
   {
     "split": "train",
@@ -206,7 +206,7 @@
     "plate": "OD22N4044",
     "state": "Odisha",
     "raw_text": "GOOD Y8OY LOCI SPEED OD22N4044 40KM 0022 R5565",
-    "exec_time_ms": 956.21
+    "exec_time_ms": 830.24
   },
   {
     "split": "train",
@@ -217,7 +217,7 @@
     "plate": "OD09G9288",
     "state": "Odisha",
     "raw_text": "SPEED OD09 AOKMLUCK G9288",
-    "exec_time_ms": 885.7
+    "exec_time_ms": 713.43
   },
   {
     "split": "train",
@@ -228,7 +228,7 @@
     "plate": "ORMS0038",
     "state": "Odisha",
     "raw_text": "SPEEDO ZORM 0D09 S0038 ROADOKING",
-    "exec_time_ms": 1176.71
+    "exec_time_ms": 1060.1
   },
   {
     "split": "train",
@@ -239,7 +239,7 @@
     "plate": "ANMALIK9870",
     "state": "Andaman and Nicobar Islands",
     "raw_text": "999976657 KARANMALIK 9870200315 9870200316 987020031 9870200318 SICHER",
-    "exec_time_ms": 1690.17
+    "exec_time_ms": 1514.74
   },
   {
     "split": "train",
@@ -250,7 +250,7 @@
     "plate": "TSHR469",
     "state": "Telangana",
     "raw_text": "PETS IINIDIAIN HR469 REPEAM",
-    "exec_time_ms": 3271.42
+    "exec_time_ms": 2787.1
   },
   {
     "split": "train",
@@ -261,7 +261,7 @@
     "plate": "WB23U1369",
     "state": "West Bengal",
     "raw_text": "ROAD GOQD LUER KING WB23 U1369",
-    "exec_time_ms": 655.05
+    "exec_time_ms": 631.99
   },
   {
     "split": "train",
@@ -272,7 +272,7 @@
     "plate": "KL22N2761",
     "state": "Kerala",
     "raw_text": "KL22 N2761",
-    "exec_time_ms": 661.47
+    "exec_time_ms": 728.32
   },
   {
     "split": "train",
@@ -283,7 +283,7 @@
     "plate": "MH15C2859",
     "state": "Maharashtra",
     "raw_text": "MH15C 2859 MH15 BJ1065",
-    "exec_time_ms": 775.63
+    "exec_time_ms": 795.73
   },
   {
     "split": "train",
@@ -294,18 +294,18 @@
     "plate": "MH40N5577",
     "state": "Maharashtra",
     "raw_text": "MH40 N5577",
-    "exec_time_ms": 475.67
+    "exec_time_ms": 456.86
   },
   {
     "split": "train",
     "filename": "28.jpg",
-    "status": "NO_PLATE_DETECTED",
+    "status": "SUCCESS",
     "vehicle_type": "truck",
-    "provider": "paddleocr",
-    "plate": "N/A",
-    "state": "N/A",
-    "raw_text": "QREADTGOYSKING",
-    "exec_time_ms": 3283.35
+    "provider": "nvidia",
+    "plate": "AP16S7022",
+    "state": "Andhra Pradesh",
+    "raw_text": "The license plate number is AP 16 S 7022.",
+    "exec_time_ms": 4815.24
   },
   {
     "split": "train",
@@ -316,7 +316,7 @@
     "plate": "WB73B3213",
     "state": "West Bengal",
     "raw_text": "SOEED W873 B3213",
-    "exec_time_ms": 632.06
+    "exec_time_ms": 598.05
   },
   {
     "split": "train",
@@ -327,7 +327,7 @@
     "plate": "HR55X3179",
     "state": "Haryana",
     "raw_text": "HR55 X3179",
-    "exec_time_ms": 421.01
+    "exec_time_ms": 388.42
   },
   {
     "split": "train",
@@ -338,18 +338,18 @@
     "plate": "LANAP234",
     "state": "Ladakh",
     "raw_text": "SHOKELEYLAN AP2 34",
-    "exec_time_ms": 3093.78
+    "exec_time_ms": 2330.36
   },
   {
     "split": "train",
     "filename": "32.jpg",
-    "status": "NO_PLATE_DETECTED",
+    "status": "SUCCESS",
     "vehicle_type": "truck",
-    "provider": "paddleocr",
-    "plate": "N/A",
-    "state": "N/A",
-    "raw_text": "TATA",
-    "exec_time_ms": 1486.73
+    "provider": "nvidia",
+    "plate": "GJ07AT8289",
+    "state": "Gujarat",
+    "raw_text": "The Indian vehicle license plate number is GJ07AT 8289.",
+    "exec_time_ms": 2508.64
   },
   {
     "split": "train",
@@ -360,7 +360,7 @@
     "plate": "LANDCC1561",
     "state": "Ladakh",
     "raw_text": "ASHOKLEYLAND TN23 CC1561",
-    "exec_time_ms": 863.95
+    "exec_time_ms": 755.47
   },
   {
     "split": "train",
@@ -371,7 +371,7 @@
     "plate": "KA13B6177",
     "state": "Karnataka",
     "raw_text": "AIP AIP KA13 B6177",
-    "exec_time_ms": 767.3
+    "exec_time_ms": 710.73
   },
   {
     "split": "train",
@@ -382,7 +382,7 @@
     "plate": "JH0ZAS7349",
     "state": "Jharkhand",
     "raw_text": "JH0ZAS 7349",
-    "exec_time_ms": 509.66
+    "exec_time_ms": 480.34
   },
   {
     "split": "train",
@@ -393,7 +393,7 @@
     "plate": "KL02T7649",
     "state": "Kerala",
     "raw_text": "KL02T7649",
-    "exec_time_ms": 460.64
+    "exec_time_ms": 591.87
   },
   {
     "split": "train",
@@ -404,7 +404,7 @@
     "plate": "WB11E0353",
     "state": "West Bengal",
     "raw_text": "WB11E0353 SPEED 4ORM",
-    "exec_time_ms": 567.28
+    "exec_time_ms": 620.69
   },
   {
     "split": "train",
@@ -415,7 +415,7 @@
     "plate": "KA14A2223",
     "state": "Karnataka",
     "raw_text": "KA14 A2223",
-    "exec_time_ms": 651.74
+    "exec_time_ms": 678.49
   },
   {
     "split": "train",
@@ -426,18 +426,18 @@
     "plate": "WB74AN6243",
     "state": "West Bengal",
     "raw_text": "EWB74AN6243 SPEEL 40KM WB73 A086",
-    "exec_time_ms": 1060.79
+    "exec_time_ms": 1106.29
   },
   {
     "split": "train",
     "filename": "40.jpg",
-    "status": "NO_PLATE_DETECTED",
+    "status": "SUCCESS",
     "vehicle_type": "truck",
-    "provider": "paddleocr",
-    "plate": "N/A",
-    "state": "N/A",
-    "raw_text": "5O0D UCK AING B23 D4128",
-    "exec_time_ms": 3178.65
+    "provider": "nvidia",
+    "plate": "WB23D4128",
+    "state": "West Bengal",
+    "raw_text": "The Indian vehicle license plate number is WB 23 D 4128.",
+    "exec_time_ms": 4418.84
   },
   {
     "split": "train",
@@ -448,18 +448,18 @@
     "plate": "MH17AG3420",
     "state": "Maharashtra",
     "raw_text": "MH17 AG3420",
-    "exec_time_ms": 577.34
+    "exec_time_ms": 469.38
   },
   {
     "split": "train",
     "filename": "42.jpg",
     "status": "NO_PLATE_DETECTED",
     "vehicle_type": "truck",
-    "provider": "paddleocr",
+    "provider": "platerecognizer",
     "plate": "N/A",
     "state": "N/A",
-    "raw_text": "8G145",
-    "exec_time_ms": 2076.51
+    "raw_text": "BG145 BG145 BGI45 8G145 8GI45",
+    "exec_time_ms": 26567.44
   },
   {
     "split": "train",
@@ -470,29 +470,29 @@
     "plate": "AP16TE4449",
     "state": "Andhra Pradesh",
     "raw_text": "NAROAD AP16 KINGEP TE4449",
-    "exec_time_ms": 866.16
+    "exec_time_ms": 651.07
   },
   {
     "split": "train",
     "filename": "44.jpg",
     "status": "NO_PLATE_DETECTED",
     "vehicle_type": "bus",
-    "provider": "paddleocr",
+    "provider": "nvidia",
     "plate": "N/A",
     "state": "N/A",
-    "raw_text": "AHTKKAS",
-    "exec_time_ms": 1999.87
+    "raw_text": "I'm not able to extract the license plate number from this image as it is too blurry and pixelated. Additionally, I'm a large language model, I don't have the capability to access real-time information or perform actions such as zooming in on the image to extract the license plate number. However, I can suggest that you try to enhance the image using image editing software or contact the owner of the image to obtain a clearer version.",
+    "exec_time_ms": 27407.44
   },
   {
     "split": "train",
     "filename": "45.jpg",
-    "status": "NO_PLATE_DETECTED",
+    "status": "SUCCESS",
     "vehicle_type": "truck",
-    "provider": "paddleocr",
-    "plate": "N/A",
-    "state": "N/A",
-    "raw_text": "UPS",
-    "exec_time_ms": 843.5
+    "provider": "nvidia",
+    "plate": "UP63D9022",
+    "state": "Uttar Pradesh",
+    "raw_text": "The license plate alphanumeric string is UP 63 D 9022.",
+    "exec_time_ms": 1748.04
   },
   {
     "split": "train",
@@ -503,7 +503,7 @@
     "plate": "MH40N5764",
     "state": "Maharashtra",
     "raw_text": "MH40 N5764",
-    "exec_time_ms": 512.89
+    "exec_time_ms": 478.56
   },
   {
     "split": "train",
@@ -514,7 +514,7 @@
     "plate": "MHOSW9189",
     "state": "Maharashtra",
     "raw_text": "OZRERGE MHOSW 5E 9189",
-    "exec_time_ms": 871.43
+    "exec_time_ms": 721.04
   },
   {
     "split": "train",
@@ -525,18 +525,18 @@
     "plate": "KL04AQ8039",
     "state": "Kerala",
     "raw_text": "KL04 AQ8039",
-    "exec_time_ms": 557.95
+    "exec_time_ms": 472.96
   },
   {
     "split": "train",
     "filename": "49.jpg",
-    "status": "NO_PLATE_DETECTED",
+    "status": "SUCCESS",
     "vehicle_type": "truck",
-    "provider": "paddleocr",
-    "plate": "N/A",
-    "state": "N/A",
-    "raw_text": "U50415719",
-    "exec_time_ms": 4051.27
+    "provider": "nvidia",
+    "plate": "OD04L8719",
+    "state": "Odisha",
+    "raw_text": "The Indian vehicle license plate number is **OD04L8719**.",
+    "exec_time_ms": 4216.84
   },
   {
     "split": "train",
@@ -547,18 +547,18 @@
     "plate": "RJ19GA5270",
     "state": "Rajasthan",
     "raw_text": "TAVA 55E RJ19 GA5270",
-    "exec_time_ms": 1143.14
+    "exec_time_ms": 869.97
   },
   {
     "split": "train",
     "filename": "51.jpg",
-    "status": "NO_PLATE_DETECTED",
+    "status": "SUCCESS",
     "vehicle_type": "truck",
-    "provider": "paddleocr",
-    "plate": "N/A",
-    "state": "N/A",
-    "raw_text": "SPEEDO NL08",
-    "exec_time_ms": 2331.11
+    "provider": "nvidia",
+    "plate": "KL01A4696",
+    "state": "Kerala",
+    "raw_text": "The Indian vehicle license plate number is KL01A4696.",
+    "exec_time_ms": 4497.71
   },
   {
     "split": "train",
@@ -569,7 +569,7 @@
     "plate": "WB68AA2159",
     "state": "West Bengal",
     "raw_text": "WB68AA2159",
-    "exec_time_ms": 445.74
+    "exec_time_ms": 381.62
   },
   {
     "split": "train",
@@ -580,7 +580,7 @@
     "plate": "WB07J4360",
     "state": "West Bengal",
     "raw_text": "EICHER SPEED WB07 40KM J4360",
-    "exec_time_ms": 677.97
+    "exec_time_ms": 572.15
   },
   {
     "split": "train",
@@ -591,7 +591,7 @@
     "plate": "BR06G0660",
     "state": "Bihar",
     "raw_text": "BR06 G06603",
-    "exec_time_ms": 884.75
+    "exec_time_ms": 511.7
   },
   {
     "split": "train",
@@ -602,7 +602,7 @@
     "plate": "AREXSOK2020",
     "state": "Arunachal Pradesh",
     "raw_text": "MOK ATA REX S OK 2020 X X",
-    "exec_time_ms": 2410.07
+    "exec_time_ms": 1796.76
   },
   {
     "split": "train",
@@ -613,7 +613,7 @@
     "plate": "MH04P4644",
     "state": "Maharashtra",
     "raw_text": "MH04 P4644",
-    "exec_time_ms": 775.54
+    "exec_time_ms": 466.75
   },
   {
     "split": "train",
@@ -624,7 +624,7 @@
     "plate": "RJ11G811",
     "state": "Rajasthan",
     "raw_text": "RJ11 G811",
-    "exec_time_ms": 992.96
+    "exec_time_ms": 445.88
   },
   {
     "split": "train",
@@ -635,7 +635,7 @@
     "plate": "CG09JC9218",
     "state": "Chhattisgarh",
     "raw_text": "CG09 JC9218",
-    "exec_time_ms": 939.06
+    "exec_time_ms": 568.67
   },
   {
     "split": "train",
@@ -646,7 +646,7 @@
     "plate": "ARPI8137",
     "state": "Arunachal Pradesh",
     "raw_text": "GOODS CARPI 81373",
-    "exec_time_ms": 1649.57
+    "exec_time_ms": 1324.74
   },
   {
     "split": "train",
@@ -657,7 +657,7 @@
     "plate": "AP21TE5236",
     "state": "Andhra Pradesh",
     "raw_text": "AP21 TE5236",
-    "exec_time_ms": 1564.2
+    "exec_time_ms": 835.48
   },
   {
     "split": "train",
@@ -668,7 +668,7 @@
     "plate": "ODS2G2791",
     "state": "Odisha",
     "raw_text": "ALLINDIA PERMIT GOODS RJ14 2G2791",
-    "exec_time_ms": 1310.4
+    "exec_time_ms": 1053.01
   },
   {
     "split": "train",
@@ -679,7 +679,7 @@
     "plate": "CHERBM1429",
     "state": "Chandigarh",
     "raw_text": "ECHER KL08 BM1429",
-    "exec_time_ms": 586.59
+    "exec_time_ms": 645.96
   },
   {
     "split": "train",
@@ -690,18 +690,18 @@
     "plate": "OR02BU3389",
     "state": "Odisha",
     "raw_text": "OR02 BU3389",
-    "exec_time_ms": 460.11
+    "exec_time_ms": 434.74
   },
   {
     "split": "train",
     "filename": "64.jpg",
-    "status": "NO_PLATE_DETECTED",
+    "status": "SUCCESS",
     "vehicle_type": "truck",
-    "provider": "paddleocr",
-    "plate": "N/A",
-    "state": "N/A",
-    "raw_text": "D5881",
-    "exec_time_ms": 5079.76
+    "provider": "nvidia",
+    "plate": "WB47D5881",
+    "state": "West Bengal",
+    "raw_text": "The license plate alphanumeric string is WB 47 D 5881.",
+    "exec_time_ms": 5252.42
   },
   {
     "split": "train",
@@ -712,18 +712,18 @@
     "plate": "ASOIZ888",
     "state": "Assam",
     "raw_text": "SPEED WIAT ASOIZ 888",
-    "exec_time_ms": 820.45
+    "exec_time_ms": 696.33
   },
   {
     "split": "train",
     "filename": "66.jpg",
     "status": "NO_PLATE_DETECTED",
     "vehicle_type": "truck",
-    "provider": "N/A",
+    "provider": "nvidia",
     "plate": "N/A",
     "state": "N/A",
-    "raw_text": "N/A",
-    "exec_time_ms": 1298.34
+    "raw_text": "I'm not able to extract the license plate number from this image as it is too blurry and pixelated to read. Additionally, I'm a large language model, I don't have the capability to zoom in or enhance the image to make out the details. If you have the original image or a clearer version, you may be able to extract the license plate number yourself.",
+    "exec_time_ms": 25236.71
   },
   {
     "split": "train",
@@ -734,7 +734,7 @@
     "plate": "N/A",
     "state": "image file is truncated (8 bytes not processed)",
     "raw_text": "N/A",
-    "exec_time_ms": 21.96
+    "exec_time_ms": 44.41
   },
   {
     "split": "train",
@@ -745,7 +745,7 @@
     "plate": "HR38T3179",
     "state": "Haryana",
     "raw_text": "HR38 T3179 HAPURKH DLINES",
-    "exec_time_ms": 818.83
+    "exec_time_ms": 812.07
   },
   {
     "split": "train",
@@ -756,7 +756,7 @@
     "plate": "TN24P6599",
     "state": "Tamil Nadu",
     "raw_text": "P TN24P6599",
-    "exec_time_ms": 918.96
+    "exec_time_ms": 724.65
   },
   {
     "split": "train",
@@ -767,18 +767,18 @@
     "plate": "MH40BL3606",
     "state": "Maharashtra",
     "raw_text": "MH40 GOOD BL3606 LUCK",
-    "exec_time_ms": 872.07
+    "exec_time_ms": 566.97
   },
   {
     "split": "train",
     "filename": "71.jpg",
-    "status": "NO_PLATE_DETECTED",
+    "status": "SUCCESS",
     "vehicle_type": "truck",
-    "provider": "paddleocr",
-    "plate": "N/A",
-    "state": "N/A",
-    "raw_text": "ANDIAS GREAT",
-    "exec_time_ms": 2964.33
+    "provider": "nvidia",
+    "plate": "GJ14D6559",
+    "state": "Gujarat",
+    "raw_text": "The Indian vehicle license plate number in this image is GJ 14 D 6559.",
+    "exec_time_ms": 25488.06
   },
   {
     "split": "train",
@@ -789,7 +789,7 @@
     "plate": "ARRIERE5816",
     "state": "Arunachal Pradesh",
     "raw_text": "GOODS CARRIER VB11 E5816",
-    "exec_time_ms": 2482.74
+    "exec_time_ms": 1994.76
   },
   {
     "split": "train",
@@ -800,7 +800,7 @@
     "plate": "KLION7957",
     "state": "Kerala",
     "raw_text": "KLIO N7957",
-    "exec_time_ms": 1103.05
+    "exec_time_ms": 964.01
   },
   {
     "split": "val",
@@ -811,7 +811,7 @@
     "plate": "APOISA1340",
     "state": "Andhra Pradesh",
     "raw_text": "AIP APOISA AIP 1340",
-    "exec_time_ms": 649.43
+    "exec_time_ms": 515.67
   },
   {
     "split": "val",
@@ -822,29 +822,29 @@
     "plate": "TN38AE7533",
     "state": "Tamil Nadu",
     "raw_text": "TN38 AE7533",
-    "exec_time_ms": 645.88
+    "exec_time_ms": 592.75
   },
   {
     "split": "val",
     "filename": "76.jpg",
-    "status": "NO_PLATE_DETECTED",
+    "status": "SUCCESS",
     "vehicle_type": "truck",
-    "provider": "paddleocr",
-    "plate": "N/A",
-    "state": "N/A",
-    "raw_text": "0771 INDIAN 40KM SPEED",
-    "exec_time_ms": 2817.89
+    "provider": "nvidia",
+    "plate": "WB01D7717",
+    "state": "West Bengal",
+    "raw_text": "The license plate alphanumeric string is WB 01 D 7717.",
+    "exec_time_ms": 5325.56
   },
   {
     "split": "val",
     "filename": "77.jpg",
-    "status": "NO_PLATE_DETECTED",
+    "status": "SUCCESS",
     "vehicle_type": "truck",
-    "provider": "paddleocr",
-    "plate": "N/A",
-    "state": "N/A",
-    "raw_text": "20",
-    "exec_time_ms": 1581.3
+    "provider": "nvidia",
+    "plate": "MP37D5556",
+    "state": "Madhya Pradesh",
+    "raw_text": "The Indian vehicle license plate number is MP 37 D 5556.",
+    "exec_time_ms": 2697.16
   },
   {
     "split": "val",
@@ -855,7 +855,7 @@
     "plate": "WB61A4250",
     "state": "West Bengal",
     "raw_text": "SPEED W861 A4250",
-    "exec_time_ms": 1092.4
+    "exec_time_ms": 1056.22
   },
   {
     "split": "val",
@@ -866,7 +866,7 @@
     "plate": "BP1A2453",
     "state": "Bharat / Police / Custom Series",
     "raw_text": "CREDITVWPICS BP1A2453",
-    "exec_time_ms": 225.87
+    "exec_time_ms": 213.49
   },
   {
     "split": "val",
@@ -877,7 +877,7 @@
     "plate": "PB05H9166",
     "state": "Punjab",
     "raw_text": "PB05 LUCK H9166",
-    "exec_time_ms": 493.34
+    "exec_time_ms": 475.59
   },
   {
     "split": "val",
@@ -888,7 +888,7 @@
     "plate": "KA02B0468",
     "state": "Karnataka",
     "raw_text": "KA02 B0468",
-    "exec_time_ms": 1128.54
+    "exec_time_ms": 1391.29
   },
   {
     "split": "val",
@@ -899,7 +899,7 @@
     "plate": "UK15CA4998",
     "state": "Uttarakhand",
     "raw_text": "UK15C IND A4998 OX",
-    "exec_time_ms": 842.61
+    "exec_time_ms": 844.0
   },
   {
     "split": "val",
@@ -910,6 +910,6 @@
     "plate": "TN23Z6696",
     "state": "Tamil Nadu",
     "raw_text": "O TN23 Z6696",
-    "exec_time_ms": 1008.72
+    "exec_time_ms": 669.97
   }
 ]
