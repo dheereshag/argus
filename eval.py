@@ -7,77 +7,23 @@ import pprint
 import io
 
 from PIL import Image, ImageOps
-import numpy as np
 
 from app.services import PlateRecognizerFactory
 from app.schemas.plate import ProviderEnum
 from app.services.yolo_filter import filter_vehicle_and_occupancy
-from app.services.strategies.paddle_ocr import PaddleOCRStrategy, get_paddle_ocr_engine
-from app.services.constants import INDIAN_PLATE_REGEX
+from app.services.strategies.paddle_ocr import PaddleOCRStrategy
 from app.core.config import settings
 
-TRAIN_DIR  = "data/images/train"
-VAL_DIR    = "data/images/val"
-DEBUG_DIR  = "eval_debug_crops"   # saved crops land here
+TRAIN_DIR = "data/images/train"
+VAL_DIR   = "data/images/val"
 
 pp = pprint.PrettyPrinter(indent=2, sort_dicts=False)
 
 
-# ── helpers ──────────────────────────────────────────────────────────────────
-
-def save_crop(img_pil: Image.Image, label: str, img_name: str) -> str:
-    """Save a PIL crop to DEBUG_DIR and return the path."""
-    os.makedirs(DEBUG_DIR, exist_ok=True)
-    stem = os.path.splitext(img_name)[0]
-    out_path = os.path.join(DEBUG_DIR, f"{stem}__{label}.jpg")
-    img_pil.save(out_path)
-    return out_path
-
-
-def ocr_with_debug(img_bytes: bytes, vehicle_box, img_name: str, debug: bool = False):
-    """
-    Run PaddleOCR exactly as the strategy does (box crop → bottom-50% → full).
-    When debug=True, save every crop that was tried.
-    Returns (plates, crops_saved).
-    """
-    engine_strategy = PaddleOCRStrategy()
-    paddle = get_paddle_ocr_engine()
-    crops_saved = []
-
-    pil_img = ImageOps.exif_transpose(Image.open(io.BytesIO(img_bytes))).convert("RGB")
-
-    def run_ocr(crop_pil: Image.Image, label: str):
-        arr = np.array(crop_pil)
-        results = engine_strategy._extract_plates_from_image_array(arr)
-        if debug:
-            path = save_crop(crop_pil, label, img_name)
-            crops_saved.append({"crop": label, "path": path, "plates_found": results})
-        return results
-
-    # Priority 1: vehicle box crop
-    if vehicle_box is not None and len(vehicle_box) == 4:
-        x1, y1, x2, y2 = vehicle_box
-        w, h = pil_img.size
-        cb = (max(0, x1), max(0, y1), min(w, x2), min(h, y2))
-        if cb[2] > cb[0] and cb[3] > cb[1]:
-            plates = run_ocr(pil_img.crop(cb), "box_crop")
-            if plates:
-                return plates, crops_saved
-
-    # Priority 2: bottom 50%
-    width, height = pil_img.size
-    crop_top = int(height * 0.50)
-    plates = run_ocr(pil_img.crop((0, crop_top, width, height)), "bottom50")
-    if plates:
-        return plates, crops_saved
-
-    # Priority 3: full image
-    plates = run_ocr(pil_img, "full_image")
-    return plates, crops_saved
-
+# ── helpers ───────────────────────────────────────────────────────────────────
 
 def get_all_vehicle_boxes(img_bytes: bytes) -> list:
-    """Re-run YOLO to get all 4-wheeler bounding boxes."""
+    """Re-run YOLO to get all 4-wheeler bounding boxes from an image."""
     from app.services.yolo_filter import get_yolo_model, FOUR_WHEELER_CLASS_NAMES
 
     pil_img = ImageOps.exif_transpose(Image.open(io.BytesIO(img_bytes))).convert("RGB")
@@ -95,14 +41,22 @@ def get_all_vehicle_boxes(img_bytes: bytes) -> list:
     return boxes
 
 
-# ── core evaluator ───────────────────────────────────────────────────────────
+def run_paddle_ocr(img_bytes: bytes, vehicle_box) -> list:
+    """Run PaddleOCR on a single box via the strategy."""
+    engine = PaddleOCRStrategy()
+    results = engine.recognize(img_bytes, vehicle_box=vehicle_box)
+    if not results and vehicle_box is not None:
+        results = engine.recognize(img_bytes, vehicle_box=None)
+    return results or []
+
+
+# ── core evaluator ────────────────────────────────────────────────────────────
 
 def evaluate_dataset(
     split: str,
     image_dir: str,
     providers: list,
     multi_vehicle_ok: bool = False,
-    debug_image: str = None,         # filename to save debug crops for, e.g. "09.jpg"
 ) -> list:
     if not os.path.exists(image_dir):
         print(f"  [SKIP] Directory '{image_dir}' does not exist.")
@@ -127,8 +81,7 @@ def evaluate_dataset(
         with open(img_path, "rb") as f:
             img_bytes = f.read()
 
-        t0     = time.time()
-        is_debug = (debug_image is not None and img_name == debug_image)
+        t0 = time.time()
 
         try:
             yolo_res = filter_vehicle_and_occupancy(img_bytes)
@@ -148,7 +101,7 @@ def evaluate_dataset(
         vehicle_type  = yolo_res.get("vehicle_type") or "unfiltered"
         primary_box   = yolo_res.get("vehicle_box")
 
-        # ── vehicle boxes for OCR ────────────────────────────────────────────
+        # ── vehicle boxes for OCR ─────────────────────────────────────────────
         if is_eligible:
             vehicle_boxes = [primary_box] if primary_box else []
         elif multi_vehicle_ok and vehicle_count > 1:
@@ -157,30 +110,23 @@ def evaluate_dataset(
         else:
             vehicle_boxes = []
 
-        # ── OCR across providers ─────────────────────────────────────────────
+        # ── OCR ───────────────────────────────────────────────────────────────
         status = "NO_PLATE_DETECTED"
 
         if vehicle_count > 0 or (not yolo_res.get("human_detected") and vehicle_count == 0):
 
             if len(vehicle_boxes) > 1:
-                # Multi-vehicle: produce one detection entry per box
+                # Multi-vehicle: one detection dict per box
                 detections = []
                 for box_idx, box in enumerate(vehicle_boxes):
                     box_plate, box_state, box_provider = "N/A", "N/A", "N/A"
                     for provider in providers:
                         try:
                             if provider == ProviderEnum.PADDLEOCR:
-                                plates, crops = ocr_with_debug(
-                                    img_bytes, box, img_name, debug=is_debug
-                                )
-                                if is_debug and crops:
-                                    print(f"  [DEBUG crops for box {box_idx}]")
-                                    for c in crops:
-                                        pp.pprint(c)
+                                plates = run_paddle_ocr(img_bytes, box)
                             else:
-                                engine  = PlateRecognizerFactory.get_recognizer(provider.value)
-                                plates  = engine.recognize(img_path)
-                                crops   = []
+                                engine = PlateRecognizerFactory.get_recognizer(provider.value)
+                                plates = engine.recognize(img_path)
 
                             if plates:
                                 box_plate    = plates[0].get("plate", "N/A")
@@ -211,43 +157,37 @@ def evaluate_dataset(
                 }
                 report_rows.append(row)
                 pp.pprint(row)
-                continue   # skip the single-result path below
+                continue
 
             else:
-                # Single vehicle (or no box): standard waterfall
+                # Single vehicle (or no box): waterfall
                 plate_num, state_val, used_provider = "N/A", "N/A", "N/A"
                 for provider in providers:
                     try:
                         if provider == ProviderEnum.PADDLEOCR:
-                            box = vehicle_boxes[0] if vehicle_boxes else None
-                            plates, crops = ocr_with_debug(
-                                img_bytes, box, img_name, debug=is_debug
-                            )
-                            if is_debug and crops:
-                                print(f"  [DEBUG crops for {img_name}]")
-                                for c in crops:
-                                    pp.pprint(c)
+                            box    = vehicle_boxes[0] if vehicle_boxes else None
+                            plates = run_paddle_ocr(img_bytes, box)
                         else:
                             engine = PlateRecognizerFactory.get_recognizer(provider.value)
                             plates = engine.recognize(img_path)
 
                         if plates:
-                            plate_num    = plates[0].get("plate", "N/A")
-                            state_val    = plates[0].get("state", "N/A")
+                            plate_num     = plates[0].get("plate", "N/A")
+                            state_val     = plates[0].get("state", "N/A")
                             used_provider = provider.value
-                            status       = "SUCCESS"
+                            status        = "SUCCESS"
                             break
                     except Exception:
                         continue
 
         elif yolo_res.get("human_detected"):
-            status       = "REJECTED_HUMAN"
-            plate_num    = "N/A"
-            state_val    = "N/A"
+            status        = "REJECTED_HUMAN"
+            plate_num     = "N/A"
+            state_val     = "N/A"
             used_provider = "N/A"
         else:
-            plate_num    = "N/A"
-            state_val    = "N/A"
+            plate_num     = "N/A"
+            state_val     = "N/A"
             used_provider = "N/A"
 
         t_exec = round((time.time() - t0) * 1000, 2)
@@ -280,8 +220,6 @@ if __name__ == "__main__":
     group.add_argument("--paddleocr", action="store_true", help="PaddleOCR only")
     group.add_argument("--waterfall", action="store_true",
                        help="Full waterfall: PaddleOCR -> NVIDIA -> PlateRecognizer")
-    parser.add_argument("--debug", metavar="FILENAME",
-                        help="Save debug crops for a specific image, e.g. --debug 09.jpg")
     args = parser.parse_args()
 
     providers = (
@@ -290,14 +228,8 @@ if __name__ == "__main__":
     )
 
     all_rows = []
-    all_rows.extend(evaluate_dataset(
-        "train", TRAIN_DIR, providers,
-        multi_vehicle_ok=True, debug_image=args.debug
-    ))
-    all_rows.extend(evaluate_dataset(
-        "val", VAL_DIR, providers,
-        multi_vehicle_ok=False, debug_image=args.debug
-    ))
+    all_rows.extend(evaluate_dataset("train", TRAIN_DIR, providers, multi_vehicle_ok=True))
+    all_rows.extend(evaluate_dataset("val",   VAL_DIR,   providers, multi_vehicle_ok=False))
 
     out_json = "eval_report.json"
     with open(out_json, "w") as f:
