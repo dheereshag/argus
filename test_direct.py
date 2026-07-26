@@ -1,5 +1,5 @@
 import os
-from anpr import PlateRecognizerFactory
+from app.services import PlateRecognizerFactory
 
 TESTS_DIR = "tests"
 

@@ -44,7 +44,7 @@ STATE_CODES = {
     "BH": "Bharat Series (National)",
 }
 
-# Regex matching Indian License Plates (MH1AA2345, RJ09GA0165, MH.1AA.2345 or BH series: 22BH1234AA)
+# Regex matching Indian License Plates (Standard: MH1AA2345, RJ09GA0165, MH.1AA.2345 or BH series: 22BH1234AA)
 INDIAN_PLATE_REGEX = re.compile(
     r'(?:'
     r'([A-Za-z]{2})[\s.-]?(\d{1,2}[A-Za-z]?)[\s.-]?([A-Za-z]{1,3})[\s.-]?(\d{1,4})'  # Standard & New RTO format

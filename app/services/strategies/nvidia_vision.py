@@ -2,73 +2,10 @@ import os
 import base64
 import re
 import requests
-from typing import List, Dict, Any
-from decouple import config
-
-from anpr.base import BasePlateRecognizer
-from anpr.constants import INDIAN_PLATE_REGEX, STATE_CODES
-
-
-from typing import List, Dict, Any, Union
-
-class PlateRecognizerStrategy(BasePlateRecognizer):
-    """
-    Concrete Strategy using Plate Recognizer API.
-    """
-
-    def __init__(self, token: str = None, regions: List[str] = None):
-        self.api_token = token or config("PLATE_RECOGNIZER_TOKEN", default="")
-        self.regions = regions or ["in"]
-        self.api_url = "https://api.platerecognizer.com/v1/plate-reader/"
-
-    def recognize(self, image_input: Union[str, bytes], filename: str = "image.jpg") -> List[Dict[str, Any]]:
-        if not self.api_token:
-            raise ValueError("PLATE_RECOGNIZER_TOKEN is missing in environment variables.")
-
-        if isinstance(image_input, bytes):
-            files = dict(upload=(filename, image_input, "image/jpeg"))
-            response = requests.post(
-                self.api_url,
-                data=dict(regions=self.regions),
-                files=files,
-                headers={"Authorization": f"Token {self.api_token}"}
-            )
-        else:
-            with open(image_input, "rb") as fp:
-                response = requests.post(
-                    self.api_url,
-                    data=dict(regions=self.regions),
-                    files=dict(upload=fp),
-                    headers={"Authorization": f"Token {self.api_token}"}
-                )
-
-        if response.status_code not in (200, 201):
-            print(f"[PlateRecognizerStrategy] Error {response.status_code}: {response.text}")
-            return []
-
-        res_data = response.json()
-        results = res_data.get("results", [])
-        output = []
-
-        for res in results:
-            candidates = [res.get("plate", "")] + [c.get("plate", "") for c in res.get("candidates", [])]
-            valid_info = None
-
-            for cand in candidates:
-                if not cand:
-                    continue
-                info = self.parse_plate_info(cand)
-                if info and INDIAN_PLATE_REGEX.fullmatch(info["plate"]):
-                    valid_info = info
-                    break
-
-            if valid_info:
-                output.append(valid_info)
-            elif res.get("plate"):
-                output.append(self.parse_plate_info(res.get("plate")))
-
-        return output
-
+from typing import List, Dict, Any, Union, Tuple
+from app.core.config import settings
+from app.services.base import BasePlateRecognizer
+from app.services.constants import INDIAN_PLATE_REGEX
 
 class NvidiaVisionStrategy(BasePlateRecognizer):
     """
@@ -76,11 +13,11 @@ class NvidiaVisionStrategy(BasePlateRecognizer):
     """
 
     def __init__(self, api_key: str = None, invoke_url: str = None, model_name: str = None):
-        self.api_key = api_key or config("NVIDIA_API_KEY", default="")
-        self.invoke_url = invoke_url or config("NVIDIA_INVOKE_URL", default="https://integrate.api.nvidia.com/v1/chat/completions")
+        self.api_key = api_key or settings.NVIDIA_API_KEY
+        self.invoke_url = invoke_url or settings.NVIDIA_INVOKE_URL
         self.model_name = model_name or "meta/llama-3.2-11b-vision-instruct"
 
-    def _get_base64_and_mime(self, image_input: Union[str, bytes], filename: str) -> tuple[str, str]:
+    def _get_base64_and_mime(self, image_input: Union[str, bytes], filename: str) -> Tuple[str, str]:
         if isinstance(image_input, bytes):
             base64_str = base64.b64encode(image_input).decode("utf-8")
             ext = os.path.splitext(filename)[1].lower().replace(".", "")
@@ -88,13 +25,13 @@ class NvidiaVisionStrategy(BasePlateRecognizer):
             with open(image_input, "rb") as img_file:
                 base64_str = base64.b64encode(img_file.read()).decode("utf-8")
             ext = os.path.splitext(image_input)[1].lower().replace(".", "")
-            
+
         mime_type = "image/jpeg" if ext in ("jpg", "jpeg", "") else f"image/{ext}"
         return base64_str, mime_type
 
     def recognize(self, image_input: Union[str, bytes], filename: str = "image.jpg") -> List[Dict[str, Any]]:
         if not self.api_key:
-            raise ValueError("NVIDIA_API_KEY is missing in environment variables.")
+            raise ValueError("NVIDIA_API_KEY is missing in settings/env.")
 
         base64_image, mime_type = self._get_base64_and_mime(image_input, filename)
 
@@ -152,4 +89,3 @@ class NvidiaVisionStrategy(BasePlateRecognizer):
             print(f"[NvidiaVisionStrategy] Exception: {e}")
 
         return []
-
