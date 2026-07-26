@@ -58,6 +58,7 @@ def filter_vehicle_and_occupancy(
         confs = boxes.conf.cpu().numpy()
         xyxy_coords = boxes.xyxy.cpu().numpy() if hasattr(boxes, "xyxy") and boxes.xyxy is not None else None
 
+        detected_vehicles = []
         for idx, (cls_id, conf) in enumerate(zip(cls_ids, confs)):
             cls_id = int(cls_id)
             if cls_id == PERSON_CLASS_ID and conf >= human_conf_thresh:
@@ -65,9 +66,15 @@ def filter_vehicle_and_occupancy(
             elif cls_id in FOUR_WHEELER_CLASS_NAMES and conf >= vehicle_conf_thresh:
                 vehicle_count += 1
                 v_type = FOUR_WHEELER_CLASS_NAMES[cls_id]
-                detected_vehicle_types.append(v_type)
-                if xyxy_coords is not None and idx < len(xyxy_coords):
-                    vehicle_boxes.append(tuple(map(int, xyxy_coords[idx])))
+                box = tuple(map(int, xyxy_coords[idx])) if (xyxy_coords is not None and idx < len(xyxy_coords)) else None
+                area = (box[2] - box[0]) * (box[3] - box[1]) if box else 0
+                detected_vehicles.append((area, v_type, box))
+
+        if detected_vehicles:
+            # Sort by box area descending to prioritize the main foreground vehicle
+            detected_vehicles.sort(key=lambda item: item[0], reverse=True)
+            detected_vehicle_types = [item[1] for item in detected_vehicles]
+            vehicle_boxes = [item[2] for item in detected_vehicles if item[2]]
 
     primary_vehicle_type = detected_vehicle_types[0] if detected_vehicle_types else None
     primary_vehicle_box = vehicle_boxes[0] if vehicle_boxes else None
