@@ -70,7 +70,11 @@ async def recognize_plate(
         logger.info(f"Attempting recognition on '{file.filename}' using provider: '{provider.value}'")
         try:
             recognizer = PlateRecognizerFactory.get_recognizer(provider)
-            raw_results = recognizer.recognize(image_bytes, filename=file.filename)
+            raw_results = recognizer.recognize(
+                image_bytes,
+                filename=file.filename,
+                vehicle_box=yolo_result.get("vehicle_box")
+            )
             if raw_results:
                 plate_results = [PlateResult(**item) for item in raw_results]
                 active_provider = provider

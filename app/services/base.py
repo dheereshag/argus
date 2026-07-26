@@ -8,7 +8,7 @@ class BasePlateRecognizer(ABC):
     """
 
     @abstractmethod
-    def recognize(self, image_input: Union[str, bytes], filename: str = "image.jpg") -> List[Dict[str, Any]]:
+    def recognize(self, image_input: Union[str, bytes], filename: str = "image.jpg", **kwargs) -> List[Dict[str, Any]]:
         """
         Recognize license plates from an image file path or raw bytes.
         Returns a list of dicts containing plate details:

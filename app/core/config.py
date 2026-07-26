@@ -19,6 +19,10 @@ class Settings(BaseSettings):
     HUMAN_CONF_THRESH: float = 0.30
     VEHICLE_CONF_THRESH: float = 0.35
 
+    # PaddleOCR Tuning Settings
+    PADDLE_CPU_THREADS: int = 4
+    PADDLE_USE_ANGLE_CLS: bool = False
+
     # CORS Settings
     ALLOWED_ORIGINS: List[str] = ["*"]
 

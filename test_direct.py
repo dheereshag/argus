@@ -1,6 +1,7 @@
 import os
 import time
 from app.services import PlateRecognizerFactory
+from app.services.yolo_filter import filter_vehicle_and_occupancy
 
 TESTS_DIR = "tests"
 
@@ -16,6 +17,14 @@ def test_models():
     for img_name in images:
         img_path = os.path.join(TESTS_DIR, img_name)
         print(f"\n{'='*60}\nTesting image: {img_path}\n{'='*60}")
+
+        with open(img_path, "rb") as f:
+            img_bytes = f.read()
+
+        t_yolo_start = time.time()
+        yolo_res = filter_vehicle_and_occupancy(img_bytes)
+        t_yolo = round((time.time() - t_yolo_start) * 1000, 2)
+        print(f"[YOLO v11 Prescreening]    ({t_yolo} ms): vehicle={yolo_res['vehicle_type']}, box={yolo_res.get('vehicle_box')}")
         
         t0 = time.time()
         pr_result = platerecognizer_service.recognize(img_path)
@@ -28,9 +37,9 @@ def test_models():
         print(f"[NVIDIA Vision Strategy]    ({t_nv} ms):", nv_result)
 
         t0 = time.time()
-        paddle_result = paddleocr_service.recognize(img_path)
+        paddle_result = paddleocr_service.recognize(img_bytes, vehicle_box=yolo_res.get("vehicle_box"))
         t_paddle = round((time.time() - t0) * 1000, 2)
-        print(f"[PaddleOCR Strategy]        ({t_paddle} ms):", paddle_result)
+        print(f"[PaddleOCR Strategy (Opt)]  ({t_paddle} ms):", paddle_result)
 
 if __name__ == "__main__":
     test_models()
