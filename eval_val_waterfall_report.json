@@ -4,9 +4,9 @@
     "status": "SUCCESS",
     "vehicle_type": "truck",
     "provider": "nvidia",
-    "plate": "AP01TB9349",
-    "state": "Andhra Pradesh",
-    "exec_time_ms": 19324.96
+    "plate": "UP16D9349",
+    "state": "Uttar Pradesh",
+    "exec_time_ms": 29437.35
   },
   {
     "filename": "75.jpg",
@@ -15,7 +15,7 @@
     "provider": "paddleocr",
     "plate": "TN38AE7533",
     "state": "Tamil Nadu",
-    "exec_time_ms": 1116.0
+    "exec_time_ms": 1183.62
   },
   {
     "filename": "76.jpg",
@@ -24,7 +24,7 @@
     "provider": "N/A",
     "plate": "N/A",
     "state": "N/A",
-    "exec_time_ms": 13620.96
+    "exec_time_ms": 26072.29
   },
   {
     "filename": "77.jpg",
@@ -33,7 +33,7 @@
     "provider": "N/A",
     "plate": "N/A",
     "state": "N/A",
-    "exec_time_ms": 10995.7
+    "exec_time_ms": 56030.47
   },
   {
     "filename": "78.jpg",
@@ -42,7 +42,7 @@
     "provider": "paddleocr",
     "plate": "WB61A4250",
     "state": "West Bengal",
-    "exec_time_ms": 505.35
+    "exec_time_ms": 565.08
   },
   {
     "filename": "79.jpg",
@@ -51,7 +51,7 @@
     "provider": "N/A",
     "plate": "N/A",
     "state": "N/A",
-    "exec_time_ms": 5786.68
+    "exec_time_ms": 5828.28
   },
   {
     "filename": "80.jpg",
@@ -60,7 +60,7 @@
     "provider": "paddleocr",
     "plate": "PB05H9166",
     "state": "Punjab",
-    "exec_time_ms": 474.56
+    "exec_time_ms": 564.48
   },
   {
     "filename": "81.jpg",
@@ -69,7 +69,7 @@
     "provider": "paddleocr",
     "plate": "KA02B0468",
     "state": "Karnataka",
-    "exec_time_ms": 590.74
+    "exec_time_ms": 833.84
   },
   {
     "filename": "82.jpg",
@@ -78,7 +78,7 @@
     "provider": "paddleocr",
     "plate": "UK15CA4998",
     "state": "Uttarakhand",
-    "exec_time_ms": 339.96
+    "exec_time_ms": 372.16
   },
   {
     "filename": "83.jpg",
@@ -87,6 +87,6 @@
     "provider": "paddleocr",
     "plate": "TN23Z6696",
     "state": "Tamil Nadu",
-    "exec_time_ms": 899.16
+    "exec_time_ms": 1137.74
   }
 ]
