@@ -9,6 +9,8 @@ class Settings(BaseSettings):
 
     # API Keys & Endpoints
     PLATE_RECOGNIZER_TOKEN: str = ""
+    LLAMA_API_KEY: str = ""
+    NEMOTRON_API_KEY: str = ""
     NVIDIA_API_KEY: str = ""
     NVIDIA_INVOKE_URL: str = "https://integrate.api.nvidia.com/v1/chat/completions"
     DEFAULT_PROVIDER: ProviderEnum = ProviderEnum.PADDLEOCR
