@@ -47,6 +47,7 @@ async def recognize_plate(
             status=yolo_result["status"],
             status_message=yolo_result["status_message"],
             vehicle_detected=yolo_result["vehicle_detected"],
+            vehicle_type=yolo_result["vehicle_type"],
             human_detected=yolo_result["human_detected"],
             filename=file.filename,
             provider=active_provider,
@@ -65,11 +66,11 @@ async def recognize_plate(
 
     if plate_results:
         final_status = RecognitionStatusEnum.SUCCESS
-        status_msg = "License plate successfully detected and recognized."
+        status_msg = f"License plate successfully detected and recognized on {yolo_result['vehicle_type']}."
         success_flag = True
     else:
         final_status = RecognitionStatusEnum.NO_PLATE_DETECTED
-        status_msg = "4-wheeler detected with no human, but no license plate could be extracted."
+        status_msg = f"4-wheeler ({yolo_result['vehicle_type']}) detected with no human, but no license plate could be extracted."
         success_flag = False
 
     return RecognitionResponse(
@@ -77,6 +78,7 @@ async def recognize_plate(
         status=final_status,
         status_message=status_msg,
         vehicle_detected=yolo_result["vehicle_detected"],
+        vehicle_type=yolo_result["vehicle_type"],
         human_detected=yolo_result["human_detected"],
         filename=file.filename,
         provider=active_provider,

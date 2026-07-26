@@ -12,6 +12,11 @@ class Settings(BaseSettings):
     NVIDIA_INVOKE_URL: str = "https://integrate.api.nvidia.com/v1/chat/completions"
     DEFAULT_PROVIDER: ProviderEnum = ProviderEnum.PLATERECOGNIZER
 
+    # YOLO Model Settings
+    YOLO_MODEL_NAME: str = "yolo11n.pt"
+    HUMAN_CONF_THRESH: float = 0.30
+    VEHICLE_CONF_THRESH: float = 0.35
+
     # CORS Settings
     ALLOWED_ORIGINS: List[str] = ["*"]
 

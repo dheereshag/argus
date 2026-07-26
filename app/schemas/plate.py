@@ -21,6 +21,7 @@ class RecognitionResponse(BaseModel):
     status: RecognitionStatusEnum = Field(..., description="Detailed status enum for pre-screening and recognition outcome")
     status_message: str = Field(..., description="Human readable description of the status outcome")
     vehicle_detected: bool = Field(..., description="Whether a 4-wheeler vehicle was detected in the frame")
+    vehicle_type: Optional[str] = Field(None, description="Specific type of 4-wheeler vehicle detected (e.g., 'car', 'bus', 'truck')", example="car")
     human_detected: bool = Field(..., description="Whether a human presence was detected in the frame")
     filename: str = Field(..., description="Name of the processed image file")
     provider: ProviderEnum = Field(..., description="AI recognition provider engine used")
