@@ -6,6 +6,9 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi[standard]>=0.140.0",
+    "numpy>=2.5.1",
+    "onnxruntime>=1.28.0",
+    "pillow>=12.3.0",
     "python-decouple>=3.8",
     "python-multipart>=0.0.32",
     "ultralytics>=8.4.106",
