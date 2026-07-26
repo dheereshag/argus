@@ -16,6 +16,12 @@ from app.services.yolo_filter import filter_vehicle_and_occupancy
 
 router = APIRouter(tags=["ANPR Recognition"])
 
+FALLBACK_PROVIDERS = [
+    ProviderEnum.PADDLEOCR,
+    ProviderEnum.NVIDIA,
+    ProviderEnum.PLATERECOGNIZER,
+]
+
 @router.get("/providers", response_model=ProvidersResponse, summary="List Supported Recognition Providers")
 def list_providers():
     logger.debug("Listing available recognition providers.")
@@ -26,14 +32,9 @@ def list_providers():
 
 @router.post("/recognize", response_model=RecognitionResponse, summary="Extract License Plate from Image")
 async def recognize_plate(
-    file: UploadFile = File(..., description="Vehicle image file (JPEG/PNG)"),
-    provider: Optional[ProviderEnum] = Query(
-        None,
-        description="Recognition provider choice: 'platerecognizer' or 'nvidia'. Defaults to .env setting."
-    )
+    file: UploadFile = File(..., description="Vehicle image file (JPEG/PNG)")
 ):
-    active_provider = provider or settings.DEFAULT_PROVIDER
-    logger.info(f"Received recognition request for file '{file.filename}' using provider '{active_provider}'.")
+    logger.info(f"Received recognition request for file '{file.filename}'.")
 
     if not file.content_type or not file.content_type.startswith("image/"):
         logger.warning(f"Rejected invalid file type '{file.content_type}' for file '{file.filename}'.")
@@ -56,29 +57,42 @@ async def recognize_plate(
             vehicle_type=yolo_result["vehicle_type"],
             human_detected=yolo_result["human_detected"],
             filename=file.filename,
-            provider=active_provider,
+            provider=FALLBACK_PROVIDERS[0],
             results=[],
             execution_time_ms=execution_time_ms
         )
 
-    # Step 2: License Plate Recognition
-    recognizer = PlateRecognizerFactory.get_recognizer(provider)
+    # Step 2: License Plate Recognition with Waterfall Fallback Mechanism
+    plate_results = []
+    active_provider = FALLBACK_PROVIDERS[0]
 
-    raw_results = recognizer.recognize(image_bytes, filename=file.filename)
+    for provider in FALLBACK_PROVIDERS:
+        logger.info(f"Attempting recognition on '{file.filename}' using provider: '{provider.value}'")
+        try:
+            recognizer = PlateRecognizerFactory.get_recognizer(provider)
+            raw_results = recognizer.recognize(image_bytes, filename=file.filename)
+            if raw_results:
+                plate_results = [PlateResult(**item) for item in raw_results]
+                active_provider = provider
+                logger.info(f"Successfully recognized {len(plate_results)} plate(s) in '{file.filename}' via '{provider.value}'.")
+                break
+            else:
+                logger.warning(f"Provider '{provider.value}' returned no license plate results. Falling back to next provider...")
+        except Exception as e:
+            logger.error(f"Provider '{provider.value}' encountered an error: {e}. Falling back to next provider...")
+
     execution_time_ms = round((time.time() - start_time) * 1000, 2)
-
-    plate_results = [PlateResult(**item) for item in raw_results]
 
     if plate_results:
         final_status = RecognitionStatusEnum.SUCCESS
-        status_msg = f"License plate successfully detected and recognized on {yolo_result['vehicle_type']}."
+        status_msg = f"License plate successfully detected and recognized on {yolo_result['vehicle_type']} via {active_provider.value}."
         success_flag = True
-        logger.info(f"Successfully recognized {len(plate_results)} plate(s) in '{file.filename}' via {active_provider} in {execution_time_ms} ms.")
     else:
         final_status = RecognitionStatusEnum.NO_PLATE_DETECTED
-        status_msg = f"4-wheeler ({yolo_result['vehicle_type']}) detected with no human, but no license plate could be extracted."
+        status_msg = f"4-wheeler ({yolo_result['vehicle_type']}) detected with no human, but no license plate could be extracted across fallback providers."
         success_flag = False
-        logger.info(f"No license plate detected in '{file.filename}' via {active_provider} ({execution_time_ms} ms).")
+        active_provider = FALLBACK_PROVIDERS[0]
+        logger.info(f"No license plate detected in '{file.filename}' across all fallback providers ({execution_time_ms} ms).")
 
     return RecognitionResponse(
         success=success_flag,
