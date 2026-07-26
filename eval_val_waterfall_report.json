@@ -1,0 +1,92 @@
+[
+  {
+    "filename": "74.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "truck",
+    "provider": "nvidia",
+    "plate": "UP16D9349",
+    "state": "Uttar Pradesh",
+    "exec_time_ms": 6622.26
+  },
+  {
+    "filename": "75.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "truck",
+    "provider": "paddleocr",
+    "plate": "TN38AE7533",
+    "state": "Tamil Nadu",
+    "exec_time_ms": 1435.83
+  },
+  {
+    "filename": "76.jpg",
+    "status": "NO_PLATE_DETECTED",
+    "vehicle_type": "truck",
+    "provider": "N/A",
+    "plate": "N/A",
+    "state": "N/A",
+    "exec_time_ms": 9135.45
+  },
+  {
+    "filename": "77.jpg",
+    "status": "NO_PLATE_DETECTED",
+    "vehicle_type": "truck",
+    "provider": "N/A",
+    "plate": "N/A",
+    "state": "N/A",
+    "exec_time_ms": 63174.69
+  },
+  {
+    "filename": "78.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "truck",
+    "provider": "paddleocr",
+    "plate": "WB61A4250",
+    "state": "West Bengal",
+    "exec_time_ms": 556.66
+  },
+  {
+    "filename": "79.jpg",
+    "status": "NO_PLATE_DETECTED",
+    "vehicle_type": "truck",
+    "provider": "N/A",
+    "plate": "N/A",
+    "state": "N/A",
+    "exec_time_ms": 5118.61
+  },
+  {
+    "filename": "80.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "truck",
+    "provider": "paddleocr",
+    "plate": "PB05H9166",
+    "state": "Punjab",
+    "exec_time_ms": 475.76
+  },
+  {
+    "filename": "81.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "truck",
+    "provider": "paddleocr",
+    "plate": "KA02B0468",
+    "state": "Karnataka",
+    "exec_time_ms": 599.07
+  },
+  {
+    "filename": "82.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "unfiltered",
+    "provider": "paddleocr",
+    "plate": "UK15CA4998",
+    "state": "Uttarakhand",
+    "exec_time_ms": 342.92
+  },
+  {
+    "filename": "83.jpg",
+    "status": "SUCCESS",
+    "vehicle_type": "truck",
+    "provider": "paddleocr",
+    "plate": "TN23Z6696",
+    "state": "Tamil Nadu",
+    "exec_time_ms": 952.8
+  }
+]
