@@ -178,100 +178,35 @@ def evaluate_dataset(
         primary_box   = yolo_res.get("vehicle_box")
 
         # ── vehicle boxes for OCR ─────────────────────────────────────────────
-        if primary_box:
-            vehicle_boxes = [primary_box]
-        elif multi_vehicle_ok and vehicle_count > 1:
-            vehicle_boxes = get_all_vehicle_boxes(img_bytes)
-            vehicle_type  = f"{vehicle_type} (x{vehicle_count})"
-        else:
-            vehicle_boxes = []
+        vehicle_boxes = get_all_vehicle_boxes(img_bytes) if vehicle_count > 0 else []
 
         if save_crops:
             save_debug_images(img_bytes, img_name, vehicle_boxes, vehicle_type, output_dir=output_dir)
 
         # ── OCR ───────────────────────────────────────────────────────────────
         status = "NO_PLATE_DETECTED"
+        plate_num, state_val, used_provider, raw_text_val = "N/A", "N/A", "N/A", "N/A"
 
         if vehicle_count > 0 or (not yolo_res.get("human_detected") and vehicle_count == 0):
+            for provider in providers:
+                try:
+                    engine = PlateRecognizerFactory.get_recognizer(provider.value)
+                    plates = engine.recognize(img_bytes, filename=img_name, vehicle_boxes=vehicle_boxes)
 
-            if len(vehicle_boxes) > 1:
-                # Multi-vehicle: one detection dict per box
-                detections = []
-                for box_idx, box in enumerate(vehicle_boxes):
-                    box_plate, box_state, box_provider, box_raw = "N/A", "N/A", "N/A", "N/A"
-                    for provider in providers:
-                        try:
-                            engine = PlateRecognizerFactory.get_recognizer(provider.value)
-                            plates = engine.recognize(img_bytes, filename=img_name, vehicle_box=box)
-
-                            if plates:
-                                box_raw      = plates[0].get("raw_text", "N/A")
-                                box_provider = provider.value
-                                p_cand = plates[0].get("plate", "N/A")
-                                if p_cand != "N/A":
-                                    box_plate = p_cand
-                                    box_state = plates[0].get("state", "N/A")
-                                    break
-                        except Exception:
-                            continue
-
-                    detections.append({
-                        "box_index": box_idx,
-                        "box": box,
-                        "plate": box_plate,
-                        "state": box_state,
-                        "provider": box_provider,
-                        "raw_text": box_raw,
-                    })
-
-                any_success = any(d["plate"] != "N/A" for d in detections)
-                status = "SUCCESS" if any_success else "NO_PLATE_DETECTED"
-
-                row = {
-                    "split": split,
-                    "filename": img_name,
-                    "status": status,
-                    "vehicle_type": vehicle_type,
-                    "detections": detections,
-                    "exec_time_ms": round((time.time() - t0) * 1000, 2),
-                }
-                report_rows.append(row)
-                pp.pprint(row)
-                continue
-
-            else:
-                # Single vehicle (or no box): waterfall
-                plate_num, state_val, used_provider, raw_text_val = "N/A", "N/A", "N/A", "N/A"
-                box = vehicle_boxes[0] if vehicle_boxes else None
-
-                for provider in providers:
-                    try:
-                        engine = PlateRecognizerFactory.get_recognizer(provider.value)
-                        plates = engine.recognize(img_bytes, filename=img_name, vehicle_box=box)
-
-                        if plates:
-                            used_provider = provider.value
-                            raw_text_val  = plates[0].get("raw_text", "N/A")
-                            p_cand = plates[0].get("plate", "N/A")
-                            if p_cand != "N/A":
-                                plate_num = p_cand
-                                state_val = plates[0].get("state", "N/A")
-                                status    = "SUCCESS"
-                                break
-                    except Exception:
-                        continue
+                    if plates:
+                        used_provider = provider.value
+                        raw_text_val  = plates[0].get("raw_text", "N/A")
+                        p_cand = plates[0].get("plate", "N/A")
+                        if p_cand != "N/A":
+                            plate_num = p_cand
+                            state_val = plates[0].get("state", "N/A")
+                            status    = "SUCCESS"
+                            break
+                except Exception:
+                    continue
 
         elif yolo_res.get("human_detected"):
-            status        = "REJECTED_HUMAN"
-            plate_num     = "N/A"
-            state_val     = "N/A"
-            used_provider = "N/A"
-            raw_text_val  = "N/A"
-        else:
-            plate_num     = "N/A"
-            state_val     = "N/A"
-            used_provider = "N/A"
-            raw_text_val  = "N/A"
+            status = "REJECTED_HUMAN"
 
         t_exec = round((time.time() - t0) * 1000, 2)
         row = {
