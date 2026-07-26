@@ -58,7 +58,5 @@ class PlateRecognizerStrategy(BasePlateRecognizer):
 
             if valid_info:
                 output.append(valid_info)
-            elif res.get("plate"):
-                output.append(self.parse_plate_info(res.get("plate")))
 
         return output

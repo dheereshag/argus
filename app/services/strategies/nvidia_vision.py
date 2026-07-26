@@ -80,10 +80,6 @@ class NvidiaVisionStrategy(BasePlateRecognizer):
 
                 if output:
                     return output
-
-                clean_str = re.sub(r'[^A-Za-z0-9]', '', raw_text).upper()
-                if clean_str:
-                    return [self.parse_plate_info(clean_str)]
             else:
                 logger.error(f"[NvidiaVisionStrategy] Error {response.status_code}: {response.text}")
         except Exception as e:

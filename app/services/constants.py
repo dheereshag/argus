@@ -44,12 +44,15 @@ STATE_CODES = {
     "BH": "Bharat Series (National)",
 }
 
-# Regex matching Indian License Plates (Standard: MH1AA2345, RJ09GA0165, MH.1AA.2345 or BH series: 22BH1234AA)
+STATE_PREFIX_PATTERN = "|".join(sorted([k for k in STATE_CODES.keys() if k != "BH"], key=len, reverse=True))
+
+# Regex matching Indian License Plates (Standard: MH01AA2345, RJ09GA0165, MH.01.AA.2345 or BH series: 22BH1234AA)
+# Requires valid state prefix, 2-digit RTO code, 1-3 letter series, and exactly 4-digit serial number.
 INDIAN_PLATE_REGEX = re.compile(
     r'(?:'
-    r'([A-Za-z]{2})[\s.-]?(\d{1,2}[A-Za-z]?)[\s.-]?([A-Za-z]{1,3})[\s.-]?(\d{1,4})'  # Standard & New RTO format
+    rf'({STATE_PREFIX_PATTERN})[\s.-]?(\d{{2}})[\s.-]?([A-Za-z]{{1,3}})[\s.-]?(\d{{4}})'  # Standard RTO format (State + 2 digits + 1-3 letters + 4 digits)
     r'|'
-    r'(\d{2})[\s.-]?(BH)[\s.-]?(\d{4})[\s.-]?([A-Za-z]{1,2})'                      # Bharat (BH) series
+    r'(\d{2})[\s.-]?(BH)[\s.-]?(\d{4})[\s.-]?([A-Za-z]{1,2})'                            # Bharat (BH) series
     r')',
     re.IGNORECASE
 )
