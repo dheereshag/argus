@@ -18,8 +18,8 @@ router = APIRouter(tags=["ANPR Recognition"])
 
 FALLBACK_PROVIDERS = [
     ProviderEnum.PADDLEOCR,
-    ProviderEnum.PLATERECOGNIZER,
     ProviderEnum.NVIDIA,
+    ProviderEnum.PLATERECOGNIZER,
 ]
 
 @router.get("/providers", response_model=ProvidersResponse, summary="List Supported Recognition Providers")

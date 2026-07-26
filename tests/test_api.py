@@ -112,7 +112,7 @@ def test_recognize_success_primary_provider(mock_yolo, mock_get_recognizer, clie
 
 @patch("app.api.endpoints.recognition.PlateRecognizerFactory.get_recognizer")
 @patch("app.api.endpoints.recognition.filter_vehicle_and_occupancy")
-def test_recognize_fallback_to_platerecognizer(mock_yolo, mock_get_recognizer, client, sample_image_bytes):
+def test_recognize_fallback_to_nvidia(mock_yolo, mock_get_recognizer, client, sample_image_bytes):
     mock_yolo.return_value = {
         "is_eligible": True,
         "status": None,
@@ -125,13 +125,13 @@ def test_recognize_fallback_to_platerecognizer(mock_yolo, mock_get_recognizer, c
     mock_paddle = MagicMock()
     mock_paddle.recognize.return_value = []  # PaddleOCR finds no plate
 
-    mock_pr = MagicMock()
-    mock_pr.recognize.return_value = [
+    mock_nvidia = MagicMock()
+    mock_nvidia.recognize.return_value = [
         {"plate": "MH12AB1234", "state": "Maharashtra"}
     ]
 
-    # Return paddle first, then platerecognizer
-    mock_get_recognizer.side_effect = [mock_paddle, mock_pr]
+    # Return paddle first, then nvidia
+    mock_get_recognizer.side_effect = [mock_paddle, mock_nvidia]
 
     files = {"file": ("car.jpg", sample_image_bytes, "image/jpeg")}
     response = client.post("/recognize", files=files)
@@ -139,7 +139,7 @@ def test_recognize_fallback_to_platerecognizer(mock_yolo, mock_get_recognizer, c
     data = response.json()
     assert data["success"] is True
     assert data["status"] == "success"
-    assert data["provider"] == "platerecognizer"
+    assert data["provider"] == "nvidia"
     assert len(data["results"]) == 1
     assert data["results"][0]["plate"] == "MH12AB1234"
     assert data["results"][0]["state"] == "Maharashtra"

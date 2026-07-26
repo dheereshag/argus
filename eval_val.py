@@ -17,7 +17,7 @@ def evaluate_val_dataset(use_waterfall: bool = False):
     image_files = [f for f in os.listdir(VAL_DIR) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
     image_files.sort()
 
-    mode_str = "WATERFALL FALLBACK (PaddleOCR -> PlateRecognizer -> NVIDIA)" if use_waterfall else "PADDLEOCR ONLY"
+    mode_str = "WATERFALL FALLBACK (PaddleOCR -> NVIDIA -> PlateRecognizer)" if use_waterfall else "PADDLEOCR ONLY"
     print(f"Evaluating {len(image_files)} validation images in mode: {mode_str}...")
 
     report_rows = []
@@ -25,8 +25,8 @@ def evaluate_val_dataset(use_waterfall: bool = False):
 
     providers_waterfall = [
         ProviderEnum.PADDLEOCR,
-        ProviderEnum.PLATERECOGNIZER,
-        ProviderEnum.NVIDIA
+        ProviderEnum.NVIDIA,
+        ProviderEnum.PLATERECOGNIZER
     ] if use_waterfall else [ProviderEnum.PADDLEOCR]
 
     for img_name in image_files:
