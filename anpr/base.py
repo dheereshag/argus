@@ -1,4 +1,6 @@
+from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Union
+from anpr.constants import INDIAN_PLATE_REGEX, STATE_CODES
 
 class BasePlateRecognizer(ABC):
     """

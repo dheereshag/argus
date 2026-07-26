@@ -9,6 +9,8 @@ from anpr.base import BasePlateRecognizer
 from anpr.constants import INDIAN_PLATE_REGEX, STATE_CODES
 
 
+from typing import List, Dict, Any, Union
+
 class PlateRecognizerStrategy(BasePlateRecognizer):
     """
     Concrete Strategy using Plate Recognizer API.
@@ -19,17 +21,26 @@ class PlateRecognizerStrategy(BasePlateRecognizer):
         self.regions = regions or ["in"]
         self.api_url = "https://api.platerecognizer.com/v1/plate-reader/"
 
-    def recognize(self, image_path: str) -> List[Dict[str, Any]]:
+    def recognize(self, image_input: Union[str, bytes], filename: str = "image.jpg") -> List[Dict[str, Any]]:
         if not self.api_token:
             raise ValueError("PLATE_RECOGNIZER_TOKEN is missing in environment variables.")
 
-        with open(image_path, "rb") as fp:
+        if isinstance(image_input, bytes):
+            files = dict(upload=(filename, image_input, "image/jpeg"))
             response = requests.post(
                 self.api_url,
                 data=dict(regions=self.regions),
-                files=dict(upload=fp),
+                files=files,
                 headers={"Authorization": f"Token {self.api_token}"}
             )
+        else:
+            with open(image_input, "rb") as fp:
+                response = requests.post(
+                    self.api_url,
+                    data=dict(regions=self.regions),
+                    files=dict(upload=fp),
+                    headers={"Authorization": f"Token {self.api_token}"}
+                )
 
         if response.status_code not in (200, 201):
             print(f"[PlateRecognizerStrategy] Error {response.status_code}: {response.text}")
@@ -69,17 +80,23 @@ class NvidiaVisionStrategy(BasePlateRecognizer):
         self.invoke_url = invoke_url or config("NVIDIA_INVOKE_URL", default="https://integrate.api.nvidia.com/v1/chat/completions")
         self.model_name = model_name or "meta/llama-3.2-11b-vision-instruct"
 
-    def _encode_image(self, image_path: str) -> str:
-        with open(image_path, "rb") as img_file:
-            return base64.b64encode(img_file.read()).decode("utf-8")
+    def _get_base64_and_mime(self, image_input: Union[str, bytes], filename: str) -> tuple[str, str]:
+        if isinstance(image_input, bytes):
+            base64_str = base64.b64encode(image_input).decode("utf-8")
+            ext = os.path.splitext(filename)[1].lower().replace(".", "")
+        else:
+            with open(image_input, "rb") as img_file:
+                base64_str = base64.b64encode(img_file.read()).decode("utf-8")
+            ext = os.path.splitext(image_input)[1].lower().replace(".", "")
+            
+        mime_type = "image/jpeg" if ext in ("jpg", "jpeg", "") else f"image/{ext}"
+        return base64_str, mime_type
 
-    def recognize(self, image_path: str) -> List[Dict[str, Any]]:
+    def recognize(self, image_input: Union[str, bytes], filename: str = "image.jpg") -> List[Dict[str, Any]]:
         if not self.api_key:
             raise ValueError("NVIDIA_API_KEY is missing in environment variables.")
 
-        base64_image = self._encode_image(image_path)
-        ext = os.path.splitext(image_path)[1].lower().replace(".", "")
-        mime_type = "image/jpeg" if ext in ("jpg", "jpeg") else f"image/{ext}"
+        base64_image, mime_type = self._get_base64_and_mime(image_input, filename)
 
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -126,7 +143,6 @@ class NvidiaVisionStrategy(BasePlateRecognizer):
                 if output:
                     return output
 
-                # Fallback clean text
                 clean_str = re.sub(r'[^A-Za-z0-9]', '', raw_text).upper()
                 if clean_str:
                     return [self.parse_plate_info(clean_str)]
@@ -136,3 +152,4 @@ class NvidiaVisionStrategy(BasePlateRecognizer):
             print(f"[NvidiaVisionStrategy] Exception: {e}")
 
         return []
+
