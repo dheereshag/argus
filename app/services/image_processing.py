@@ -103,7 +103,12 @@ def save_debug_images(
                     # Bottom 1/2 ROI crop
                     v_top_1_2 = int(vh * (1.0 - 0.50))
                     v_roi_1_2 = cropped_img.crop((0, v_top_1_2, vw, vh))
-                    v_roi_1_2.save(os.path.join(output_dir, f"{base_stem}_crop_bottom_roi{crop_suffix}.jpg"))
+                    v_roi_1_2.save(os.path.join(output_dir, f"{base_stem}_crop_bottom_1_2_roi{crop_suffix}.jpg"))
+
+                    # Bottom 2/3 ROI crop
+                    v_top_2_3 = int(vh * (1.0 - (2.0 / 3.0)))
+                    v_roi_2_3 = cropped_img.crop((0, v_top_2_3, vw, vh))
+                    v_roi_2_3.save(os.path.join(output_dir, f"{base_stem}_crop_bottom_2_3_roi{crop_suffix}.jpg"))
     else:
         # Fallback: if no vehicle box detected
         crop_top_1_3 = int(h * (1.0 - (1.0 / 3.0)))
@@ -112,4 +117,8 @@ def save_debug_images(
 
         crop_top_1_2 = int(h * (1.0 - 0.50))
         roi_1_2 = pil_img.crop((0, crop_top_1_2, w, h))
-        roi_1_2.save(os.path.join(output_dir, f"{base_stem}_crop_bottom_roi.jpg"))
+        roi_1_2.save(os.path.join(output_dir, f"{base_stem}_crop_bottom_1_2_roi.jpg"))
+
+        crop_top_2_3 = int(h * (1.0 - (2.0 / 3.0)))
+        roi_2_3 = pil_img.crop((0, crop_top_2_3, w, h))
+        roi_2_3.save(os.path.join(output_dir, f"{base_stem}_crop_bottom_2_3_roi.jpg"))

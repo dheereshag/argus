@@ -31,11 +31,12 @@ class BasePlateRecognizer(ABC):
         **kwargs
     ) -> List[Dict[str, Any]]:
         """
-        Template method executing recognition with 4-tier ROI fallback:
+        Template method executing recognition with 5-tier ROI fallback:
           1. Tier 1: Bottom 1/3 ROI (~33.3% bottom of vehicle crop or frame)
           2. Tier 2: Bottom 1/2 ROI (50% bottom of vehicle crop or frame)
-          3. Tier 3: Full vehicle crop
-          4. Tier 4: Full original image frame fallback
+          3. Tier 3: Bottom 2/3 ROI (~66.7% bottom of vehicle crop or frame)
+          4. Tier 4: Full vehicle crop (if vehicle_box is present)
+          5. Tier 5: Full original image frame fallback
         """
         raw_text_fallbacks = []
 
@@ -55,21 +56,29 @@ class BasePlateRecognizer(ABC):
         if res2:
             raw_text_fallbacks.append(res2)
 
-        # Tier 3: Full vehicle crop (if vehicle_box is present)
+        # Tier 3: Bottom 2/3 ROI (66.7% bottom)
+        roi_2_3 = crop_image_roi(image_input, vehicle_box, bottom_crop_ratio=2.0 / 3.0, bottom_roi_only=True)
+        res3 = self._recognize_single_image(roi_2_3, filename=filename)
+        if any(r.get("plate") and r.get("plate") != "N/A" for r in res3):
+            return res3
+        if res3:
+            raw_text_fallbacks.append(res3)
+
+        # Tier 4: Full vehicle crop (if vehicle_box is present)
         if vehicle_box:
             full_crop_bytes = crop_image_roi(image_input, vehicle_box, bottom_roi_only=False)
-            res3 = self._recognize_single_image(full_crop_bytes, filename=filename)
-            if any(r.get("plate") and r.get("plate") != "N/A" for r in res3):
-                return res3
-            if res3:
-                raw_text_fallbacks.append(res3)
+            res4 = self._recognize_single_image(full_crop_bytes, filename=filename)
+            if any(r.get("plate") and r.get("plate") != "N/A" for r in res4):
+                return res4
+            if res4:
+                raw_text_fallbacks.append(res4)
 
-        # Tier 4: Full original image frame fallback
-        res4 = self._recognize_single_image(image_input, filename=filename)
-        if any(r.get("plate") and r.get("plate") != "N/A" for r in res4):
-            return res4
-        if res4:
-            raw_text_fallbacks.append(res4)
+        # Tier 5: Full original image frame fallback
+        res5 = self._recognize_single_image(image_input, filename=filename)
+        if any(r.get("plate") and r.get("plate") != "N/A" for r in res5):
+            return res5
+        if res5:
+            raw_text_fallbacks.append(res5)
 
         # If no valid plate matched in any tier, return the first raw text fallback
         return raw_text_fallbacks[0] if raw_text_fallbacks else []
