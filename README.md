@@ -29,7 +29,7 @@ Set the following environment variables on your Render Dashboard or in a local `
 PLATE_RECOGNIZER_TOKEN=your_plate_recognizer_api_token
 NVIDIA_API_KEY=your_nvidia_api_key
 NVIDIA_INVOKE_URL=https://integrate.api.nvidia.com/v1/chat/completions
-DEFAULT_PROVIDER=platerecognizer
+DEFAULT_PROVIDER=paddleocr
 YOLO_MODEL_NAME=yolo11n.pt
 YOLO_CONFIG_DIR=/tmp/Ultralytics
 HUMAN_CONF_THRESH=0.30

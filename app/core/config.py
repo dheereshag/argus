@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     PLATE_RECOGNIZER_TOKEN: str = ""
     NVIDIA_API_KEY: str = ""
     NVIDIA_INVOKE_URL: str = "https://integrate.api.nvidia.com/v1/chat/completions"
-    DEFAULT_PROVIDER: ProviderEnum = ProviderEnum.PLATERECOGNIZER
+    DEFAULT_PROVIDER: ProviderEnum = ProviderEnum.PADDLEOCR
 
     # YOLO Model Settings
     YOLO_MODEL_NAME: str = "yolo11n.pt"
