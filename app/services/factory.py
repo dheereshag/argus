@@ -5,6 +5,7 @@ from app.schemas.plate import ProviderEnum
 from app.services.base import BasePlateRecognizer
 from app.services.strategies.plate_recognizer import PlateRecognizerStrategy
 from app.services.strategies.nvidia_vision import NvidiaVisionStrategy
+from app.services.strategies.paddle_ocr import PaddleOCRStrategy
 
 class PlateRecognizerFactory:
     """
@@ -14,6 +15,7 @@ class PlateRecognizerFactory:
     _strategies: Dict[ProviderEnum, Type[BasePlateRecognizer]] = {
         ProviderEnum.PLATERECOGNIZER: PlateRecognizerStrategy,
         ProviderEnum.NVIDIA: NvidiaVisionStrategy,
+        ProviderEnum.PADDLEOCR: PaddleOCRStrategy,
     }
 
     @classmethod

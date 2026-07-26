@@ -1,4 +1,5 @@
 import io
+
 from typing import Union, Dict, Any, Tuple
 from PIL import Image
 from ultralytics import YOLO
@@ -12,14 +13,8 @@ _YOLO_MODEL = None
 def get_yolo_model():
     global _YOLO_MODEL
     if _YOLO_MODEL is None:
-        target_model = settings.YOLO_MODEL_NAME
-        try:
-            _YOLO_MODEL = YOLO(target_model)
-        except Exception:
-            try:
-                _YOLO_MODEL = YOLO("yolo11n.pt")
-            except Exception:
-                _YOLO_MODEL = YOLO("yolov8n.pt")
+        target_model = settings.YOLO_MODEL_NAME if settings.YOLO_MODEL_NAME and "11" in settings.YOLO_MODEL_NAME else "yolo11n.pt"
+        _YOLO_MODEL = YOLO(target_model)
     return _YOLO_MODEL
 
 # COCO Class Names for 4-wheelers

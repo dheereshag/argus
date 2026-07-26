@@ -2,7 +2,7 @@
 
 An Enterprise Automatic Number Plate Recognition (ANPR) microservice built with **FastAPI**, **YOLO v11**, and the **Strategy & Factory Design Patterns**.
 
-It features an intelligent **YOLO v11 Pre-screening Pipeline** to verify 4-wheeler vehicle presence (`car`, `bus`, `truck`) and enforce zero human occupancy before routing to downstream OCR / Vision AI models (**Plate Recognizer** or **NVIDIA Llama-3.2-11b-Vision**).
+It features an intelligent **YOLO v11 Pre-screening Pipeline** to verify 4-wheeler vehicle presence (`car`, `bus`, `truck`) and enforce zero human occupancy before routing to downstream OCR / Vision AI models (**Plate Recognizer**, **NVIDIA Llama-3.2-11b-Vision**, or **PaddleOCR with Smart Bottom ROI Cropping**).
 
 ---
 
@@ -68,7 +68,7 @@ Interactive OpenAPI Documentation: **`http://localhost:8000/docs`**
 `GET /providers`
 ```json
 {
-  "available_providers": ["platerecognizer", "nvidia"],
+  "available_providers": ["platerecognizer", "nvidia", "paddleocr"],
   "default_provider": "platerecognizer"
 }
 ```
@@ -77,7 +77,7 @@ Interactive OpenAPI Documentation: **`http://localhost:8000/docs`**
 `POST /recognize`
 
 **Query Parameters:**
-- `provider` *(optional)*: `"platerecognizer"` | `"nvidia"`. Defaults to `DEFAULT_PROVIDER`.
+- `provider` *(optional)*: `"platerecognizer"` | `"nvidia"` | `"paddleocr"`. Defaults to `DEFAULT_PROVIDER`.
 
 **Form Data:**
 - `file`: Vehicle image file (`JPEG`/`PNG`).

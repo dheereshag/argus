@@ -5,6 +5,7 @@ from typing import List, Optional
 class ProviderEnum(str, Enum):
     PLATERECOGNIZER = "platerecognizer"
     NVIDIA = "nvidia"
+    PADDLEOCR = "paddleocr"
 
 class RecognitionStatusEnum(str, Enum):
     SUCCESS = "success"
