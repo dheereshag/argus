@@ -1,0 +1,13 @@
+[project]
+name = "argus"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastanpr>=0.1.13",
+    "fastapi[standard]>=0.140.0",
+    "numpy<2",
+    "paddlepaddle>=3.3.1",
+    "uvicorn>=0.51.0",
+]
