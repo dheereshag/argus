@@ -62,6 +62,25 @@ def test_recognize_rejected_no_four_wheeler(mock_yolo, client, sample_image_byte
     assert data["status"] == "rejected_no_four_wheeler"
     assert data["vehicle_detected"] is False
 
+@patch("app.api.endpoints.recognition.filter_vehicle_and_occupancy")
+def test_recognize_rejected_multiple_vehicles(mock_yolo, client, sample_image_bytes):
+    mock_yolo.return_value = {
+        "is_eligible": False,
+        "status": RecognitionStatusEnum.REJECTED_MULTIPLE_VEHICLES,
+        "status_message": "Image rejected: Multiple 4-wheeler vehicles detected (2 vehicles).",
+        "vehicle_detected": True,
+        "vehicle_type": "car",
+        "human_detected": False
+    }
+    files = {"file": ("two_cars.jpg", sample_image_bytes, "image/jpeg")}
+    response = client.post("/recognize", files=files)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["success"] is False
+    assert data["status"] == "rejected_multiple_vehicles"
+    assert data["vehicle_detected"] is True
+    assert data["results"] == []
+
 @patch("app.api.endpoints.recognition.PlateRecognizerFactory.get_recognizer")
 @patch("app.api.endpoints.recognition.filter_vehicle_and_occupancy")
 def test_recognize_success_primary_provider(mock_yolo, mock_get_recognizer, client, sample_image_bytes):

@@ -46,9 +46,9 @@ def filter_vehicle_and_occupancy(
     results = model(pil_img, verbose=False)[0]
 
     human_detected = False
-    vehicle_detected = False
-    detected_vehicle_type = None
-    vehicle_box = None
+    vehicle_count = 0
+    detected_vehicle_types = []
+    vehicle_boxes = []
 
     if results.boxes is not None and len(results.boxes) > 0:
         boxes = results.boxes
@@ -61,24 +61,42 @@ def filter_vehicle_and_occupancy(
             if cls_id == PERSON_CLASS_ID and conf >= human_conf_thresh:
                 human_detected = True
             elif cls_id in FOUR_WHEELER_CLASS_NAMES and conf >= vehicle_conf_thresh:
-                vehicle_detected = True
-                if not detected_vehicle_type:
-                    detected_vehicle_type = FOUR_WHEELER_CLASS_NAMES[cls_id]
-                    if xyxy_coords is not None and idx < len(xyxy_coords):
-                        vehicle_box = tuple(map(int, xyxy_coords[idx]))
+                vehicle_count += 1
+                v_type = FOUR_WHEELER_CLASS_NAMES[cls_id]
+                detected_vehicle_types.append(v_type)
+                if xyxy_coords is not None and idx < len(xyxy_coords):
+                    vehicle_boxes.append(tuple(map(int, xyxy_coords[idx])))
+
+    primary_vehicle_type = detected_vehicle_types[0] if detected_vehicle_types else None
+    primary_vehicle_box = vehicle_boxes[0] if vehicle_boxes else None
 
     if human_detected:
         return {
             "is_eligible": False,
             "status": RecognitionStatusEnum.REJECTED_HUMAN_DETECTED,
             "status_message": "Image rejected: Human presence detected.",
-            "vehicle_detected": vehicle_detected,
-            "vehicle_type": detected_vehicle_type,
+            "vehicle_detected": vehicle_count > 0,
+            "vehicle_type": primary_vehicle_type,
             "human_detected": human_detected,
-            "vehicle_box": vehicle_box
+            "vehicle_box": primary_vehicle_box,
+            "vehicle_count": vehicle_count
         }
 
-    if not vehicle_detected:
+    if vehicle_count > 1:
+        types_str = ", ".join(detected_vehicle_types)
+        logger.warning(f"Rejected frame: {vehicle_count} vehicles detected ({types_str}).")
+        return {
+            "is_eligible": False,
+            "status": RecognitionStatusEnum.REJECTED_MULTIPLE_VEHICLES,
+            "status_message": f"Image rejected: Multiple 4-wheeler vehicles detected ({vehicle_count} vehicles: {types_str}). Weighbridge allows only 1 vehicle.",
+            "vehicle_detected": True,
+            "vehicle_type": primary_vehicle_type,
+            "human_detected": human_detected,
+            "vehicle_box": primary_vehicle_box,
+            "vehicle_count": vehicle_count
+        }
+
+    if vehicle_count == 0:
         return {
             "is_eligible": False,
             "status": RecognitionStatusEnum.REJECTED_NO_FOUR_WHEELER,
@@ -86,15 +104,17 @@ def filter_vehicle_and_occupancy(
             "vehicle_detected": False,
             "vehicle_type": None,
             "human_detected": human_detected,
-            "vehicle_box": None
+            "vehicle_box": None,
+            "vehicle_count": 0
         }
 
     return {
         "is_eligible": True,
         "status": None,
-        "status_message": f"4-wheeler ({detected_vehicle_type}) detected with no human occupancy. Eligible for plate recognition.",
+        "status_message": f"4-wheeler ({primary_vehicle_type}) detected with no human occupancy. Eligible for plate recognition.",
         "vehicle_detected": True,
-        "vehicle_type": detected_vehicle_type,
+        "vehicle_type": primary_vehicle_type,
         "human_detected": human_detected,
-        "vehicle_box": vehicle_box
+        "vehicle_box": primary_vehicle_box,
+        "vehicle_count": 1
     }

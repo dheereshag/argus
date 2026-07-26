@@ -114,9 +114,9 @@ def test_yolo_filter_rejected_human(mock_get_model, sample_image_bytes):
 @patch("app.services.yolo_filter.get_yolo_model")
 def test_yolo_filter_rejected_no_four_wheeler(mock_get_model, sample_image_bytes):
     mock_box_empty = MagicMock()
-    mock_box_empty.__len__.return_value = 1
-    mock_box_empty.cls.cpu().numpy.return_value = [1]  # Class 1 = bicycle (not a 4-wheeler)
-    mock_box_empty.conf.cpu().numpy.return_value = [0.90]
+    mock_box_empty.__len__.return_value = 0
+    mock_box_empty.cls.cpu().numpy.return_value = []
+    mock_box_empty.conf.cpu().numpy.return_value = []
 
     mock_results = MagicMock()
     mock_results.boxes = mock_box_empty
@@ -129,6 +129,26 @@ def test_yolo_filter_rejected_no_four_wheeler(mock_get_model, sample_image_bytes
     assert res["is_eligible"] is False
     assert res["status"] == RecognitionStatusEnum.REJECTED_NO_FOUR_WHEELER
     assert res["vehicle_detected"] is False
+
+@patch("app.services.yolo_filter.get_yolo_model")
+def test_yolo_filter_rejected_multiple_vehicles(mock_get_model, sample_image_bytes):
+    mock_box_multiple = MagicMock()
+    mock_box_multiple.__len__.return_value = 2
+    mock_box_multiple.cls.cpu().numpy.return_value = [2, 7]  # Class 2 = car, 7 = truck
+    mock_box_multiple.conf.cpu().numpy.return_value = [0.85, 0.90]
+
+    mock_results = MagicMock()
+    mock_results.boxes = mock_box_multiple
+    
+    mock_model = MagicMock()
+    mock_model.return_value = [mock_results]
+    mock_get_model.return_value = mock_model
+
+    res = filter_vehicle_and_occupancy(sample_image_bytes)
+    assert res["is_eligible"] is False
+    assert res["status"] == RecognitionStatusEnum.REJECTED_MULTIPLE_VEHICLES
+    assert res["vehicle_detected"] is True
+    assert res["vehicle_count"] == 2
 
 @patch("app.services.strategies.paddle_ocr.get_paddle_ocr_engine")
 def test_paddle_ocr_strategy_mocked(mock_get_engine, sample_image_bytes):

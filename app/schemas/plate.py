@@ -11,6 +11,7 @@ class RecognitionStatusEnum(str, Enum):
     SUCCESS = "success"
     REJECTED_NO_FOUR_WHEELER = "rejected_no_four_wheeler"
     REJECTED_HUMAN_DETECTED = "rejected_human_detected"
+    REJECTED_MULTIPLE_VEHICLES = "rejected_multiple_vehicles"
     NO_PLATE_DETECTED = "no_plate_detected"
 
 class PlateResult(BaseModel):

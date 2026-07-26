@@ -17,6 +17,7 @@ def test_recognition_status_enum():
     assert RecognitionStatusEnum.SUCCESS.value == "success"
     assert RecognitionStatusEnum.REJECTED_HUMAN_DETECTED.value == "rejected_human_detected"
     assert RecognitionStatusEnum.REJECTED_NO_FOUR_WHEELER.value == "rejected_no_four_wheeler"
+    assert RecognitionStatusEnum.REJECTED_MULTIPLE_VEHICLES.value == "rejected_multiple_vehicles"
     assert RecognitionStatusEnum.NO_PLATE_DETECTED.value == "no_plate_detected"
 
 def test_plate_result_valid():
