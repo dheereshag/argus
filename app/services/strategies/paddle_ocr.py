@@ -117,6 +117,14 @@ class PaddleOCRStrategy(BasePlateRecognizer):
                 if plates:
                     return plates
 
+                # Priority 1b: Bottom ROI of the Vehicle Crop (bumper level)
+                vw, vh = vehicle_crop.size
+                v_crop_top = int(vh * (1.0 - self.bottom_crop_ratio))
+                v_bottom_roi = vehicle_crop.crop((0, v_crop_top, vw, vh))
+                plates = self._extract_plates_from_image_array(np.array(v_bottom_roi))
+                if plates:
+                    return plates
+
         # 2. Priority 2: Smart Bottom ROI Crop (Default 50% bottom)
         width, height = pil_img.size
         crop_top = int(height * (1.0 - self.bottom_crop_ratio))

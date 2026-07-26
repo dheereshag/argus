@@ -16,6 +16,7 @@ dependencies = [
     "pytest>=8.0.0",
     "python-decouple>=3.8",
     "python-multipart>=0.0.32",
+    "tabulate>=0.10.0",
     "ultralytics>=8.4.106",
     "uvicorn>=0.51.0",
 ]

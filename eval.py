@@ -5,8 +5,9 @@ import json
 import argparse
 import pprint
 import io
+from tabulate import tabulate
 
-from PIL import Image, ImageOps
+from PIL import Image, ImageOps, ImageDraw
 
 from app.services import PlateRecognizerFactory
 from app.schemas.plate import ProviderEnum
@@ -21,6 +22,67 @@ pp = pprint.PrettyPrinter(indent=2, sort_dicts=False)
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
+
+def save_debug_images(
+    img_bytes: bytes,
+    filename: str,
+    vehicle_boxes: list,
+    vehicle_type: str,
+    output_dir: str = "eval_debug_crops",
+    bottom_crop_ratio: float = 0.50
+) -> None:
+    """Save annotated YOLO box image, vehicle crops, and bottom ROI crops for OCR debugging."""
+    os.makedirs(output_dir, exist_ok=True)
+
+    base_stem, _ = os.path.splitext(filename)
+    pil_img = ImageOps.exif_transpose(Image.open(io.BytesIO(img_bytes))).convert("RGB")
+    w, h = pil_img.size
+
+    # 1. Annotated image showing YOLO bounding box(es)
+    annotated = pil_img.copy()
+    draw = ImageDraw.Draw(annotated)
+
+    if vehicle_boxes:
+        for idx, box in enumerate(vehicle_boxes):
+            if len(box) == 4:
+                x1, y1, x2, y2 = box
+                draw.rectangle([x1, y1, x2, y2], outline="red", width=3)
+                label = f"{vehicle_type}" if len(vehicle_boxes) == 1 else f"{vehicle_type} #{idx+1}"
+                draw.rectangle([x1, max(0, y1 - 20), x1 + len(label) * 9 + 6, max(0, y1)], fill="red")
+                draw.text((x1 + 3, max(0, y1 - 18)), label, fill="white")
+    else:
+        draw.rectangle([10, 10, 150, 35], fill="gray")
+        draw.text((15, 15), "No Vehicle Box", fill="white")
+
+    annotated_path = os.path.join(output_dir, f"{base_stem}_yolo_boxes.jpg")
+    annotated.save(annotated_path)
+
+    # 2. Save cropped vehicle image(s) and their bottom ROI crops (bumper level)
+    if vehicle_boxes:
+        for idx, box in enumerate(vehicle_boxes):
+            if len(box) == 4:
+                x1, y1, x2, y2 = box
+                crop_box = (max(0, x1), max(0, y1), min(w, x2), min(h, y2))
+                if crop_box[2] > crop_box[0] and crop_box[3] > crop_box[1]:
+                    cropped_img = pil_img.crop(crop_box)
+                    crop_suffix = "" if len(vehicle_boxes) == 1 else f"_{idx}"
+
+                    # Full vehicle crop from YOLO
+                    crop_path = os.path.join(output_dir, f"{base_stem}_crop{crop_suffix}.jpg")
+                    cropped_img.save(crop_path)
+
+                    # Bottom ROI cropped directly from the vehicle crop
+                    vw, vh = cropped_img.size
+                    v_crop_top = int(vh * (1.0 - bottom_crop_ratio))
+                    v_bottom_roi = cropped_img.crop((0, v_crop_top, vw, vh))
+                    roi_path = os.path.join(output_dir, f"{base_stem}_crop_bottom_roi{crop_suffix}.jpg")
+                    v_bottom_roi.save(roi_path)
+    else:
+        # Fallback: if no vehicle box detected, crop bottom 50% of the full image
+        crop_top = int(h * (1.0 - bottom_crop_ratio))
+        full_bottom_roi = pil_img.crop((0, crop_top, w, h))
+        crop_path = os.path.join(output_dir, f"{base_stem}_crop_bottom_roi.jpg")
+        full_bottom_roi.save(crop_path)
 
 def get_all_vehicle_boxes(img_bytes: bytes) -> list:
     """Re-run YOLO to get all 4-wheeler bounding boxes from an image."""
@@ -50,6 +112,70 @@ def run_paddle_ocr(img_bytes: bytes, vehicle_box) -> list:
     return results or []
 
 
+def print_detailed_table(rows: list) -> None:
+    """Pretty print a detailed table of evaluation results using tabulate."""
+    if not rows:
+        return
+
+    headers = ["Split", "Filename", "Status", "Vehicle Type", "Provider", "Plate", "State", "Time (ms)"]
+
+    table_data = []
+    for r in rows:
+        split = str(r.get("split", "")).upper()
+        filename = str(r.get("filename", ""))
+        status = str(r.get("status", ""))
+        vtype = str(r.get("vehicle_type", "N/A"))
+
+        if "detections" in r and isinstance(r["detections"], list):
+            plates = [d["plate"] for d in r["detections"] if isinstance(d, dict) and d.get("plate") and d["plate"] != "N/A"]
+            states = [d["state"] for d in r["detections"] if isinstance(d, dict) and d.get("state") and d["state"] != "N/A"]
+            provs  = [d["provider"] for d in r["detections"] if isinstance(d, dict) and d.get("provider") and d["provider"] != "N/A"]
+            plate    = ", ".join(dict.fromkeys(plates)) if plates else "N/A"
+            state    = ", ".join(dict.fromkeys(states)) if states else "N/A"
+            provider = ", ".join(dict.fromkeys(provs)) if provs else "N/A"
+        else:
+            plate    = str(r.get("plate", "N/A"))
+            state    = str(r.get("state", "N/A"))
+            provider = str(r.get("provider", "N/A"))
+
+        t_exec = f"{r.get('exec_time_ms', 0):.2f}"
+        table_data.append([split, filename, status, vtype, provider, plate, state, t_exec])
+
+    print("\nDETAILED EVALUATION REPORT:")
+    print(tabulate(table_data, headers=headers, tablefmt="rounded_grid"))
+
+
+def print_summary_table(rows: list) -> None:
+    """Pretty print a summary table grouped by split using tabulate."""
+    if not rows:
+        return
+
+    splits = sorted(list(set(str(r.get("split", "")).upper() for r in rows if r.get("split"))))
+    headers = ["Split", "Total", "Success", "No Plate", "Rejected", "Error", "Success Rate", "Avg Time (ms)"]
+
+    def get_stats(subset):
+        total = len(subset)
+        success  = sum(1 for r in subset if r.get("status") == "SUCCESS")
+        no_plate = sum(1 for r in subset if r.get("status") == "NO_PLATE_DETECTED")
+        rejected = sum(1 for r in subset if r.get("status") == "REJECTED_HUMAN")
+        error    = sum(1 for r in subset if r.get("status") == "ERROR")
+        rate     = f"{(success / total * 100):.2f}%" if total > 0 else "0.00%"
+        avg_time = f"{(sum(r.get('exec_time_ms', 0) for r in subset) / total):.2f}" if total > 0 else "0.00"
+        return [total, success, no_plate, rejected, error, rate, avg_time]
+
+    summary_data = []
+    for s in splits:
+        subset = [r for r in rows if str(r.get("split", "")).upper() == s]
+        stats = get_stats(subset)
+        summary_data.append([s] + list(stats))
+
+    total_stats = get_stats(rows)
+    summary_data.append(["TOTAL"] + list(total_stats))
+
+    print("\nEVALUATION SUMMARY:")
+    print(tabulate(summary_data, headers=headers, tablefmt="rounded_grid"))
+
+
 # ── core evaluator ────────────────────────────────────────────────────────────
 
 def evaluate_dataset(
@@ -57,6 +183,9 @@ def evaluate_dataset(
     image_dir: str,
     providers: list,
     multi_vehicle_ok: bool = False,
+    target_files: list = None,
+    save_crops: bool = True,
+    output_dir: str = "eval_debug_crops",
 ) -> list:
     if not os.path.exists(image_dir):
         print(f"  [SKIP] Directory '{image_dir}' does not exist.")
@@ -65,6 +194,20 @@ def evaluate_dataset(
     image_files = sorted(
         f for f in os.listdir(image_dir) if f.lower().endswith((".jpg", ".jpeg", ".png"))
     )
+
+    if target_files:
+        normalized_targets = set()
+        for tf in target_files:
+            bname = os.path.basename(tf).lower()
+            normalized_targets.add(bname)
+            if not any(bname.endswith(ext) for ext in [".jpg", ".jpeg", ".png"]):
+                for ext in [".jpg", ".jpeg", ".png"]:
+                    normalized_targets.add(f"{bname}{ext}")
+
+        image_files = [f for f in image_files if f.lower() in normalized_targets]
+
+    if not image_files:
+        return []
 
     provider_names = " -> ".join(p.value for p in providers)
     mode_str = f"WATERFALL ({provider_names})" if len(providers) > 1 else f"{providers[0].value.upper()} ONLY"
@@ -102,13 +245,16 @@ def evaluate_dataset(
         primary_box   = yolo_res.get("vehicle_box")
 
         # ── vehicle boxes for OCR ─────────────────────────────────────────────
-        if is_eligible:
-            vehicle_boxes = [primary_box] if primary_box else []
+        if primary_box:
+            vehicle_boxes = [primary_box]
         elif multi_vehicle_ok and vehicle_count > 1:
             vehicle_boxes = get_all_vehicle_boxes(img_bytes)
             vehicle_type  = f"{vehicle_type} (x{vehicle_count})"
         else:
             vehicle_boxes = []
+
+        if save_crops:
+            save_debug_images(img_bytes, img_name, vehicle_boxes, vehicle_type, output_dir=output_dir)
 
         # ── OCR ───────────────────────────────────────────────────────────────
         status = "NO_PLATE_DETECTED"
@@ -220,7 +366,42 @@ if __name__ == "__main__":
     group.add_argument("--paddleocr", action="store_true", help="PaddleOCR only")
     group.add_argument("--waterfall", action="store_true",
                        help="Full waterfall: PaddleOCR -> NVIDIA -> PlateRecognizer")
+
+    parser.add_argument(
+        "--image", "--images", "-i",
+        nargs="+",
+        dest="images",
+        help="Filter evaluation to specific image filename(s) (e.g. 35.jpg or 35)"
+    )
+    parser.add_argument(
+        "files",
+        nargs="*",
+        help="Optional image filename(s) to evaluate (e.g. 35.jpg or 35)"
+    )
+    parser.add_argument(
+        "--output-dir", "--save-dir",
+        default="eval_debug_crops",
+        help="Directory to save YOLO bounding box images and OCR crops (default: eval_debug_crops)"
+    )
+    parser.add_argument(
+        "--save-crops",
+        action="store_true",
+        default=True,
+        help="Save YOLO bounding box annotated image and crops (default: True)"
+    )
+    parser.add_argument(
+        "--no-save-crops",
+        action="store_false",
+        dest="save_crops",
+        help="Disable saving YOLO box annotated images and crops"
+    )
     args = parser.parse_args()
+
+    target_files = []
+    if args.images:
+        target_files.extend(args.images)
+    if args.files:
+        target_files.extend(args.files)
 
     providers = (
         [ProviderEnum.PADDLEOCR, ProviderEnum.NVIDIA, ProviderEnum.PLATERECOGNIZER]
@@ -228,10 +409,20 @@ if __name__ == "__main__":
     )
 
     all_rows = []
-    all_rows.extend(evaluate_dataset("train", TRAIN_DIR, providers, multi_vehicle_ok=True))
-    all_rows.extend(evaluate_dataset("val",   VAL_DIR,   providers, multi_vehicle_ok=False))
+    all_rows.extend(evaluate_dataset(
+        "train", TRAIN_DIR, providers, multi_vehicle_ok=True,
+        target_files=target_files, save_crops=args.save_crops, output_dir=args.output_dir
+    ))
+    all_rows.extend(evaluate_dataset(
+        "val", VAL_DIR, providers, multi_vehicle_ok=False,
+        target_files=target_files, save_crops=args.save_crops, output_dir=args.output_dir
+    ))
 
     out_json = "eval_report.json"
     with open(out_json, "w") as f:
         json.dump(all_rows, f, indent=2)
     print(f"\nFull report saved to: {out_json}")
+
+    print_detailed_table(all_rows)
+    print_summary_table(all_rows)
+
