@@ -17,6 +17,7 @@ class RecognitionStatusEnum(str, Enum):
 class PlateResult(BaseModel):
     plate: str = Field(..., description="Normalized Indian vehicle registration number (e.g., RJ09GA0165)", example="RJ09GA0165")
     state: Optional[str] = Field(None, description="State or Union Territory full name (e.g., Rajasthan)", example="Rajasthan")
+    raw_text: Optional[str] = Field(None, description="Raw OCR text extracted from the image frame/crop", example="BP1-A2453")
 
 class RecognitionResponse(BaseModel):
     success: bool = Field(..., description="Status of the recognition request")

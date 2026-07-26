@@ -5,8 +5,9 @@
     "status": "SUCCESS",
     "vehicle_type": "truck",
     "provider": "paddleocr",
-    "plate": "JHOZAS7349",
+    "plate": "JH0ZAS7349",
     "state": "Jharkhand",
-    "exec_time_ms": 2359.86
+    "raw_text": "JH0ZAS 7349",
+    "exec_time_ms": 2912.52
   }
 ]

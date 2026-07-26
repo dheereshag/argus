@@ -47,7 +47,7 @@ def print_detailed_table(rows: list) -> None:
     if not rows:
         return
 
-    headers = ["Split", "Filename", "Status", "Vehicle Type", "Provider", "Plate", "State", "Time (ms)"]
+    headers = ["Split", "Filename", "Status", "Vehicle Type", "Provider", "Plate", "State", "Raw OCR Text", "Time (ms)"]
 
     table_data = []
     for r in rows:
@@ -60,16 +60,19 @@ def print_detailed_table(rows: list) -> None:
             plates = [d["plate"] for d in r["detections"] if isinstance(d, dict) and d.get("plate") and d["plate"] != "N/A"]
             states = [d["state"] for d in r["detections"] if isinstance(d, dict) and d.get("state") and d["state"] != "N/A"]
             provs  = [d["provider"] for d in r["detections"] if isinstance(d, dict) and d.get("provider") and d["provider"] != "N/A"]
+            raws   = [d["raw_text"] for d in r["detections"] if isinstance(d, dict) and d.get("raw_text") and d["raw_text"] != "N/A"]
             plate    = ", ".join(dict.fromkeys(plates)) if plates else "N/A"
             state    = ", ".join(dict.fromkeys(states)) if states else "N/A"
             provider = ", ".join(dict.fromkeys(provs)) if provs else "N/A"
+            raw_text = ", ".join(dict.fromkeys(raws)) if raws else "N/A"
         else:
             plate    = str(r.get("plate", "N/A"))
             state    = str(r.get("state", "N/A"))
             provider = str(r.get("provider", "N/A"))
+            raw_text = str(r.get("raw_text", "N/A"))
 
         t_exec = f"{r.get('exec_time_ms', 0):.2f}"
-        table_data.append([split, filename, status, vtype, provider, plate, state, t_exec])
+        table_data.append([split, filename, status, vtype, provider, plate, state, raw_text, t_exec])
 
     print("\nDETAILED EVALUATION REPORT:")
     print(tabulate(table_data, headers=headers, tablefmt="rounded_grid"))
@@ -163,7 +166,7 @@ def evaluate_dataset(
             row = {
                 "split": split, "filename": img_name, "status": "ERROR",
                 "vehicle_type": "N/A", "provider": "N/A",
-                "plate": "N/A", "state": str(e)[:60], "exec_time_ms": t_exec,
+                "plate": "N/A", "state": str(e)[:60], "raw_text": "N/A", "exec_time_ms": t_exec,
             }
             report_rows.append(row)
             pp.pprint(row)
@@ -195,17 +198,20 @@ def evaluate_dataset(
                 # Multi-vehicle: one detection dict per box
                 detections = []
                 for box_idx, box in enumerate(vehicle_boxes):
-                    box_plate, box_state, box_provider = "N/A", "N/A", "N/A"
+                    box_plate, box_state, box_provider, box_raw = "N/A", "N/A", "N/A", "N/A"
                     for provider in providers:
                         try:
                             engine = PlateRecognizerFactory.get_recognizer(provider.value)
                             plates = engine.recognize(img_bytes, filename=img_name, vehicle_box=box)
 
                             if plates:
-                                box_plate    = plates[0].get("plate", "N/A")
-                                box_state    = plates[0].get("state", "N/A")
+                                box_raw      = plates[0].get("raw_text", "N/A")
                                 box_provider = provider.value
-                                break
+                                p_cand = plates[0].get("plate", "N/A")
+                                if p_cand != "N/A":
+                                    box_plate = p_cand
+                                    box_state = plates[0].get("state", "N/A")
+                                    break
                         except Exception:
                             continue
 
@@ -215,6 +221,7 @@ def evaluate_dataset(
                         "plate": box_plate,
                         "state": box_state,
                         "provider": box_provider,
+                        "raw_text": box_raw,
                     })
 
                 any_success = any(d["plate"] != "N/A" for d in detections)
@@ -234,7 +241,7 @@ def evaluate_dataset(
 
             else:
                 # Single vehicle (or no box): waterfall
-                plate_num, state_val, used_provider = "N/A", "N/A", "N/A"
+                plate_num, state_val, used_provider, raw_text_val = "N/A", "N/A", "N/A", "N/A"
                 box = vehicle_boxes[0] if vehicle_boxes else None
 
                 for provider in providers:
@@ -243,11 +250,14 @@ def evaluate_dataset(
                         plates = engine.recognize(img_bytes, filename=img_name, vehicle_box=box)
 
                         if plates:
-                            plate_num     = plates[0].get("plate", "N/A")
-                            state_val     = plates[0].get("state", "N/A")
                             used_provider = provider.value
-                            status        = "SUCCESS"
-                            break
+                            raw_text_val  = plates[0].get("raw_text", "N/A")
+                            p_cand = plates[0].get("plate", "N/A")
+                            if p_cand != "N/A":
+                                plate_num = p_cand
+                                state_val = plates[0].get("state", "N/A")
+                                status    = "SUCCESS"
+                                break
                     except Exception:
                         continue
 
@@ -256,10 +266,12 @@ def evaluate_dataset(
             plate_num     = "N/A"
             state_val     = "N/A"
             used_provider = "N/A"
+            raw_text_val  = "N/A"
         else:
             plate_num     = "N/A"
             state_val     = "N/A"
             used_provider = "N/A"
+            raw_text_val  = "N/A"
 
         t_exec = round((time.time() - t0) * 1000, 2)
         row = {
@@ -270,6 +282,7 @@ def evaluate_dataset(
             "provider": used_provider,
             "plate": plate_num,
             "state": state_val,
+            "raw_text": raw_text_val,
             "exec_time_ms": t_exec,
         }
         report_rows.append(row)

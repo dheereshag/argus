@@ -47,18 +47,28 @@ class PaddleOCRStrategy(BasePlateRecognizer):
         detected_plates = []
         clean_lines = []
 
-        # 1. Inspect individual text boxes
+        # Collect raw text lines
         for line in lines:
             text_str, score = line[1]
             cand_clean = re.sub(r'[^A-Za-z0-9]', '', text_str).upper()
             if cand_clean:
                 clean_lines.append(cand_clean)
 
+        raw_text_summary = " ".join(clean_lines) if clean_lines else "N/A"
+
+        def _norm(s: str) -> str:
+            return "WB" + s[2:] if s.startswith("W8") else s
+
+        # 1. Inspect individual text boxes
+        for cand_raw in clean_lines:
+            cand_clean = _norm(cand_raw)
             match = INDIAN_PLATE_REGEX.search(cand_clean)
             if match:
                 info = self.parse_plate_info(match.group(0))
-                if info and info not in detected_plates:
-                    detected_plates.append(info)
+                if info:
+                    info["raw_text"] = raw_text_summary
+                    if info not in detected_plates:
+                        detected_plates.append(info)
 
         # 2. Inspect adjacent and near-adjacent text box pairs (for 2-line Indian plates)
         if not detected_plates and clean_lines:
@@ -66,30 +76,43 @@ class PaddleOCRStrategy(BasePlateRecognizer):
             for i in range(n):
                 # Try adjacent pair (i, i+1)
                 if i + 1 < n:
-                    pair_str = clean_lines[i] + clean_lines[i + 1]
+                    pair_str = _norm(clean_lines[i] + clean_lines[i + 1])
                     match = INDIAN_PLATE_REGEX.search(pair_str)
                     if match:
                         info = self.parse_plate_info(match.group(0))
-                        if info and info not in detected_plates:
-                            detected_plates.append(info)
+                        if info:
+                            info["raw_text"] = raw_text_summary
+                            if info not in detected_plates:
+                                detected_plates.append(info)
 
                 # Try near-adjacent pair (i, i+2)
                 if i + 2 < n and not detected_plates:
-                    pair_str = clean_lines[i] + clean_lines[i + 2]
+                    pair_str = _norm(clean_lines[i] + clean_lines[i + 2])
                     match = INDIAN_PLATE_REGEX.search(pair_str)
                     if match:
                         info = self.parse_plate_info(match.group(0))
-                        if info and info not in detected_plates:
-                            detected_plates.append(info)
+                        if info:
+                            info["raw_text"] = raw_text_summary
+                            if info not in detected_plates:
+                                detected_plates.append(info)
 
         # 3. Global fallback concatenation if adjacent pairing didn't find anything
         if not detected_plates and clean_lines:
-            concatenated = "".join(clean_lines)
+            concatenated = _norm("".join(clean_lines))
             match = INDIAN_PLATE_REGEX.search(concatenated)
             if match:
                 info = self.parse_plate_info(match.group(0))
                 if info:
+                    info["raw_text"] = raw_text_summary
                     detected_plates.append(info)
+
+        # 4. Fallback: If no valid Indian plate matched, but OCR detected text lines
+        if not detected_plates and clean_lines:
+            detected_plates.append({
+                "plate": "N/A",
+                "state": "N/A",
+                "raw_text": raw_text_summary
+            })
 
         return detected_plates
 

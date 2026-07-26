@@ -51,6 +51,7 @@ class PlateRecognizerStrategy(BasePlateRecognizer):
         results = res_data.get("results", [])
         output = []
 
+        all_raw_cands = []
         for res in results:
             candidates = [res.get("plate", "")] + [c.get("plate", "") for c in res.get("candidates", [])]
             valid_info = None
@@ -58,12 +59,19 @@ class PlateRecognizerStrategy(BasePlateRecognizer):
             for cand in candidates:
                 if not cand:
                     continue
+                all_raw_cands.append(cand.upper())
                 info = self.parse_plate_info(cand)
                 if info and INDIAN_PLATE_REGEX.fullmatch(info["plate"]):
+                    info["raw_text"] = cand.upper()
                     valid_info = info
                     break
 
             if valid_info:
                 output.append(valid_info)
 
-        return output
+        if output:
+            return output
+        elif all_raw_cands:
+            return [{"plate": "N/A", "state": "N/A", "raw_text": " ".join(all_raw_cands)}]
+
+        return []

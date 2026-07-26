@@ -95,10 +95,13 @@ class NvidiaVisionStrategy(BasePlateRecognizer):
                     for match in matches:
                         info = self.parse_plate_info(match.group(0))
                         if info:
+                            info["raw_text"] = raw_text
                             output.append(info)
 
                     if output:
                         return output
+                    elif raw_text:
+                        return [{"plate": "N/A", "state": "N/A", "raw_text": raw_text}]
                 else:
                     logger.error(f"[NvidiaVisionStrategy] Error {response.status_code} with key '{key[:12]}...': {response.text}")
             except Exception as e:

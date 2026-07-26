@@ -94,13 +94,22 @@ def save_debug_images(
                     # Full vehicle crop from YOLO
                     cropped_img.save(os.path.join(output_dir, f"{base_stem}_crop{crop_suffix}.jpg"))
 
-                    # Bottom ROI cropped directly from the vehicle crop
+                    # Bottom 1/3 ROI crop (bumper level)
                     vw, vh = cropped_img.size
-                    v_crop_top = int(vh * (1.0 - bottom_crop_ratio))
-                    v_bottom_roi = cropped_img.crop((0, v_crop_top, vw, vh))
-                    v_bottom_roi.save(os.path.join(output_dir, f"{base_stem}_crop_bottom_roi{crop_suffix}.jpg"))
+                    v_top_1_3 = int(vh * (1.0 - (1.0 / 3.0)))
+                    v_roi_1_3 = cropped_img.crop((0, v_top_1_3, vw, vh))
+                    v_roi_1_3.save(os.path.join(output_dir, f"{base_stem}_crop_bottom_1_3_roi{crop_suffix}.jpg"))
+
+                    # Bottom 1/2 ROI crop
+                    v_top_1_2 = int(vh * (1.0 - 0.50))
+                    v_roi_1_2 = cropped_img.crop((0, v_top_1_2, vw, vh))
+                    v_roi_1_2.save(os.path.join(output_dir, f"{base_stem}_crop_bottom_roi{crop_suffix}.jpg"))
     else:
-        # Fallback: if no vehicle box detected, crop bottom 50% of the full image
-        crop_top = int(h * (1.0 - bottom_crop_ratio))
-        full_bottom_roi = pil_img.crop((0, crop_top, w, h))
-        full_bottom_roi.save(os.path.join(output_dir, f"{base_stem}_crop_bottom_roi.jpg"))
+        # Fallback: if no vehicle box detected
+        crop_top_1_3 = int(h * (1.0 - (1.0 / 3.0)))
+        roi_1_3 = pil_img.crop((0, crop_top_1_3, w, h))
+        roi_1_3.save(os.path.join(output_dir, f"{base_stem}_crop_bottom_1_3_roi.jpg"))
+
+        crop_top_1_2 = int(h * (1.0 - 0.50))
+        roi_1_2 = pil_img.crop((0, crop_top_1_2, w, h))
+        roi_1_2.save(os.path.join(output_dir, f"{base_stem}_crop_bottom_roi.jpg"))
