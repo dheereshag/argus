@@ -21,7 +21,7 @@ class Settings(BaseSettings):
 
     # PaddleOCR Tuning Settings
     PADDLE_CPU_THREADS: int = 4
-    PADDLE_USE_ANGLE_CLS: bool = False
+    PADDLE_USE_ANGLE_CLS: bool = True
 
     # CORS Settings
     ALLOWED_ORIGINS: List[str] = ["*"]

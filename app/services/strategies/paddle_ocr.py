@@ -2,7 +2,7 @@ import io
 import re
 import numpy as np
 from typing import List, Dict, Any, Union, Optional, Tuple
-from PIL import Image
+from PIL import Image, ImageOps
 from app.core.config import settings
 from app.core.logging import logger
 from app.services.base import BasePlateRecognizer
@@ -37,7 +37,7 @@ class PaddleOCRStrategy(BasePlateRecognizer):
 
     def _extract_plates_from_image_array(self, img_np: np.ndarray) -> List[Dict[str, Any]]:
         ocr_engine = get_paddle_ocr_engine()
-        ocr_results = ocr_engine.ocr(img_np, cls=False)
+        ocr_results = ocr_engine.ocr(img_np, cls=settings.PADDLE_USE_ANGLE_CLS)
 
         if not ocr_results or not ocr_results[0]:
             return []
@@ -100,9 +100,11 @@ class PaddleOCRStrategy(BasePlateRecognizer):
         **kwargs
     ) -> List[Dict[str, Any]]:
         if isinstance(image_input, bytes):
-            pil_img = Image.open(io.BytesIO(image_input)).convert("RGB")
+            pil_img = Image.open(io.BytesIO(image_input))
         else:
-            pil_img = Image.open(image_input).convert("RGB")
+            pil_img = Image.open(image_input)
+
+        pil_img = ImageOps.exif_transpose(pil_img).convert("RGB")
 
         # 1. Priority 1: Tight Vehicle Bounding Box Crop (from YOLO)
         if vehicle_box is not None and len(vehicle_box) == 4:

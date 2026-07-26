@@ -1,7 +1,7 @@
 import io
 
 from typing import Union, Dict, Any, Tuple
-from PIL import Image
+from PIL import Image, ImageOps
 from ultralytics import YOLO
 
 from app.core.config import settings
@@ -38,9 +38,11 @@ def filter_vehicle_and_occupancy(
         vehicle_conf_thresh = settings.VEHICLE_CONF_THRESH
 
     if isinstance(image_input, bytes):
-        pil_img = Image.open(io.BytesIO(image_input)).convert("RGB")
+        pil_img = Image.open(io.BytesIO(image_input))
     else:
-        pil_img = Image.open(image_input).convert("RGB")
+        pil_img = Image.open(image_input)
+
+    pil_img = ImageOps.exif_transpose(pil_img).convert("RGB")
 
     model = get_yolo_model()
     results = model(pil_img, verbose=False)[0]
