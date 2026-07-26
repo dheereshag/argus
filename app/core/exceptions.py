@@ -1,5 +1,6 @@
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
+from app.core.logging import logger
 
 class ANPRServiceError(Exception):
     """Base exception for ANPR domain errors."""
@@ -20,6 +21,7 @@ class InvalidImageError(ANPRServiceError):
         super().__init__(message=message, status_code=status.HTTP_400_BAD_REQUEST)
 
 async def anpr_exception_handler(request: Request, exc: ANPRServiceError):
+    logger.warning(f"ANPR Exception [{exc.__class__.__name__}] URL: {request.url} - Detail: {exc.message}")
     return JSONResponse(
         status_code=exc.status_code,
         content={

@@ -3,6 +3,7 @@ import re
 import numpy as np
 from typing import List, Dict, Any, Union
 from PIL import Image
+from app.core.logging import logger
 from app.services.base import BasePlateRecognizer
 from app.services.constants import INDIAN_PLATE_REGEX
 
@@ -11,6 +12,7 @@ _PADDLE_OCR_INSTANCE = None
 def get_paddle_ocr_engine():
     global _PADDLE_OCR_INSTANCE
     if _PADDLE_OCR_INSTANCE is None:
+        logger.debug("Initializing PaddleOCR engine instance.")
         from paddleocr import PaddleOCR
         _PADDLE_OCR_INSTANCE = PaddleOCR(use_angle_cls=True, lang="en", show_log=False)
     return _PADDLE_OCR_INSTANCE

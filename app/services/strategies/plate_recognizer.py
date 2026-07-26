@@ -1,6 +1,7 @@
 import requests
 from typing import List, Dict, Any, Union
 from app.core.config import settings
+from app.core.logging import logger
 from app.services.base import BasePlateRecognizer
 from app.services.constants import INDIAN_PLATE_REGEX
 
@@ -36,7 +37,7 @@ class PlateRecognizerStrategy(BasePlateRecognizer):
                 )
 
         if response.status_code not in (200, 201):
-            print(f"[PlateRecognizerStrategy] Error {response.status_code}: {response.text}")
+            logger.error(f"[PlateRecognizerStrategy] Error {response.status_code}: {response.text}")
             return []
 
         res_data = response.json()

@@ -5,6 +5,7 @@ from PIL import Image
 from ultralytics import YOLO
 
 from app.core.config import settings
+from app.core.logging import logger
 from app.schemas.plate import RecognitionStatusEnum
 
 # Global lazy-loaded YOLO model instance
@@ -14,6 +15,7 @@ def get_yolo_model():
     global _YOLO_MODEL
     if _YOLO_MODEL is None:
         target_model = settings.YOLO_MODEL_NAME if settings.YOLO_MODEL_NAME and "11" in settings.YOLO_MODEL_NAME else "yolo11n.pt"
+        logger.debug(f"Loading YOLO model weights: {target_model}")
         _YOLO_MODEL = YOLO(target_model)
     return _YOLO_MODEL
 

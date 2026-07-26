@@ -4,6 +4,7 @@ import re
 import requests
 from typing import List, Dict, Any, Union, Tuple
 from app.core.config import settings
+from app.core.logging import logger
 from app.services.base import BasePlateRecognizer
 from app.services.constants import INDIAN_PLATE_REGEX
 
@@ -84,8 +85,8 @@ class NvidiaVisionStrategy(BasePlateRecognizer):
                 if clean_str:
                     return [self.parse_plate_info(clean_str)]
             else:
-                print(f"[NvidiaVisionStrategy] Error {response.status_code}: {response.text}")
+                logger.error(f"[NvidiaVisionStrategy] Error {response.status_code}: {response.text}")
         except Exception as e:
-            print(f"[NvidiaVisionStrategy] Exception: {e}")
+            logger.error(f"[NvidiaVisionStrategy] Exception: {e}")
 
         return []

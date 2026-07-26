@@ -2,6 +2,7 @@ import time
 from typing import Optional
 from fastapi import APIRouter, File, UploadFile, Query
 from app.core.config import settings
+from app.core.logging import logger
 from app.core.exceptions import InvalidImageError
 from app.schemas.plate import (
     RecognitionResponse,
@@ -17,6 +18,7 @@ router = APIRouter(tags=["ANPR Recognition"])
 
 @router.get("/providers", response_model=ProvidersResponse, summary="List Supported Recognition Providers")
 def list_providers():
+    logger.debug("Listing available recognition providers.")
     return ProvidersResponse(
         available_providers=PlateRecognizerFactory.list_providers(),
         default_provider=settings.DEFAULT_PROVIDER
@@ -30,7 +32,11 @@ async def recognize_plate(
         description="Recognition provider choice: 'platerecognizer' or 'nvidia'. Defaults to .env setting."
     )
 ):
+    active_provider = provider or settings.DEFAULT_PROVIDER
+    logger.info(f"Received recognition request for file '{file.filename}' using provider '{active_provider}'.")
+
     if not file.content_type or not file.content_type.startswith("image/"):
+        logger.warning(f"Rejected invalid file type '{file.content_type}' for file '{file.filename}'.")
         raise InvalidImageError(f"File '{file.filename}' is not a valid image format.")
 
     start_time = time.time()
@@ -41,7 +47,7 @@ async def recognize_plate(
 
     if not yolo_result["is_eligible"]:
         execution_time_ms = round((time.time() - start_time) * 1000, 2)
-        active_provider = provider or settings.DEFAULT_PROVIDER
+        logger.info(f"Image '{file.filename}' ineligible: {yolo_result['status_message']} ({execution_time_ms} ms)")
         return RecognitionResponse(
             success=False,
             status=yolo_result["status"],
@@ -57,7 +63,6 @@ async def recognize_plate(
 
     # Step 2: License Plate Recognition
     recognizer = PlateRecognizerFactory.get_recognizer(provider)
-    active_provider = provider or settings.DEFAULT_PROVIDER
 
     raw_results = recognizer.recognize(image_bytes, filename=file.filename)
     execution_time_ms = round((time.time() - start_time) * 1000, 2)
@@ -68,10 +73,12 @@ async def recognize_plate(
         final_status = RecognitionStatusEnum.SUCCESS
         status_msg = f"License plate successfully detected and recognized on {yolo_result['vehicle_type']}."
         success_flag = True
+        logger.info(f"Successfully recognized {len(plate_results)} plate(s) in '{file.filename}' via {active_provider} in {execution_time_ms} ms.")
     else:
         final_status = RecognitionStatusEnum.NO_PLATE_DETECTED
         status_msg = f"4-wheeler ({yolo_result['vehicle_type']}) detected with no human, but no license plate could be extracted."
         success_flag = False
+        logger.info(f"No license plate detected in '{file.filename}' via {active_provider} ({execution_time_ms} ms).")
 
     return RecognitionResponse(
         success=success_flag,

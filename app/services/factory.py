@@ -1,5 +1,6 @@
 from typing import Dict, Type, List, Optional, Union
 from app.core.config import settings
+from app.core.logging import logger
 from app.core.exceptions import ProviderNotFoundError
 from app.schemas.plate import ProviderEnum
 from app.services.base import BasePlateRecognizer
@@ -23,6 +24,7 @@ class PlateRecognizerFactory:
         """
         Allows registering custom recognition strategies at runtime.
         """
+        logger.info(f"Registering strategy for provider '{provider}': {strategy_cls.__name__}")
         cls._strategies[provider] = strategy_cls
 
     @classmethod
@@ -41,15 +43,19 @@ class PlateRecognizerFactory:
             try:
                 target_provider = ProviderEnum(target_provider.lower())
             except ValueError:
+                logger.warning(f"Requested invalid provider name: '{target_provider}'")
                 raise ProviderNotFoundError(
                     provider=target_provider,
                     available_providers=[p.value for p in cls.list_providers()]
                 )
 
         if target_provider not in cls._strategies:
+            logger.warning(f"Unregistered strategy requested: '{target_provider}'")
             raise ProviderNotFoundError(
                 provider=target_provider.value,
                 available_providers=[p.value for p in cls.list_providers()]
             )
 
-        return cls._strategies[target_provider]()
+        strategy_cls = cls._strategies[target_provider]
+        logger.debug(f"Resolved strategy class '{strategy_cls.__name__}' for provider '{target_provider.value}'.")
+        return strategy_cls()

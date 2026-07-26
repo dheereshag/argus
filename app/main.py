@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
+from app.core.logging import logger
 from app.core.exceptions import ANPRServiceError, anpr_exception_handler
 from app.api.router import api_router
 
@@ -10,15 +11,15 @@ from app.services.yolo_filter import get_yolo_model
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print(f"🚀 Starting {settings.PROJECT_NAME} v{settings.VERSION}")
+    logger.info(f"Starting {settings.PROJECT_NAME} v{settings.VERSION}")
     # Pre-load PyTorch YOLO model before any Paddle paddle initialization
     try:
         get_yolo_model()
-        print("✅ YOLO v11 model pre-loaded successfully.")
+        logger.info("YOLO v11 model pre-loaded successfully.")
     except Exception as e:
-        print(f"⚠️ Warning loading YOLO model at startup: {e}")
+        logger.warning(f"Warning loading YOLO model at startup: {e}")
     yield
-    print(f"🛑 Shutting down {settings.PROJECT_NAME}")
+    logger.info(f"Shutting down {settings.PROJECT_NAME}")
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
