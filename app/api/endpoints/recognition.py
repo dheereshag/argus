@@ -1,6 +1,7 @@
 import time
 from typing import Optional
-from fastapi import APIRouter, File, UploadFile, Query
+from fastapi import APIRouter, File, HTTPException, Request, UploadFile, status
+from PIL import Image
 from app.core.config import settings
 from app.core.logging import logger
 from app.core.exceptions import InvalidImageError
@@ -16,11 +17,37 @@ from app.services.yolo_filter import filter_vehicle_and_occupancy
 
 router = APIRouter(tags=["ANPR Recognition"])
 
+MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024
+UPLOAD_READ_CHUNK_SIZE = 64 * 1024
+Image.MAX_IMAGE_PIXELS = 1920 * 1080 * 2
+
 FALLBACK_PROVIDERS = [
     ProviderEnum.PADDLEOCR,
     ProviderEnum.NVIDIA,
     ProviderEnum.PLATERECOGNIZER,
 ]
+
+
+async def read_image_bytes(file: UploadFile) -> bytes:
+    chunks = []
+    total_bytes = 0
+
+    while chunk := await file.read(UPLOAD_READ_CHUNK_SIZE):
+        total_bytes += len(chunk)
+        if total_bytes > MAX_UPLOAD_SIZE_BYTES:
+            await file.close()
+            logger.warning(
+                f"Rejected oversized upload for file '{file.filename}': "
+                f"exceeded {MAX_UPLOAD_SIZE_BYTES} bytes."
+            )
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail="Image payload exceeds the maximum allowed size.",
+            )
+        chunks.append(chunk)
+
+    return b"".join(chunks)
+
 
 @router.get("/providers", response_model=ProvidersResponse, summary="List Supported Recognition Providers")
 def list_providers():
@@ -32,8 +59,21 @@ def list_providers():
 
 @router.post("/recognize", response_model=RecognitionResponse, summary="Extract License Plate from Image")
 async def recognize_plate(
+    request: Request,
     file: UploadFile = File(..., description="Vehicle image file (JPEG/PNG)")
 ):
+    content_length = request.headers.get("content-length")
+    if content_length and int(content_length) > MAX_UPLOAD_SIZE_BYTES:
+        await file.close()
+        logger.warning(
+            f"Rejected oversized request for file '{file.filename}': "
+            f"Content-Length is {content_length} bytes."
+        )
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="Image payload exceeds the maximum allowed size.",
+        )
+
     logger.info(f"Received recognition request for file '{file.filename}'.")
 
     if not file.content_type or not file.content_type.startswith("image/"):
@@ -41,7 +81,7 @@ async def recognize_plate(
         raise InvalidImageError(f"File '{file.filename}' is not a valid image format.")
 
     start_time = time.time()
-    image_bytes = await file.read()
+    image_bytes = await read_image_bytes(file)
 
     # Step 1: YOLO Pre-screening (Check 4-wheeler vehicle present AND no human present)
     yolo_result = filter_vehicle_and_occupancy(image_bytes)

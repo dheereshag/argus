@@ -1,5 +1,13 @@
+import asyncio
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
+from fastapi import HTTPException
+from PIL import Image
+from app.api.endpoints.recognition import (
+    MAX_UPLOAD_SIZE_BYTES,
+    UPLOAD_READ_CHUNK_SIZE,
+    read_image_bytes,
+)
 from app.schemas.plate import RecognitionStatusEnum, ProviderEnum
 
 def test_root_endpoint(client):
@@ -8,6 +16,11 @@ def test_root_endpoint(client):
     data = response.json()
     assert data["service"] == "Argus ANPR Microservice"
     assert data["status"] == "online"
+
+
+def test_image_pixel_limit_is_configured():
+    assert Image.MAX_IMAGE_PIXELS == 1920 * 1080 * 2
+
 
 def test_list_providers_endpoint(client):
     response = client.get("/providers")
@@ -24,6 +37,34 @@ def test_recognize_invalid_file_type(client):
     data = response.json()
     assert data["success"] is False
     assert data["error"] == "InvalidImageError"
+
+
+@patch("app.api.endpoints.recognition.filter_vehicle_and_occupancy")
+def test_recognize_rejects_oversized_content_length(mock_yolo, client, sample_image_bytes):
+    files = {"file": ("car.jpg", sample_image_bytes, "image/jpeg")}
+    response = client.post(
+        "/recognize",
+        files=files,
+        headers={"content-length": str(MAX_UPLOAD_SIZE_BYTES + 1)},
+    )
+
+    assert response.status_code == 413
+    mock_yolo.assert_not_called()
+
+
+def test_read_image_bytes_rejects_oversized_stream():
+    file = MagicMock(filename="oversized.jpg")
+    file.read = AsyncMock(side_effect=[
+        b"x" * UPLOAD_READ_CHUNK_SIZE,
+        b"x" * (MAX_UPLOAD_SIZE_BYTES - UPLOAD_READ_CHUNK_SIZE + 1),
+    ])
+    file.close = AsyncMock()
+
+    with pytest.raises(HTTPException, match="maximum allowed size") as exc_info:
+        asyncio.run(read_image_bytes(file))
+
+    assert exc_info.value.status_code == 413
+    file.close.assert_awaited_once()
 
 @patch("app.api.endpoints.recognition.filter_vehicle_and_occupancy")
 def test_recognize_rejected_human(mock_yolo, client, sample_image_bytes):
