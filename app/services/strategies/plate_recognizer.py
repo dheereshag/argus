@@ -50,7 +50,8 @@ class PlateRecognizerStrategy(BasePlateRecognizer):
             self.api_url,
             data=dict(regions=self.regions),
             files=files,
-            headers={"Authorization": f"Token {self.api_token}"}
+            headers={"Authorization": f"Token {self.api_token}"},
+            timeout=(settings.HTTP_CONNECT_TIMEOUT, settings.HTTP_READ_TIMEOUT),
         )
 
         if response.status_code not in (200, 201):

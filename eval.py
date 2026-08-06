@@ -14,9 +14,18 @@ from app.schemas.plate import ProviderEnum
 from app.services.yolo_filter import filter_vehicle_and_occupancy
 from app.services.image_processing import save_debug_images
 from app.core.config import settings
+from app.eval.metrics import (
+    compare_to_baseline,
+    evaluate,
+    format_report,
+    format_worst_offenders,
+    load_labels,
+)
 
 TRAIN_DIR = "data/images/train"
 VAL_DIR   = "data/images/val"
+LABELS_PATH = "data/labels.csv"
+BASELINE_PATH = "eval_baseline.json"
 
 pp = pprint.PrettyPrinter(indent=2, sort_dicts=False)
 
@@ -78,8 +87,76 @@ def print_detailed_table(rows: list) -> None:
     print(tabulate(table_data, headers=headers, tablefmt="rounded_grid"))
 
 
+def report_accuracy(rows: list, labels_path: str, baseline_path: str,
+                    write_baseline: bool = False) -> int:
+    """
+    Score the run against ground truth and print the accuracy report.
+
+    Returns a process exit code: 0 if fine, 1 if the run regressed against the
+    saved baseline. That exit code is what CI (issue #11) gates on.
+
+    The status counts printed by print_summary_table are an EXTRACTION RATE —
+    how often the pipeline emitted something plate-shaped. They are retained
+    because they are useful for debugging the pipeline, but they are not
+    accuracy and must not be quoted as such.
+    """
+    try:
+        labels = load_labels(labels_path)
+    except FileNotFoundError as exc:
+        print(f"\n{'=' * 68}")
+        print("ACCURACY: NOT MEASURED")
+        print("=" * 68)
+        print(f"  {exc}")
+        print("=" * 68)
+        return 0
+
+    metrics = evaluate(rows, labels)
+    print()
+    print(format_report(metrics))
+
+    offenders = format_worst_offenders(metrics)
+    if offenders:
+        print()
+        print(offenders)
+
+    exit_code = 0
+    if os.path.exists(baseline_path):
+        with open(baseline_path) as fh:
+            baseline = json.load(fh)
+        verdict = compare_to_baseline(metrics, baseline)
+        print()
+        print("=" * 68)
+        print(f"REGRESSION CHECK vs {baseline_path}")
+        print("=" * 68)
+        if verdict.improvements:
+            for item in verdict.improvements:
+                print(f"  IMPROVED  {item}")
+        if verdict.failures:
+            for item in verdict.failures:
+                print(f"  REGRESSED {item}")
+            print("\n  This run is worse than the baseline. Do not merge.")
+            exit_code = 1
+        elif not verdict.improvements:
+            print("  No material change.")
+        print("=" * 68)
+    else:
+        print(f"\n  No baseline at '{baseline_path}'. "
+              f"Run with --write-baseline to create one.")
+
+    if write_baseline:
+        with open(baseline_path, "w") as fh:
+            json.dump(metrics.to_dict(), fh, indent=2)
+        print(f"\n  Baseline written to {baseline_path}")
+
+    return exit_code
+
+
 def print_summary_table(rows: list) -> None:
-    """Pretty print a summary table grouped by split using tabulate."""
+    """
+    Pretty print status counts grouped by split.
+
+    NOTE: this is an extraction rate, not accuracy. See report_accuracy.
+    """
     if not rows:
         return
 
@@ -268,6 +345,21 @@ if __name__ == "__main__":
         dest="save_crops",
         help="Disable saving YOLO box annotated images and crops"
     )
+    parser.add_argument(
+        "--labels",
+        default=LABELS_PATH,
+        help=f"Ground-truth CSV to score against (default: {LABELS_PATH}). See LABELLING.md"
+    )
+    parser.add_argument(
+        "--baseline",
+        default=BASELINE_PATH,
+        help=f"Baseline metrics to compare against (default: {BASELINE_PATH})"
+    )
+    parser.add_argument(
+        "--write-baseline",
+        action="store_true",
+        help="Overwrite the baseline with this run's metrics. Use deliberately."
+    )
     args = parser.parse_args()
 
     target_files = []
@@ -298,4 +390,12 @@ if __name__ == "__main__":
 
     print_detailed_table(all_rows)
     print_summary_table(all_rows)
+
+    exit_code = report_accuracy(
+        all_rows,
+        labels_path=args.labels,
+        baseline_path=args.baseline,
+        write_baseline=args.write_baseline,
+    )
+    sys.exit(exit_code)
 

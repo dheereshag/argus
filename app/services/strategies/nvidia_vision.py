@@ -85,7 +85,12 @@ class NvidiaVisionStrategy(BasePlateRecognizer):
                 "Accept": "application/json",
             }
             try:
-                response = requests.post(self.invoke_url, headers=headers, json=payload)
+                response = requests.post(
+                    self.invoke_url,
+                    headers=headers,
+                    json=payload,
+                    timeout=(settings.HTTP_CONNECT_TIMEOUT, settings.HTTP_READ_TIMEOUT),
+                )
                 if response.status_code == 200:
                     res_json = response.json()
                     raw_text = res_json['choices'][0]['message']['content'].strip()

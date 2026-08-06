@@ -20,6 +20,11 @@ class InvalidImageError(ANPRServiceError):
     def __init__(self, message: str = "Invalid or unsupported image file"):
         super().__init__(message=message, status_code=status.HTTP_400_BAD_REQUEST)
 
+class PayloadTooLargeError(ANPRServiceError):
+    """Raised when an upload exceeds the byte or pixel budget."""
+    def __init__(self, message: str = "Uploaded image exceeds the maximum permitted size"):
+        super().__init__(message=message, status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE)
+
 async def anpr_exception_handler(request: Request, exc: ANPRServiceError):
     logger.warning(f"ANPR Exception [{exc.__class__.__name__}] URL: {request.url} - Detail: {exc.message}")
     return JSONResponse(

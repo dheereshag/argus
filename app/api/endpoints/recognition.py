@@ -3,7 +3,7 @@ from typing import Optional
 from fastapi import APIRouter, File, UploadFile, Query
 from app.core.config import settings
 from app.core.logging import logger
-from app.core.exceptions import InvalidImageError
+from app.core.exceptions import InvalidImageError, PayloadTooLargeError
 from app.schemas.plate import (
     RecognitionResponse,
     ProvidersResponse,
@@ -12,6 +12,7 @@ from app.schemas.plate import (
     RecognitionStatusEnum
 )
 from app.services.factory import PlateRecognizerFactory
+from app.services.image_processing import decode_and_downscale
 from app.services.yolo_filter import filter_vehicle_and_occupancy
 
 router = APIRouter(tags=["ANPR Recognition"])
@@ -31,9 +32,22 @@ def list_providers():
     )
 
 @router.post("/recognize", response_model=RecognitionResponse, summary="Extract License Plate from Image")
-async def recognize_plate(
+def recognize_plate(
     file: UploadFile = File(..., description="Vehicle image file (JPEG/PNG)")
 ):
+    """
+    Deliberately a sync `def`, not `async def`.
+
+    Every unit of work below blocks: YOLO inference, PaddleOCR, and the provider
+    HTTP calls are all synchronous CPU or socket work. Declaring the handler
+    `async` ran that work directly on the event loop, so the process served one
+    request at a time and /health stopped answering while a recognition was in
+    flight — which is exactly when an orchestrator restarts the pod.
+
+    FastAPI runs sync handlers in an anyio worker threadpool, so this keeps the
+    loop free. Do not add `async` back without first moving the blocking work
+    into a threadpool or process pool.
+    """
     logger.info(f"Received recognition request for file '{file.filename}'.")
 
     if not file.content_type or not file.content_type.startswith("image/"):
@@ -41,7 +55,26 @@ async def recognize_plate(
         raise InvalidImageError(f"File '{file.filename}' is not a valid image format.")
 
     start_time = time.time()
-    image_bytes = await file.read()
+
+    # Read at most one byte past the limit so an oversized body is detected
+    # without ever holding the whole thing in memory.
+    raw_bytes = file.file.read(settings.MAX_UPLOAD_BYTES + 1)
+    if len(raw_bytes) > settings.MAX_UPLOAD_BYTES:
+        logger.warning(
+            f"Rejected oversized upload for '{file.filename}': "
+            f"exceeds {settings.MAX_UPLOAD_BYTES} bytes."
+        )
+        raise PayloadTooLargeError(
+            f"Upload exceeds the maximum permitted size of "
+            f"{settings.MAX_UPLOAD_BYTES // (1024 * 1024)} MB."
+        )
+    if not raw_bytes:
+        raise InvalidImageError(f"File '{file.filename}' is empty.")
+
+    # Guards against decompression bombs and normalises to a bounded JPEG.
+    # Every downstream stage (YOLO, ROI crops, provider uploads) sees these
+    # bytes, so box coordinates stay consistent with the image they came from.
+    image_bytes = decode_and_downscale(raw_bytes)
 
     # Step 1: YOLO Pre-screening (Check 4-wheeler vehicle present AND no human present)
     yolo_result = filter_vehicle_and_occupancy(image_bytes)

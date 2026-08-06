@@ -5,6 +5,62 @@ import cv2
 import numpy as np
 from PIL import Image, ImageOps, ImageDraw
 
+from app.core.config import settings
+from app.core.exceptions import InvalidImageError, PayloadTooLargeError
+
+# Decompression-bomb guard. Pillow's own default limit only emits a warning;
+# this makes an oversized image raise instead. A ~200 KB crafted PNG can declare
+# 40000x40000 and consume gigabytes on decode.
+Image.MAX_IMAGE_PIXELS = settings.MAX_IMAGE_PIXELS
+
+
+def decode_and_downscale(
+    image_bytes: bytes,
+    max_edge: Optional[int] = None,
+) -> bytes:
+    """
+    Validate an uploaded image and return normalised JPEG bytes.
+
+    Guards the decode against decompression bombs, applies EXIF orientation, and
+    downscales so the longest edge is at most `max_edge`.
+
+    Downscaling here is not only a memory measure. It also keeps every payload
+    under the Plate Recognizer 3.5 MB ceiling, which the provider strategy would
+    otherwise silently skip, making large images unrecognisable rather than slow.
+
+    Raises PayloadTooLargeError if the declared pixel count exceeds the budget,
+    InvalidImageError if the bytes are not a decodable image.
+    """
+    max_edge = max_edge or settings.MAX_IMAGE_EDGE_PX
+
+    try:
+        probe = Image.open(io.BytesIO(image_bytes))
+        width, height = probe.size
+    except Image.DecompressionBombError as exc:
+        raise PayloadTooLargeError(f"Image dimensions exceed the permitted budget: {exc}")
+    except Exception as exc:
+        raise InvalidImageError(f"Could not decode uploaded image: {exc}")
+
+    if width * height > settings.MAX_IMAGE_PIXELS:
+        raise PayloadTooLargeError(
+            f"Image is {width}x{height} ({width * height} pixels); "
+            f"limit is {settings.MAX_IMAGE_PIXELS} pixels."
+        )
+
+    try:
+        pil_img = ImageOps.exif_transpose(probe).convert("RGB")
+    except Image.DecompressionBombError as exc:
+        raise PayloadTooLargeError(f"Image dimensions exceed the permitted budget: {exc}")
+    except Exception as exc:
+        raise InvalidImageError(f"Could not decode uploaded image: {exc}")
+
+    if max(pil_img.size) > max_edge:
+        pil_img.thumbnail((max_edge, max_edge), Image.LANCZOS)
+
+    buf = io.BytesIO()
+    pil_img.save(buf, format="JPEG", quality=90)
+    return buf.getvalue()
+
 
 def order_points(pts: np.ndarray) -> np.ndarray:
     """Order 4 contour points: top-left, top-right, bottom-right, bottom-left."""

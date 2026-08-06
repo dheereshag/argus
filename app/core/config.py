@@ -25,6 +25,17 @@ class Settings(BaseSettings):
     PADDLE_CPU_THREADS: int = 4
     PADDLE_USE_ANGLE_CLS: bool = True
 
+    # Outbound HTTP timeouts (seconds). Never leave these unset: a provider that
+    # accepts the connection and then stalls will otherwise hang the worker
+    # thread indefinitely.
+    HTTP_CONNECT_TIMEOUT: float = 3.0
+    HTTP_READ_TIMEOUT: float = 10.0
+
+    # Upload limits
+    MAX_UPLOAD_BYTES: int = 8 * 1024 * 1024        # reject the request body above this
+    MAX_IMAGE_PIXELS: int = 50_000_000             # decompression-bomb guard (w * h)
+    MAX_IMAGE_EDGE_PX: int = 1920                  # downscale longest edge before inference
+
     # CORS Settings
     ALLOWED_ORIGINS: List[str] = ["*"]
 

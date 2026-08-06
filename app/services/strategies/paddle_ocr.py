@@ -59,10 +59,12 @@ class PaddleOCRStrategy(BasePlateRecognizer):
         def _norm(s: str) -> str:
             return "WB" + s[2:] if s.startswith("W8") else s
 
-        # 1. Inspect individual text boxes
+        # 1. Inspect individual text boxes.
+        # fullmatch, not search: an OCR line must BE a plate, not merely contain
+        # a plate-shaped substring. See parse_plate_info for why.
         for cand_raw in clean_lines:
             cand_clean = _norm(cand_raw)
-            match = INDIAN_PLATE_REGEX.search(cand_clean)
+            match = INDIAN_PLATE_REGEX.fullmatch(cand_clean)
             if match:
                 info = self.parse_plate_info(match.group(0))
                 if info:
@@ -77,7 +79,7 @@ class PaddleOCRStrategy(BasePlateRecognizer):
                 # Try adjacent pair (i, i+1)
                 if i + 1 < n:
                     pair_str = _norm(clean_lines[i] + clean_lines[i + 1])
-                    match = INDIAN_PLATE_REGEX.search(pair_str)
+                    match = INDIAN_PLATE_REGEX.fullmatch(pair_str)
                     if match:
                         info = self.parse_plate_info(match.group(0))
                         if info:
@@ -88,7 +90,7 @@ class PaddleOCRStrategy(BasePlateRecognizer):
                 # Try near-adjacent pair (i, i+2)
                 if i + 2 < n and not detected_plates:
                     pair_str = _norm(clean_lines[i] + clean_lines[i + 2])
-                    match = INDIAN_PLATE_REGEX.search(pair_str)
+                    match = INDIAN_PLATE_REGEX.fullmatch(pair_str)
                     if match:
                         info = self.parse_plate_info(match.group(0))
                         if info:
@@ -96,17 +98,7 @@ class PaddleOCRStrategy(BasePlateRecognizer):
                             if info not in detected_plates:
                                 detected_plates.append(info)
 
-        # 3. Global fallback concatenation if adjacent pairing didn't find anything
-        if not detected_plates and clean_lines:
-            concatenated = _norm("".join(clean_lines))
-            match = INDIAN_PLATE_REGEX.search(concatenated)
-            if match:
-                info = self.parse_plate_info(match.group(0))
-                if info:
-                    info["raw_text"] = raw_text_summary
-                    detected_plates.append(info)
-
-        # 4. Fallback: If no valid Indian plate matched, but OCR detected text lines
+        # 3. Fallback: If no valid Indian plate matched, but OCR detected text lines
         if not detected_plates and clean_lines:
             detected_plates.append({
                 "plate": "N/A",
