@@ -1,29 +1,44 @@
-import io
 import re
+import threading
+from typing import Any, Dict, List, Optional, Union
+
 import numpy as np
-from typing import List, Dict, Any, Union
-from PIL import Image, ImageOps
+
 from app.core.config import settings
+from app.core.contracts import bounded, ensure
 from app.core.logging import logger
 from app.services.base import BasePlateRecognizer
 from app.services.constants import INDIAN_PLATE_REGEX
+from app.services.image_processing import load_rgb
 
-_PADDLE_OCR_INSTANCE = None
+# Lazily-built OCR engine, guarded by a lock (NASA rule 6).
+#
+# Same race as the YOLO singleton: the check-then-set was unsynchronised, and
+# the request handler now runs in FastAPI's threadpool. PaddleOCR construction
+# is heavy — two concurrent first-requests building two engines is a genuine
+# memory spike on a Pi. main.py also warms this during lifespan.
+_PADDLE_OCR_INSTANCE: Optional[Any] = None
+_PADDLE_OCR_LOCK = threading.Lock()
 
-def get_paddle_ocr_engine():
+
+def get_paddle_ocr_engine() -> Any:
     global _PADDLE_OCR_INSTANCE
     if _PADDLE_OCR_INSTANCE is None:
-        logger.debug(
-            f"Initializing PaddleOCR engine instance "
-            f"(cpu_threads={settings.PADDLE_CPU_THREADS}, angle_cls={settings.PADDLE_USE_ANGLE_CLS})."
-        )
-        from paddleocr import PaddleOCR
-        _PADDLE_OCR_INSTANCE = PaddleOCR(
-            use_angle_cls=settings.PADDLE_USE_ANGLE_CLS,
-            lang="en",
-            show_log=False,
-            cpu_threads=settings.PADDLE_CPU_THREADS
-        )
+        with _PADDLE_OCR_LOCK:
+            if _PADDLE_OCR_INSTANCE is None:  # re-check under the lock
+                logger.debug(
+                    f"Initializing PaddleOCR engine instance "
+                    f"(cpu_threads={settings.PADDLE_CPU_THREADS}, "
+                    f"angle_cls={settings.PADDLE_USE_ANGLE_CLS})."
+                )
+                from paddleocr import PaddleOCR
+                _PADDLE_OCR_INSTANCE = PaddleOCR(
+                    use_angle_cls=settings.PADDLE_USE_ANGLE_CLS,
+                    lang="en",
+                    show_log=False,
+                    cpu_threads=settings.PADDLE_CPU_THREADS
+                )
+    ensure(_PADDLE_OCR_INSTANCE is not None, "PaddleOCR engine failed to initialise")
     return _PADDLE_OCR_INSTANCE
 
 
@@ -43,14 +58,24 @@ class PaddleOCRStrategy(BasePlateRecognizer):
         if not ocr_results or not ocr_results[0]:
             return []
 
-        lines = ocr_results[0]
-        detected_plates = []
-        clean_lines = []
+        # Bounded (rule 2). The pairing pass below is O(n) with two windows, and
+        # a frame full of signage or a text-covered tarpaulin yields many lines,
+        # none of which are plates. Cap the input rather than the loop body so
+        # the bound is stated once.
+        lines = bounded(ocr_results[0], settings.MAX_OCR_LINES, "OCR text lines")
 
-        # Collect raw text lines
+        detected_plates: List[Dict[str, Any]] = []
+        clean_lines: List[str] = []
+
+        # Collect raw text lines. Each entry is ((box), (text, score)); tolerate
+        # a malformed row rather than failing the whole read (rule 7).
         for line in lines:
-            text_str, score = line[1]
-            cand_clean = re.sub(r'[^A-Za-z0-9]', '', text_str).upper()
+            try:
+                text_str, _score = line[1]
+            except (IndexError, TypeError, ValueError):
+                logger.warning(f"[paddle] skipping malformed OCR row: {line!r:.80}")
+                continue
+            cand_clean = re.sub(r'[^A-Za-z0-9]', '', str(text_str)).upper()
             if cand_clean:
                 clean_lines.append(cand_clean)
 
@@ -114,10 +139,4 @@ class PaddleOCRStrategy(BasePlateRecognizer):
         filename: str = "image.jpg"
     ) -> List[Dict[str, Any]]:
         """Process a single image crop or full image with PaddleOCR."""
-        if isinstance(image_input, bytes):
-            pil_img = Image.open(io.BytesIO(image_input))
-        else:
-            pil_img = Image.open(image_input)
-
-        pil_img = ImageOps.exif_transpose(pil_img).convert("RGB")
-        return self._extract_plates_from_image_array(np.array(pil_img))
+        return self._extract_plates_from_image_array(np.array(load_rgb(image_input)))

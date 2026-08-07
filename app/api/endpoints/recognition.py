@@ -1,7 +1,11 @@
 import time
-from typing import Optional
-from fastapi import APIRouter, File, UploadFile, Query
+from typing import Any, List, Optional, Tuple
+
+from fastapi import APIRouter, File, UploadFile
+from pydantic import ValidationError
+
 from app.core.config import settings
+from app.core.contracts import ContractViolation
 from app.core.logging import logger
 from app.core.exceptions import InvalidImageError, PayloadTooLargeError
 from app.schemas.plate import (
@@ -30,6 +34,94 @@ def list_providers():
         available_providers=PlateRecognizerFactory.list_providers(),
         default_provider=settings.DEFAULT_PROVIDER
     )
+
+def _validate_plate_results(
+    raw_results: Any,
+    provider: ProviderEnum,
+) -> List[PlateResult]:
+    """
+    Turn provider output into PlateResult, validating each item (NASA rule 7).
+
+    Previously `[PlateResult(**item) for item in raw_results]`. That trusts a
+    strategy to return exactly the right keys: an unexpected key raises
+    TypeError, a missing one raises ValidationError, and either becomes a 500
+    on a request that had already succeeded at recognising a plate.
+
+    One malformed entry should not discard the good ones, so entries are
+    validated individually and bad ones are dropped with a log line rather than
+    taking down the response.
+    """
+    if not isinstance(raw_results, list):
+        logger.error(
+            f"Provider '{provider.value}' returned {type(raw_results).__name__}, expected list."
+        )
+        return []
+
+    validated: List[PlateResult] = []
+    for item in raw_results:
+        if not isinstance(item, dict):
+            logger.warning(
+                f"Provider '{provider.value}' returned a non-dict result "
+                f"({type(item).__name__}); discarding."
+            )
+            continue
+        try:
+            validated.append(PlateResult.model_validate(item))
+        except ValidationError as exc:
+            logger.warning(
+                f"Provider '{provider.value}' returned an unusable result "
+                f"{ {k: item.get(k) for k in list(item)[:4]} }: {exc.error_count()} error(s); discarding."
+            )
+    return validated
+
+
+def _run_waterfall(
+    image_bytes: bytes,
+    filename: str,
+    vehicle_box: Optional[tuple] = None,
+) -> Tuple[List[PlateResult], ProviderEnum]:
+    """
+    Try each provider in order, returning the first usable result.
+
+    Extracted from the handler per rule 4 — recognize_plate had grown past a
+    page and was doing upload validation, pre-screening, provider orchestration
+    and response assembly in one body.
+    """
+    for provider in FALLBACK_PROVIDERS:
+        logger.info(f"Attempting recognition on '{filename}' using provider: '{provider.value}'")
+        try:
+            recognizer = PlateRecognizerFactory.get_recognizer(provider)
+            raw_results = recognizer.recognize(
+                image_bytes,
+                filename=filename,
+                vehicle_box=vehicle_box,
+            )
+        except ContractViolation:
+            # An internal invariant broke. Failing over to the next provider
+            # would just hide it behind a slower path, so let it surface.
+            raise
+        except Exception as exc:
+            logger.error(
+                f"Provider '{provider.value}' encountered an error: {exc}. "
+                f"Falling back to next provider..."
+            )
+            continue
+
+        plate_results = _validate_plate_results(raw_results, provider)
+        if plate_results:
+            logger.info(
+                f"Successfully recognized {len(plate_results)} plate(s) in "
+                f"'{filename}' via '{provider.value}'."
+            )
+            return plate_results, provider
+
+        logger.warning(
+            f"Provider '{provider.value}' returned no usable license plate results. "
+            f"Falling back to next provider..."
+        )
+
+    return [], FALLBACK_PROVIDERS[0]
+
 
 @router.post("/recognize", response_model=RecognitionResponse, summary="Extract License Plate from Image")
 def recognize_plate(
@@ -96,27 +188,11 @@ def recognize_plate(
         )
 
     # Step 2: License Plate Recognition with Waterfall Fallback Mechanism
-    plate_results = []
-    active_provider = FALLBACK_PROVIDERS[0]
-
-    for provider in FALLBACK_PROVIDERS:
-        logger.info(f"Attempting recognition on '{file.filename}' using provider: '{provider.value}'")
-        try:
-            recognizer = PlateRecognizerFactory.get_recognizer(provider)
-            raw_results = recognizer.recognize(
-                image_bytes,
-                filename=file.filename,
-                vehicle_box=yolo_result.get("vehicle_box")
-            )
-            if raw_results:
-                plate_results = [PlateResult(**item) for item in raw_results]
-                active_provider = provider
-                logger.info(f"Successfully recognized {len(plate_results)} plate(s) in '{file.filename}' via '{provider.value}'.")
-                break
-            else:
-                logger.warning(f"Provider '{provider.value}' returned no license plate results. Falling back to next provider...")
-        except Exception as e:
-            logger.error(f"Provider '{provider.value}' encountered an error: {e}. Falling back to next provider...")
+    plate_results, active_provider = _run_waterfall(
+        image_bytes,
+        filename=file.filename or "image.jpg",
+        vehicle_box=yolo_result.get("vehicle_box"),
+    )
 
     execution_time_ms = round((time.time() - start_time) * 1000, 2)
 
