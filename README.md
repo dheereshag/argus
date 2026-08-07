@@ -330,6 +330,7 @@ Please read this before quoting any capability of this service.
 | 🟠 | **`/health` is not a real health check.** Returns `healthy` even when models failed to load. |
 | 🟠 | **The human gate may reject legitimate weighings.** It fires on a person detected *anywhere* in frame, with no spatial constraint — a driver visible through a windscreen counts. `scripts/check_human_gate.py` measures this on real captures. |
 | 🟠 | **Model weights are an unverified pickle.** `yolo11n.pt` loads via `torch.load`, which executes arbitrary code. Committed to the repo rather than fetched at runtime, which contains the risk, but there is no checksum. |
+| 🟠 | **Licensing is unresolved.** Ultralytics YOLO is AGPL-3.0, and using it in a commercial API requires either open-sourcing the whole project or an Enterprise Licence. Argus is therefore **unlicensed** — see [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md). |
 | 🟠 | **Licence plates are personal data.** Plate + timestamp + location falls under India's DPDP Act 2023, and GDPR where an EU nexus exists. No retention policy; images go to third-party providers without a DPA. |
 | 🟡 | **No provider selection**, no API versioning, no Dockerfile, no metrics or structured logging. |
 
@@ -342,12 +343,26 @@ Please read this before quoting any capability of this service.
 | [`PILOT_PLAN.md`](PILOT_PLAN.md) | Route from here to a defensible pilot, as sequenced issues |
 | [`LABELLING.md`](LABELLING.md) | Ground-truth format and conventions |
 | [`docs/NASA_RULES.md`](docs/NASA_RULES.md) | Power of 10, rule-by-rule verdicts |
+| [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md) | Dependency licences, and the unresolved AGPL question |
 | [`ISSUE_AUDIT_SUMMARY.md`](ISSUE_AUDIT_SUMMARY.md) | Production-readiness audit, condensed |
 | [`AUDIT-EXPLAINED.md`](AUDIT-EXPLAINED.md) | The same audit, in full and in plain language |
 | `docs/issues/` | Ready-to-file issue and PR bodies |
 
 ---
 
+## Licence
+
+**None yet — all rights reserved.**
+
+This is deliberate. `ultralytics` is AGPL-3.0, which means Argus can only be AGPL-3.0 itself,
+or needs an Ultralytics Enterprise Licence, or needs a different detector. A permissive licence
+would contradict the dependency rather than resolve it.
+
+[`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md) sets out the options. Not legal advice —
+get it reviewed before shipping commercially.
+
+---
+
 <div align="center">
-<sub>Pilot software · accuracy unmeasured · not for production use</sub>
+<sub>Pilot software · accuracy unmeasured · unlicensed · not for production use</sub>
 </div>
