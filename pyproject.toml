@@ -84,7 +84,7 @@ max-statements = 50
 
 [tool.mypy]
 explicit_package_bases = true
-exclude = ["^main\\.py$", "^eval\\.py$"]
+exclude = ["^main\\.py$", "^scripts/"]
 python_version = "3.12"
 warn_unused_configs = true
 warn_redundant_casts = true

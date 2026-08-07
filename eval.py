@@ -3,6 +3,7 @@ import io
 import json
 import os
 import pprint
+import sys
 import time
 
 from PIL import Image, ImageOps
@@ -33,7 +34,7 @@ pp = pprint.PrettyPrinter(indent=2, sort_dicts=False)
 
 def get_all_vehicle_boxes(img_bytes: bytes) -> list:
     """Re-run YOLO to get all 4-wheeler bounding boxes from an image."""
-    from app.services.yolo_filter import FOUR_WHEELER_CLASS_NAMES, get_yolo_model
+    from app.services.yolo_filter import FOUR_WHEELER_CLASS_NAMES, get_yolo_model  # noqa: PLC0415
 
     pil_img = ImageOps.exif_transpose(Image.open(io.BytesIO(img_bytes))).convert("RGB")
     model = get_yolo_model()
@@ -43,7 +44,7 @@ def get_all_vehicle_boxes(img_bytes: bytes) -> list:
         cls_ids = raw.boxes.cls.cpu().numpy()
         confs   = raw.boxes.conf.cpu().numpy()
         xyxy    = raw.boxes.xyxy.cpu().numpy() if hasattr(raw.boxes, "xyxy") else None
-        for idx, (cls_id, conf) in enumerate(zip(cls_ids, confs)):
+        for idx, (cls_id, conf) in enumerate(zip(cls_ids, confs, strict=False)):
             if int(cls_id) in FOUR_WHEELER_CLASS_NAMES and conf >= settings.VEHICLE_CONF_THRESH:
                 if xyxy is not None and idx < len(xyxy):
                     boxes.append(tuple(map(int, xyxy[idx])))
@@ -176,10 +177,10 @@ def print_summary_table(rows: list) -> None:
     for s in splits:
         subset = [r for r in rows if str(r.get("split", "")).upper() == s]
         stats = get_stats(subset)
-        summary_data.append([s] + list(stats))
+        summary_data.append([s, *stats])
 
     total_stats = get_stats(rows)
-    summary_data.append(["TOTAL"] + list(total_stats))
+    summary_data.append(["TOTAL", *total_stats])
 
     print("\nEVALUATION SUMMARY:")
     print(tabulate(summary_data, headers=headers, tablefmt="rounded_grid"))
@@ -187,12 +188,12 @@ def print_summary_table(rows: list) -> None:
 
 # ── core evaluator ────────────────────────────────────────────────────────────
 
-def evaluate_dataset(
+def evaluate_dataset(  # noqa: C901, PLR0917, PLR0912, PLR0915
     split: str,
     image_dir: str,
     providers: list,
     multi_vehicle_ok: bool = False,
-    target_files: list = None,
+    target_files: list | None = None,
     save_crops: bool = True,
     output_dir: str = "eval_debug_crops",
 ) -> list:
@@ -248,10 +249,8 @@ def evaluate_dataset(
             pp.pprint(row)
             continue
 
-        is_eligible   = yolo_res.get("is_eligible", False)
         vehicle_count = yolo_res.get("vehicle_count", 0)
         vehicle_type  = yolo_res.get("vehicle_type") or "unfiltered"
-        primary_box   = yolo_res.get("vehicle_box")
 
         # ── vehicle boxes for OCR ─────────────────────────────────────────────
         vehicle_boxes = get_all_vehicle_boxes(img_bytes) if vehicle_count > 0 else []
