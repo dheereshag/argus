@@ -99,8 +99,16 @@ class BasePlateRecognizer(ABC):
 
     def parse_plate_info(self, raw_plate: str) -> Optional[Dict[str, Any]]:
         """
-        Helper utility to validate raw plate string against Indian plate regex
-        and map the state code to full state name.
+        Validate a candidate string against the Indian plate regex and map the
+        state code to a full state name.
+
+        The candidate must match the plate pattern in its ENTIRETY (fullmatch).
+        A substring match is not sufficient: text lifted off a vehicle surface
+        routinely contains plate-shaped substrings that are not plates
+        ("GOODYEAR2024" -> "ODYEAR2024", "ASHOKLEYLAND2820" -> "LAND2820").
+
+        Returns None when the candidate is not a well-formed plate. Callers must
+        treat None as "no plate found" and continue their fallback chain.
         """
         if not raw_plate:
             return None
@@ -109,19 +117,14 @@ class BasePlateRecognizer(ABC):
         if len(clean_cand) >= 2 and clean_cand[:2] == "W8":
             clean_cand = "WB" + clean_cand[2:]
 
-        match = INDIAN_PLATE_REGEX.search(clean_cand)
+        match = INDIAN_PLATE_REGEX.fullmatch(clean_cand)
+        if not match:
+            return None
 
-        if match:
-            matched_plate = match.group(0).replace(" ", "").replace(".", "").replace("-", "").upper()
-            state_code = match.group(1) or match.group(6)
-            state_name = STATE_CODES.get(state_code.upper(), "Unknown State") if state_code else "Unknown State"
-            return {
-                "plate": matched_plate,
-                "state": state_name
-            }
-
-        state_code = clean_cand[:2]
+        matched_plate = match.group(0).replace(" ", "").replace(".", "").replace("-", "").upper()
+        state_code = match.group(1) or match.group(6)
+        state_name = STATE_CODES.get(state_code.upper(), "Unknown State") if state_code else "Unknown State"
         return {
-            "plate": clean_cand,
-            "state": STATE_CODES.get(state_code, "Unknown State")
+            "plate": matched_plate,
+            "state": state_name
         }

@@ -42,7 +42,6 @@ STATE_CODES = {
     "UP": "Uttar Pradesh",
     "WB": "West Bengal",
     "BH": "Bharat Series (National)",
-    "BP": "Bharat / Police / Custom Series",
 }
 
 STATE_PREFIX_PATTERN = "|".join(sorted([k for k in STATE_CODES.keys() if k != "BH"], key=len, reverse=True))

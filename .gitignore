@@ -175,5 +175,16 @@ pyrightconfig.json
 
 # End of https://www.toptal.com/developers/gitignore/api/python
 .DS_Store
-data/
 eval_debug_crops/
+human_gate_spike/
+
+# Images are not version controlled, but ground truth is: it is small,
+# expensive to recreate, and every accuracy claim is measured against it.
+# See LABELLING.md.
+#
+# Note this is `data/*` and not `data/` on purpose. Git cannot re-include a
+# file whose parent DIRECTORY is excluded, so `data/` followed by
+# `!data/labels.csv` silently fails to track the labels.
+data/*
+!data/labels.csv
+!data/labels.example.csv

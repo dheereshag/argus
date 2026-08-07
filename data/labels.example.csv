@@ -1,0 +1,11 @@
+filename,true_plate,notes
+01.jpg,,"alamy stock watermark only; no vehicle plate legible. previously reported as BP2A4904 - this row is the regression test for that false positive"
+02.jpg,RJ43GA2012,
+03.jpg,NL02K7556,
+04.jpg,OR02BU3389,
+05.jpg,RJ09G4017,"3-digit series, older RTO format - do not normalise to 4 digits"
+06.jpg,KA25B3155,
+07.jpg,,"rear view, plate not in frame"
+08.jpg,MH12AB1234,"0/O ambiguity in serial - best reading recorded, low confidence"
+09.jpg,,"plate obscured by tarpaulin"
+10.jpg,22BH1234AA,bharat series

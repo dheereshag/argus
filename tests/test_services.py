@@ -42,10 +42,8 @@ def test_base_plate_recognizer_parse_plate_info():
     assert strategy.parse_plate_info("") is None
     assert strategy.parse_plate_info(None) is None
     
-    # Test fallback state mapping
-    info_fallback = strategy.parse_plate_info("XX999999")
-    assert info_fallback["plate"] == "XX999999"
-    assert info_fallback["state"] == "Unknown State"
+    # Test invalid plate input returns None (no unvalidated fallback)
+    assert strategy.parse_plate_info("XX999999") is None
 
 def test_factory_list_and_get():
     providers = PlateRecognizerFactory.list_providers()
