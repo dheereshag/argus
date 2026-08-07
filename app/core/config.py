@@ -1,7 +1,10 @@
 import os
-from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
 from app.schemas.plate import ProviderEnum
+
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Argus ANPR Microservice"

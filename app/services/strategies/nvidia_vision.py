@@ -1,7 +1,9 @@
-import os
 import base64
-import requests
+import os
 from typing import Any, Dict, List, Optional, Tuple, Union
+
+import requests
+
 from app.core.config import settings
 from app.core.logging import logger
 from app.services.base import BasePlateRecognizer
@@ -56,7 +58,7 @@ class NvidiaVisionStrategy(BasePlateRecognizer):
     Inherits 3-tier vehicle crop & bottom ROI fallback pipeline from BasePlateRecognizer.
     """
 
-    def __init__(self, api_key: str = None, invoke_url: str = None, model_name: str = None):
+    def __init__(self, api_key: str | None = None, invoke_url: str | None = None, model_name: str | None = None):
         self.api_key = api_key
         self.invoke_url = invoke_url or settings.NVIDIA_INVOKE_URL
         self.model_name = model_name or "meta/llama-3.2-11b-vision-instruct"
@@ -133,7 +135,7 @@ class NvidiaVisionStrategy(BasePlateRecognizer):
                     json=payload,
                     timeout=(settings.HTTP_CONNECT_TIMEOUT, settings.HTTP_READ_TIMEOUT),
                 )
-                if response.status_code == 200:
+                if response.status_code == 200:  # noqa: PLR2004
                     try:
                         res_json = response.json()
                     except ValueError:

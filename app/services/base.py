@@ -1,5 +1,5 @@
-from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Union, Optional, Tuple
+from abc import ABC
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from app.core.config import settings
 from app.core.contracts import bounded, require
@@ -7,7 +7,7 @@ from app.services.constants import INDIAN_PLATE_REGEX, STATE_CODES
 from app.services.image_processing import box_area, crop_image_roi, warp_perspective_crop
 
 
-class BasePlateRecognizer(ABC):
+class BasePlateRecognizer(ABC):  # noqa: B024
     """
     Abstract Base Class for License Plate Recognition Strategies.
     Implements a unified Template Method with multi-tier ROI and perspective warping fallback.
@@ -23,7 +23,7 @@ class BasePlateRecognizer(ABC):
         """
         return []
 
-    def recognize(
+    def recognize(  # noqa: C901
         self,
         image_input: Union[str, bytes],
         filename: str = "image.jpg",
@@ -143,7 +143,7 @@ class BasePlateRecognizer(ABC):
             return None
 
         clean_cand = raw_plate.strip().upper()
-        if len(clean_cand) >= 2 and clean_cand[:2] == "W8":
+        if len(clean_cand) >= 2 and clean_cand[:2] == "W8":  # noqa: PLR2004
             clean_cand = "WB" + clean_cand[2:]
 
         match = INDIAN_PLATE_REGEX.fullmatch(clean_cand)

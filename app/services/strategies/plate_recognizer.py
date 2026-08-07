@@ -1,6 +1,8 @@
 import os
+from typing import Any, Dict, List, Union
+
 import requests
-from typing import List, Dict, Any, Union
+
 from app.core.config import settings
 from app.core.logging import logger
 from app.services.base import BasePlateRecognizer
@@ -13,7 +15,7 @@ class PlateRecognizerStrategy(BasePlateRecognizer):
     Inherits 3-tier vehicle crop & bottom ROI fallback pipeline from BasePlateRecognizer.
     """
 
-    def __init__(self, token: str = None, regions: List[str] = None):
+    def __init__(self, token: str | None = None, regions: List[str] | None = None):
         self.api_token = token or settings.PLATE_RECOGNIZER_TOKEN
         self.regions = regions or ["in"]
         self.api_url = "https://api.platerecognizer.com/v1/plate-reader/"

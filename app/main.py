@@ -1,19 +1,20 @@
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.router import api_router
 from app.core.config import settings
-from app.core.logging import logger
 from app.core.contracts import ContractViolation
 from app.core.exceptions import (
     ANPRServiceError,
     anpr_exception_handler,
     contract_violation_handler,
 )
-from app.api.router import api_router
-
-from app.services.yolo_filter import get_yolo_model
+from app.core.logging import logger
 from app.services.strategies.paddle_ocr import get_paddle_ocr_engine
+from app.services.yolo_filter import get_yolo_model
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

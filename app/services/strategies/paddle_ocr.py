@@ -22,7 +22,7 @@ _PADDLE_OCR_LOCK = threading.Lock()
 
 
 def get_paddle_ocr_engine() -> Any:
-    global _PADDLE_OCR_INSTANCE
+    global _PADDLE_OCR_INSTANCE  # noqa: PLW0603
     if _PADDLE_OCR_INSTANCE is None:
         with _PADDLE_OCR_LOCK:
             if _PADDLE_OCR_INSTANCE is None:  # re-check under the lock
@@ -31,7 +31,7 @@ def get_paddle_ocr_engine() -> Any:
                     f"(cpu_threads={settings.PADDLE_CPU_THREADS}, "
                     f"angle_cls={settings.PADDLE_USE_ANGLE_CLS})."
                 )
-                from paddleocr import PaddleOCR
+                from paddleocr import PaddleOCR  # noqa: PLC0415
                 _PADDLE_OCR_INSTANCE = PaddleOCR(
                     use_angle_cls=settings.PADDLE_USE_ANGLE_CLS,
                     lang="en",
@@ -51,7 +51,7 @@ class PaddleOCRStrategy(BasePlateRecognizer):
     def __init__(self, bottom_crop_ratio: float = 0.50):
         self.bottom_crop_ratio = bottom_crop_ratio
 
-    def _extract_plates_from_image_array(self, img_np: np.ndarray) -> List[Dict[str, Any]]:
+    def _extract_plates_from_image_array(self, img_np: np.ndarray) -> List[Dict[str, Any]]:  # noqa: C901, PLR0912
         ocr_engine = get_paddle_ocr_engine()
         ocr_results = ocr_engine.ocr(img_np, cls=settings.PADDLE_USE_ANGLE_CLS)
 

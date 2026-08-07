@@ -28,7 +28,7 @@ _YOLO_LOCK = threading.Lock()
 
 
 def get_yolo_model() -> YOLO:
-    global _YOLO_MODEL
+    global _YOLO_MODEL  # noqa: PLW0603
     if _YOLO_MODEL is None:
         with _YOLO_LOCK:
             if _YOLO_MODEL is None:  # re-check: another thread may have won the race
@@ -90,7 +90,7 @@ def _run_detection(
 
     # Bounded: a frame with hundreds of detections is a frame we decline to
     # fully process rather than one we spend unbounded time on (rule 2).
-    detections = bounded(list(zip(cls_ids, confs)), MAX_DETECTIONS, "YOLO detections")
+    detections = bounded(list(zip(cls_ids, confs, strict=False)), MAX_DETECTIONS, "YOLO detections")
 
     for idx, (raw_cls, conf) in enumerate(detections):
         cls_id = int(raw_cls)
@@ -102,7 +102,10 @@ def _run_detection(
         if cls_id not in FOUR_WHEELER_CLASS_NAMES or conf < vehicle_conf_thresh:
             continue
 
-        raw_box = tuple(map(int, xyxy[idx])) if (xyxy is not None and idx < len(xyxy)) else None
+        raw_box = None
+        if xyxy is not None and idx < len(xyxy) and len(xyxy[idx]) >= 4:  # noqa: PLR2004
+            xb = xyxy[idx]
+            raw_box = (int(xb[0]), int(xb[1]), int(xb[2]), int(xb[3]))
         box = clamp_box(raw_box, width, height)
         if box is None:
             logger.warning(
