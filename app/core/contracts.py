@@ -94,7 +94,7 @@ def bounded(items: Optional[Sequence[Any]], limit: int, what: str) -> Sequence[A
 
     # Imported here to keep this module importable by anything, including the
     # logging configuration itself.
-    from app.core.logging import logger
+    from app.core.logging import logger  # noqa: PLC0415
 
     logger.warning(
         f"[bounds] {what}: {len(items)} exceeds cap of {limit}; "

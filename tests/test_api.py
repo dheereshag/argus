@@ -1,6 +1,7 @@
-import pytest
 from unittest.mock import MagicMock, patch
-from app.schemas.plate import RecognitionStatusEnum, ProviderEnum
+
+from app.schemas.plate import RecognitionStatusEnum
+
 
 def test_root_endpoint(client):
     response = client.get("/")

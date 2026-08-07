@@ -6,14 +6,14 @@ from pydantic import ValidationError
 
 from app.core.config import settings
 from app.core.contracts import ContractViolation
-from app.core.logging import logger
 from app.core.exceptions import InvalidImageError, PayloadTooLargeError
+from app.core.logging import logger
 from app.schemas.plate import (
-    RecognitionResponse,
-    ProvidersResponse,
     PlateResult,
     ProviderEnum,
-    RecognitionStatusEnum
+    ProvidersResponse,
+    RecognitionResponse,
+    RecognitionStatusEnum,
 )
 from app.services.factory import PlateRecognizerFactory
 from app.services.image_processing import decode_and_downscale
@@ -125,7 +125,7 @@ def _run_waterfall(
 
 @router.post("/recognize", response_model=RecognitionResponse, summary="Extract License Plate from Image")
 def recognize_plate(
-    file: UploadFile = File(..., description="Vehicle image file (JPEG/PNG)")
+    file: UploadFile = File(..., description="Vehicle image file (JPEG/PNG)")  # noqa: B008
 ):
     """
     Deliberately a sync `def`, not `async def`.

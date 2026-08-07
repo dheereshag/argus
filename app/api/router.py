@@ -1,4 +1,5 @@
 from fastapi import APIRouter
+
 from app.api.endpoints import health, recognition
 
 api_router = APIRouter()

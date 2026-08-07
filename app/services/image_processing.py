@@ -1,9 +1,10 @@
 import io
 import os
-from typing import Union, Optional, Tuple
+from typing import Optional, Tuple, Union
+
 import cv2
 import numpy as np
-from PIL import Image, ImageOps, ImageDraw
+from PIL import Image, ImageDraw, ImageOps
 
 from app.core.config import settings
 from app.core.contracts import ensure, require
@@ -48,9 +49,9 @@ def decode_and_downscale(
         with io.BytesIO(image_bytes) as buf, Image.open(buf) as probe:
             width, height = probe.size
     except Image.DecompressionBombError as exc:
-        raise PayloadTooLargeError(f"Image dimensions exceed the permitted budget: {exc}")
+        raise PayloadTooLargeError(f"Image dimensions exceed the permitted budget: {exc}") from exc
     except Exception as exc:
-        raise InvalidImageError(f"Could not decode uploaded image: {exc}")
+        raise InvalidImageError(f"Could not decode uploaded image: {exc}") from exc
 
     if width * height > settings.MAX_IMAGE_PIXELS:
         raise PayloadTooLargeError(
@@ -61,9 +62,9 @@ def decode_and_downscale(
     try:
         pil_img = load_rgb(image_bytes)
     except Image.DecompressionBombError as exc:
-        raise PayloadTooLargeError(f"Image dimensions exceed the permitted budget: {exc}")
+        raise PayloadTooLargeError(f"Image dimensions exceed the permitted budget: {exc}") from exc
     except Exception as exc:
-        raise InvalidImageError(f"Could not decode uploaded image: {exc}")
+        raise InvalidImageError(f"Could not decode uploaded image: {exc}") from exc
 
     if max(pil_img.size) > max_edge:
         pil_img.thumbnail((max_edge, max_edge), Image.LANCZOS)
@@ -115,7 +116,7 @@ def warp_perspective_crop(img_bytes: bytes) -> bytes:
         approx = cv2.approxPolyDP(c, 0.02 * peri, True)
 
         # If a 4-point polygon quadrilateral is found with reasonable area (> 5% of crop area)
-        if len(approx) == 4 and cv2.contourArea(approx) > (0.05 * w * h):
+        if len(approx) == 4 and cv2.contourArea(approx) > (0.05 * w * h):  # noqa: PLR2004
             pts = approx.reshape(4, 2)
             rect = order_points(pts)
             tl, tr, br, bl = rect
@@ -128,7 +129,7 @@ def warp_perspective_crop(img_bytes: bytes) -> bytes:
             height_b = np.sqrt(((tl[0] - bl[0]) ** 2) + ((tl[1] - bl[1]) ** 2))
             max_height = max(int(height_a), int(height_b))
 
-            if max_width > 20 and max_height > 10:
+            if max_width > 20 and max_height > 10:  # noqa: PLR2004
                 dst = np.array([
                     [0, 0],
                     [max_width - 1, 0],
@@ -141,7 +142,7 @@ def warp_perspective_crop(img_bytes: bytes) -> bytes:
 
                 success, encoded = cv2.imencode(".jpg", warped)
                 if success:
-                    return encoded.tobytes()
+                    return bytes(encoded.tobytes())
 
     # 2. Rotation De-skewing fallback using minAreaRect
     contours, _ = cv2.findContours(edged.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
@@ -150,24 +151,24 @@ def warp_perspective_crop(img_bytes: bytes) -> bytes:
         if cv2.contourArea(largest_c) > (0.05 * w * h):
             rect = cv2.minAreaRect(largest_c)
             angle = rect[-1]
-            if angle < -45:
+            if angle < -45:  # noqa: PLR2004
                 angle = 90 + angle
 
-            if abs(angle) > 3.0:
+            if abs(angle) > 3.0:  # noqa: PLR2004
                 center = (w // 2, h // 2)
                 M = cv2.getRotationMatrix2D(center, angle, 1.0)
                 rotated = cv2.warpAffine(img, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
 
                 success, encoded = cv2.imencode(".jpg", rotated)
                 if success:
-                    return encoded.tobytes()
+                    return bytes(encoded.tobytes())
 
     return img_bytes
 
 
 def box_area(box: Optional[Tuple[int, int, int, int]]) -> int:
     """Area of an xyxy box, 0 for anything malformed. Never raises — used as a sort key."""
-    if not box or len(box) != 4:
+    if not box or len(box) != 4:  # noqa: PLR2004
         return 0
     x1, y1, x2, y2 = box
     return max(0, int(x2) - int(x1)) * max(0, int(y2) - int(y1))
@@ -197,7 +198,7 @@ def clamp_box(
     """
     require(width > 0 and height > 0, f"image dimensions must be positive, got {width}x{height}")
 
-    if not box or len(box) != 4:
+    if not box or len(box) != 4:  # noqa: PLR2004
         return None
 
     try:
@@ -291,7 +292,7 @@ def crop_image_roi(
     return _to_jpeg_bytes(cropped)
 
 
-def save_debug_images(
+def save_debug_images(  # noqa: PLR0917
     img_bytes: bytes,
     filename: str,
     vehicle_boxes: list,

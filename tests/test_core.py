@@ -1,15 +1,17 @@
 import asyncio
 import json
-import pytest
+
 from fastapi import Request
 from fastapi.responses import JSONResponse
-from app.core.config import settings, Settings
+
+from app.core.config import settings
 from app.core.exceptions import (
     ANPRServiceError,
-    ProviderNotFoundError,
     InvalidImageError,
-    anpr_exception_handler
+    ProviderNotFoundError,
+    anpr_exception_handler,
 )
+
 
 def test_settings_default_values():
     assert settings.PROJECT_NAME == "Argus ANPR Microservice"
@@ -39,11 +41,11 @@ def test_anpr_exception_handler():
     scope = {"type": "http", "method": "GET", "path": "/test", "headers": []}
     request = Request(scope=scope)
     exc = InvalidImageError("Test image exception")
-    
+
     response = asyncio.run(anpr_exception_handler(request, exc))
     assert isinstance(response, JSONResponse)
     assert response.status_code == 400
-    
+
     data = json.loads(response.body.decode())
     assert data["success"] is False
     assert data["error"] == "InvalidImageError"

@@ -1,7 +1,7 @@
-import os
-import sys
-import time
 import argparse
+import os
+import time
+
 from app.schemas.plate import ProviderEnum
 from app.services import PlateRecognizerFactory
 from app.services.yolo_filter import filter_vehicle_and_occupancy

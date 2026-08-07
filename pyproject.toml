@@ -35,6 +35,7 @@ filterwarnings = [
     "ignore::DeprecationWarning:paddle.*",
     "ignore::DeprecationWarning:paddleocr.*",
     "ignore::UserWarning:ultralytics.*",
+    "ignore::starlette.exceptions.StarletteDeprecationWarning",
 ]
 
 # ---------------------------------------------------------------------------
@@ -51,7 +52,7 @@ filterwarnings = [
 [tool.ruff]
 line-length = 110
 target-version = "py312"
-exclude = ["eval_debug_crops", "human_gate_spike", ".venv"]
+exclude = ["eval_debug_crops", "human_gate_spike", ".venv", "scripts"]
 
 [tool.ruff.lint]
 select = [
@@ -79,9 +80,11 @@ max-statements = 50
 
 [tool.ruff.lint.per-file-ignores]
 # Tests assert on internals and repeat themselves by design.
-"tests/*" = ["PLR2004", "S101"]
+"tests/*" = ["PLR2004", "S101", "PLC0415"]
 
 [tool.mypy]
+explicit_package_bases = true
+exclude = ["^main\\.py$", "^eval\\.py$"]
 python_version = "3.12"
 warn_unused_configs = true
 warn_redundant_casts = true

@@ -1,6 +1,8 @@
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
+
 from app.core.logging import logger
+
 
 class ANPRServiceError(Exception):
     """Base exception for ANPR domain errors."""

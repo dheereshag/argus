@@ -55,11 +55,9 @@ def test_contracts_survive_optimised_mode():
     result = subprocess.run(
         [sys.executable, "-O", "-c",
          "from app.core.contracts import require, ContractViolation\n"
-         "try:\n"
-         "    require(False, 'must survive -O')\n"
-         "except ContractViolation:\n"
-         "    print('RAISED')\n"],
-        capture_output=True, text=True,
+         "try: require(False, 'test'); print('LIVED')\n"
+         "except ContractViolation: print('RAISED')\n"],
+        capture_output=True, text=True, check=False,
     )
     assert "RAISED" in result.stdout, (
         "contract check did not fire under -O; it has regressed to assert semantics"

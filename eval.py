@@ -1,18 +1,13 @@
-import os
-import sys
-import time
-import json
 import argparse
-import pprint
 import io
+import json
+import os
+import pprint
+import time
+
+from PIL import Image, ImageOps
 from tabulate import tabulate
 
-from PIL import Image, ImageOps, ImageDraw
-
-from app.services import PlateRecognizerFactory
-from app.schemas.plate import ProviderEnum
-from app.services.yolo_filter import filter_vehicle_and_occupancy
-from app.services.image_processing import save_debug_images
 from app.core.config import settings
 from app.eval.metrics import (
     compare_to_baseline,
@@ -21,6 +16,10 @@ from app.eval.metrics import (
     format_worst_offenders,
     load_labels,
 )
+from app.schemas.plate import ProviderEnum
+from app.services import PlateRecognizerFactory
+from app.services.image_processing import save_debug_images
+from app.services.yolo_filter import filter_vehicle_and_occupancy
 
 TRAIN_DIR = "data/images/train"
 VAL_DIR   = "data/images/val"
@@ -34,7 +33,7 @@ pp = pprint.PrettyPrinter(indent=2, sort_dicts=False)
 
 def get_all_vehicle_boxes(img_bytes: bytes) -> list:
     """Re-run YOLO to get all 4-wheeler bounding boxes from an image."""
-    from app.services.yolo_filter import get_yolo_model, FOUR_WHEELER_CLASS_NAMES
+    from app.services.yolo_filter import FOUR_WHEELER_CLASS_NAMES, get_yolo_model
 
     pil_img = ImageOps.exif_transpose(Image.open(io.BytesIO(img_bytes))).convert("RGB")
     model = get_yolo_model()
