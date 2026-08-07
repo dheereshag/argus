@@ -1,12 +1,11 @@
-import pytest
-from pydantic import ValidationError
 from app.schemas.plate import (
-    ProviderEnum,
-    RecognitionStatusEnum,
     PlateResult,
+    ProviderEnum,
+    ProvidersResponse,
     RecognitionResponse,
-    ProvidersResponse
+    RecognitionStatusEnum,
 )
+
 
 def test_provider_enum_values():
     assert ProviderEnum.PLATERECOGNIZER.value == "platerecognizer"

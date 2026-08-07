@@ -1,19 +1,21 @@
-from typing import Dict, Type, List, Optional, Union
+from typing import ClassVar, Dict, List, Optional, Type, Union
+
 from app.core.config import settings
-from app.core.logging import logger
 from app.core.exceptions import ProviderNotFoundError
+from app.core.logging import logger
 from app.schemas.plate import ProviderEnum
 from app.services.base import BasePlateRecognizer
-from app.services.strategies.plate_recognizer import PlateRecognizerStrategy
 from app.services.strategies.nvidia_vision import NvidiaVisionStrategy
 from app.services.strategies.paddle_ocr import PaddleOCRStrategy
+from app.services.strategies.plate_recognizer import PlateRecognizerStrategy
+
 
 class PlateRecognizerFactory:
     """
     Factory Pattern for selecting and instantiating ANPR Model Strategies dynamically.
     """
 
-    _strategies: Dict[ProviderEnum, Type[BasePlateRecognizer]] = {
+    _strategies: ClassVar[Dict[ProviderEnum, Type[BasePlateRecognizer]]] = {
         ProviderEnum.PLATERECOGNIZER: PlateRecognizerStrategy,
         ProviderEnum.NVIDIA: NvidiaVisionStrategy,
         ProviderEnum.PADDLEOCR: PaddleOCRStrategy,
@@ -47,7 +49,7 @@ class PlateRecognizerFactory:
                 raise ProviderNotFoundError(
                     provider=target_provider,
                     available_providers=[p.value for p in cls.list_providers()]
-                )
+                ) from None
 
         if target_provider not in cls._strategies:
             logger.warning(f"Unregistered strategy requested: '{target_provider}'")
