@@ -1,7 +1,10 @@
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Union, Optional, Tuple
+
+from app.core.config import settings
+from app.core.contracts import bounded, require
 from app.services.constants import INDIAN_PLATE_REGEX, STATE_CODES
-from app.services.image_processing import crop_image_roi, warp_perspective_crop
+from app.services.image_processing import box_area, crop_image_roi, warp_perspective_crop
 
 
 class BasePlateRecognizer(ABC):
@@ -37,11 +40,37 @@ class BasePlateRecognizer(ABC):
           5. Tier 5: Full original image frame fallback
 
         If multiple vehicle_boxes are detected, iterates through each vehicle crop until a valid plate is found.
+
+        BOUNDED WORK (NASA rule 2). The tier ladder is a fixed 5, but the box
+        list was previously whatever YOLO returned, and cost multiplies:
+
+            len(boxes) x 5 tiers x 2 (plain + warped) x N providers
+
+        A yard with parked vehicles in frame could therefore drive tens of OCR
+        calls for one weighing, which is where the 27.4 s outlier in
+        eval_report.json comes from. Boxes are area-sorted here and capped at
+        MAX_VEHICLE_BOXES, so total work per request has a stated ceiling.
         """
+        require(image_input is not None, "recognize() called with no image")
+
         raw_text_fallbacks = []
 
-        # Determine list of vehicle boxes to inspect
-        boxes_to_check = vehicle_boxes if vehicle_boxes else ([vehicle_box] if vehicle_box else [None])
+        # Determine list of vehicle boxes to inspect.
+        candidate_boxes = vehicle_boxes if vehicle_boxes else ([vehicle_box] if vehicle_box else [])
+
+        # Sort largest-first so the cap keeps the vehicle most likely to be the
+        # one on the platform. The caller already sorts, but this function does
+        # not get to assume that (rule 7 — validate what the caller hands you).
+        ordered = sorted(
+            (b for b in candidate_boxes if b),
+            key=box_area,
+            reverse=True,
+        )
+        boxes_to_check: List[Optional[Tuple[int, int, int, int]]] = list(
+            bounded(ordered, settings.MAX_VEHICLE_BOXES, "vehicle boxes")
+        )
+        if not boxes_to_check:
+            boxes_to_check = [None]
 
         # Helper to try standard crop first, then perspective-warped crop
         def _try_crop(crop_bytes: bytes) -> Optional[List[Dict[str, Any]]]:

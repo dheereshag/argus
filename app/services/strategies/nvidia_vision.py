@@ -1,11 +1,53 @@
 import os
 import base64
 import requests
-from typing import List, Dict, Any, Union, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 from app.core.config import settings
 from app.core.logging import logger
 from app.services.base import BasePlateRecognizer
 from app.services.constants import INDIAN_PLATE_REGEX
+
+
+def extract_message_content(payload: Any) -> Optional[str]:
+    """
+    Pull the assistant text out of an OpenAI-shaped chat completion response.
+
+    NASA rule 9 limits pointer dereferencing to a single level. Python has no
+    pointers, but the direct analogue is a chain of unchecked subscripts, and
+    the original was four deep:
+
+        res_json['choices'][0]['message']['content']
+
+    Every link is a separate way to raise. A rate-limit body, an error object, a
+    content filter, or an empty `choices` list all produce KeyError, IndexError
+    or TypeError — from inside a `try` that catches Exception and logs the
+    provider as merely "failed", so a malformed response and a network outage
+    become indistinguishable in the logs.
+
+    Each level is checked here, and the reason is returned to the caller as None
+    rather than thrown.
+    """
+    if not isinstance(payload, dict):
+        return None
+
+    choices = payload.get("choices")
+    if not isinstance(choices, list) or not choices:
+        return None
+
+    first = choices[0]
+    if not isinstance(first, dict):
+        return None
+
+    message = first.get("message")
+    if not isinstance(message, dict):
+        return None
+
+    content = message.get("content")
+    if not isinstance(content, str):
+        return None
+
+    stripped = content.strip()
+    return stripped or None
 
 
 class NvidiaVisionStrategy(BasePlateRecognizer):
@@ -92,8 +134,19 @@ class NvidiaVisionStrategy(BasePlateRecognizer):
                     timeout=(settings.HTTP_CONNECT_TIMEOUT, settings.HTTP_READ_TIMEOUT),
                 )
                 if response.status_code == 200:
-                    res_json = response.json()
-                    raw_text = res_json['choices'][0]['message']['content'].strip()
+                    try:
+                        res_json = response.json()
+                    except ValueError:
+                        logger.error("[NvidiaVisionStrategy] 200 response was not valid JSON.")
+                        continue
+
+                    raw_text = extract_message_content(res_json)
+                    if raw_text is None:
+                        logger.error(
+                            "[NvidiaVisionStrategy] 200 response had no usable message content; "
+                            f"top-level keys: {sorted(res_json)[:8] if isinstance(res_json, dict) else type(res_json).__name__}"
+                        )
+                        continue
 
                     matches = list(INDIAN_PLATE_REGEX.finditer(raw_text))
                     output = []
