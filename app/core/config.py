@@ -1,7 +1,10 @@
 import os
-from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
 from app.schemas.plate import ProviderEnum
+
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Argus ANPR Microservice"
@@ -35,6 +38,21 @@ class Settings(BaseSettings):
     MAX_UPLOAD_BYTES: int = 8 * 1024 * 1024        # reject the request body above this
     MAX_IMAGE_PIXELS: int = 50_000_000             # decompression-bomb guard (w * h)
     MAX_IMAGE_EDGE_PX: int = 1920                  # downscale longest edge before inference
+
+    # Work bounds (NASA rule 2 — every loop has a fixed upper bound).
+    #
+    # The recognition waterfall costs, per vehicle box:
+    #   5 ROI tiers x 2 (plain + perspective-warped) x N providers
+    # so an unbounded box list multiplies the whole pipeline. YOLO will happily
+    # return a dozen boxes for a yard with parked vehicles in frame. At a
+    # weighbridge only the vehicle on the platform can matter, and boxes are
+    # area-sorted, so the largest few are the only plausible candidates.
+    MAX_VEHICLE_BOXES: int = 3
+
+    # OCR line pairing is O(n) over detected text lines with a 2-wide and
+    # 3-wide window. A busy frame (signage, hoardings, a tarpaulin of text)
+    # produces many lines, none of them plates.
+    MAX_OCR_LINES: int = 40
 
     # CORS Settings
     ALLOWED_ORIGINS: List[str] = ["*"]

@@ -37,7 +37,7 @@ from __future__ import annotations
 import csv
 import os
 import re
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, Iterable, List, Optional
 
 SEED_MARKER = "SEEDED-VERIFY"
@@ -92,7 +92,7 @@ def levenshtein(a: str, b: str) -> int:
     return previous[-1]
 
 
-def character_error_rate(truth: str, prediction: str) -> float:
+def character_error_rate(truth: str | None, prediction: str | None) -> float:
     """
     Edit distance normalised by the length of the truth.
 
@@ -188,7 +188,7 @@ def _percentile(values: List[float], pct: float) -> float:
     if not values:
         return 0.0
     ordered = sorted(values)
-    idx = max(0, min(len(ordered) - 1, int(round(pct / 100.0 * len(ordered) + 0.5)) - 1))
+    idx = max(0, min(len(ordered) - 1, round(pct / 100.0 * len(ordered) + 0.5) - 1))
     return ordered[idx]
 
 
@@ -228,7 +228,7 @@ class Metrics:
         return asdict(self)
 
 
-def evaluate(rows: Iterable[Dict[str, Any]], labels: Labels) -> Metrics:
+def evaluate(rows: Iterable[Dict[str, Any]], labels: Labels) -> Metrics:  # noqa: C901, PLR0912, PLR0915 - evaluation aggregates metrics, latency, classification & records in one loop
     """
     Score eval rows against ground truth.
 

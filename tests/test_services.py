@@ -1,18 +1,28 @@
-import pytest
+from typing import Any, Dict, List, Optional, Tuple, Union
 from unittest.mock import MagicMock, patch
 
-from app.schemas.plate import ProviderEnum, RecognitionStatusEnum
+import pytest
+
 from app.core.exceptions import ProviderNotFoundError
+from app.schemas.plate import ProviderEnum, RecognitionStatusEnum
 from app.services.base import BasePlateRecognizer
-from app.services.constants import STATE_CODES, INDIAN_PLATE_REGEX
+from app.services.constants import INDIAN_PLATE_REGEX, STATE_CODES
 from app.services.factory import PlateRecognizerFactory
-from app.services.strategies.paddle_ocr import PaddleOCRStrategy
 from app.services.strategies.nvidia_vision import NvidiaVisionStrategy
+from app.services.strategies.paddle_ocr import PaddleOCRStrategy
 from app.services.strategies.plate_recognizer import PlateRecognizerStrategy
 from app.services.yolo_filter import filter_vehicle_and_occupancy
 
+
 class DummyStrategy(BasePlateRecognizer):
-    def recognize(self, image_input, filename="image.jpg"):
+    def recognize(
+        self,
+        image_input: Union[str, bytes],
+        filename: str = "image.jpg",
+        vehicle_box: Optional[Tuple[int, int, int, int]] = None,
+        vehicle_boxes: Optional[List[Tuple[int, int, int, int]]] = None,
+        **kwargs: Any,
+    ) -> List[Dict[str, Any]]:
         return [{"plate": "MH12AB1234", "state": "Maharashtra"}]
 
 def test_indian_plate_regex_and_state_codes():
@@ -32,16 +42,17 @@ def test_indian_plate_regex_and_state_codes():
 
 def test_base_plate_recognizer_parse_plate_info():
     strategy = DummyStrategy()
-    
+
     # Test valid regex match
     info = strategy.parse_plate_info("  rj 09 ga 0165 ")
+    assert info is not None
     assert info["plate"] == "RJ09GA0165"
     assert info["state"] == "Rajasthan"
-    
+
     # Test none / empty input
     assert strategy.parse_plate_info("") is None
-    assert strategy.parse_plate_info(None) is None
-    
+    assert strategy.parse_plate_info(None) is None  # type: ignore
+
     # Test invalid plate input returns None (no unvalidated fallback)
     assert strategy.parse_plate_info("XX999999") is None
 
@@ -76,10 +87,11 @@ def test_yolo_filter_eligible_vehicle(mock_get_model, sample_image_bytes):
     mock_box_car.__len__.return_value = 1
     mock_box_car.cls.cpu().numpy.return_value = [2]  # Class 2 = car
     mock_box_car.conf.cpu().numpy.return_value = [0.90]
+    mock_box_car.xyxy.cpu().numpy.return_value = [[10, 10, 90, 90]]
 
     mock_results = MagicMock()
     mock_results.boxes = mock_box_car
-    
+
     mock_model = MagicMock()
     mock_model.return_value = [mock_results]
     mock_get_model.return_value = mock_model
@@ -96,10 +108,11 @@ def test_yolo_filter_rejected_human(mock_get_model, sample_image_bytes):
     mock_box_human.__len__.return_value = 2
     mock_box_human.cls.cpu().numpy.return_value = [0, 2]  # Class 0 = person, 2 = car
     mock_box_human.conf.cpu().numpy.return_value = [0.85, 0.90]
+    mock_box_human.xyxy.cpu().numpy.return_value = [[5, 5, 15, 15], [10, 10, 90, 90]]
 
     mock_results = MagicMock()
     mock_results.boxes = mock_box_human
-    
+
     mock_model = MagicMock()
     mock_model.return_value = [mock_results]
     mock_get_model.return_value = mock_model
@@ -115,10 +128,11 @@ def test_yolo_filter_rejected_no_four_wheeler(mock_get_model, sample_image_bytes
     mock_box_empty.__len__.return_value = 0
     mock_box_empty.cls.cpu().numpy.return_value = []
     mock_box_empty.conf.cpu().numpy.return_value = []
+    mock_box_empty.xyxy.cpu().numpy.return_value = []
 
     mock_results = MagicMock()
     mock_results.boxes = mock_box_empty
-    
+
     mock_model = MagicMock()
     mock_model.return_value = [mock_results]
     mock_get_model.return_value = mock_model
@@ -134,10 +148,11 @@ def test_yolo_filter_rejected_multiple_vehicles(mock_get_model, sample_image_byt
     mock_box_multiple.__len__.return_value = 2
     mock_box_multiple.cls.cpu().numpy.return_value = [2, 7]  # Class 2 = car, 7 = truck
     mock_box_multiple.conf.cpu().numpy.return_value = [0.85, 0.90]
+    mock_box_multiple.xyxy.cpu().numpy.return_value = [[10, 10, 50, 50], [50, 50, 90, 90]]
 
     mock_results = MagicMock()
     mock_results.boxes = mock_box_multiple
-    
+
     mock_model = MagicMock()
     mock_model.return_value = [mock_results]
     mock_get_model.return_value = mock_model
