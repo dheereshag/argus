@@ -15,10 +15,13 @@ def parse_args():
         "strategies",
         nargs="*",
         choices=available_providers,
-        default=available_providers,
+        default=None,
         help=f"Recognition strategies to test ({', '.join(available_providers)}). Defaults to all."
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+    if not args.strategies:
+        args.strategies = available_providers
+    return args
 
 def test_models():
     args = parse_args()
