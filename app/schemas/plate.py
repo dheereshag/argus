@@ -37,6 +37,10 @@ class HealthResponse(BaseModel):
     status: str = Field("healthy", examples=["healthy"])
     version: str = Field("1.0.0", examples=["1.0.0"])
 
+class ReadyResponse(BaseModel):
+    ready: bool = Field(..., description="True when all model singletons are fully loaded")
+    models: dict = Field(..., description="Per-model load status: 'loaded' or 'not_loaded'")
+
 class ProvidersResponse(BaseModel):
     available_providers: List[ProviderEnum] = Field(..., description="List of supported recognition providers")
     default_provider: ProviderEnum = Field(..., description="System default recognition provider")

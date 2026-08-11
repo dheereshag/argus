@@ -144,3 +144,56 @@ def test_recognize_fallback_to_nvidia(mock_yolo, mock_get_recognizer, client, sa
     assert len(data["results"]) == 1
     assert data["results"][0]["plate"] == "MH12AB1234"
     assert data["results"][0]["state"] == "Maharashtra"
+
+
+# ---------------------------------------------------------------------------
+# /ready endpoint
+# ---------------------------------------------------------------------------
+
+def test_ready_returns_503_when_models_not_loaded(client):
+    """
+    /ready must return 503 while either model singleton is None so that
+    orchestrators (Kubernetes readinessProbe) don't route traffic to a pod
+    that is still warming up.
+    """
+    import app.services.yolo_filter as yf
+    import app.services.strategies.paddle_ocr as po
+
+    orig_yolo = yf._YOLO_MODEL
+    orig_paddle = po._PADDLE_OCR_INSTANCE
+    try:
+        yf._YOLO_MODEL = None
+        po._PADDLE_OCR_INSTANCE = None
+        response = client.get("/ready")
+        assert response.status_code == 503
+        data = response.json()
+        assert data["ready"] is False
+        assert data["models"]["yolo"] == "not_loaded"
+        assert data["models"]["paddleocr"] == "not_loaded"
+    finally:
+        yf._YOLO_MODEL = orig_yolo
+        po._PADDLE_OCR_INSTANCE = orig_paddle
+
+
+def test_ready_returns_200_when_models_loaded(client, monkeypatch):
+    """
+    /ready must return 200 once both singletons are populated.
+    """
+    from unittest.mock import MagicMock
+    import app.services.yolo_filter as yf
+    import app.services.strategies.paddle_ocr as po
+
+    orig_yolo = yf._YOLO_MODEL
+    orig_paddle = po._PADDLE_OCR_INSTANCE
+    try:
+        yf._YOLO_MODEL = MagicMock()
+        po._PADDLE_OCR_INSTANCE = MagicMock()
+        response = client.get("/ready")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["ready"] is True
+        assert data["models"]["yolo"] == "loaded"
+        assert data["models"]["paddleocr"] == "loaded"
+    finally:
+        yf._YOLO_MODEL = orig_yolo
+        po._PADDLE_OCR_INSTANCE = orig_paddle

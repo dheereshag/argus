@@ -31,7 +31,15 @@ def get_paddle_ocr_engine() -> Any:
                     f"(cpu_threads={settings.PADDLE_CPU_THREADS}, "
                     f"angle_cls={settings.PADDLE_USE_ANGLE_CLS})."
                 )
-                from paddleocr import PaddleOCR  # noqa: PLC0415
+                import warnings  # noqa: PLC0415
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(
+                        "ignore",
+                        message="No ccache found",
+                        category=UserWarning,
+                        module="paddle",
+                    )
+                    from paddleocr import PaddleOCR  # noqa: PLC0415
                 _PADDLE_OCR_INSTANCE = PaddleOCR(
                     use_angle_cls=settings.PADDLE_USE_ANGLE_CLS,
                     lang="en",

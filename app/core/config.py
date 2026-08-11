@@ -1,14 +1,24 @@
 import os
+from importlib.metadata import PackageNotFoundError, version
 from typing import List
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.schemas.plate import ProviderEnum
 
+# Resolve the version from the installed package metadata so it stays in sync
+# with pyproject.toml automatically. Falls back to "dev" when running from an
+# editable install that hasn't been built (e.g. `uv run` without a prior build).
+try:
+    _PKG_VERSION = version("argus")
+except PackageNotFoundError:
+    _PKG_VERSION = "dev"
+
 
 class Settings(BaseSettings):
+
     PROJECT_NAME: str = "Argus ANPR Microservice"
-    VERSION: str = "1.0.0"
+    VERSION: str = _PKG_VERSION
 
     # API Keys & Endpoints
     PLATE_RECOGNIZER_TOKEN: str = ""
@@ -20,7 +30,7 @@ class Settings(BaseSettings):
 
     # YOLO Model Settings
     YOLO_MODEL_NAME: str = "yolo11n.pt"
-    YOLO_CONFIG_DIR: str = "/tmp/Ultralytics"
+    YOLO_CONFIG_DIR: str = ".cache/ultralytics"
     HUMAN_CONF_THRESH: float = 0.30
     VEHICLE_CONF_THRESH: float = 0.35
 

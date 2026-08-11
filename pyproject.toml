@@ -14,12 +14,17 @@ dependencies = [
     "paddleocr>=2.10.0",
     "paddlepaddle>=3.3.1",
     "pillow>=12.3.0",
-    "pytest>=8.0.0",
-    "python-decouple>=3.8",
     "python-multipart>=0.0.32",
-    "tabulate>=0.10.0",
+    "requests>=2.32.0",
     "ultralytics>=8.4.106",
     "uvicorn>=0.51.0",
+]
+
+[dependency-groups]
+# Dev-only tools. Install with: uv sync --group dev
+dev = [
+    "pytest>=8.0.0",
+    "tabulate>=0.10.0",   # used by eval.py for formatted reports
 ]
 
 [tool.pytest.ini_options]

@@ -4,6 +4,7 @@ import time
 
 from app.schemas.plate import ProviderEnum
 from app.services import PlateRecognizerFactory
+from app.services.image_processing import decode_and_downscale
 from app.services.yolo_filter import filter_vehicle_and_occupancy
 
 TESTS_DIR = "tests"
@@ -15,10 +16,13 @@ def parse_args():
         "strategies",
         nargs="*",
         choices=available_providers,
-        default=available_providers,
+        default=None,
         help=f"Recognition strategies to test ({', '.join(available_providers)}). Defaults to all."
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+    if not args.strategies:
+        args.strategies = available_providers
+    return args
 
 def test_models():
     args = parse_args()
@@ -44,19 +48,22 @@ def test_models():
         print(f"\n{'='*60}\nTesting image: {img_path}\n{'='*60}")
 
         with open(img_path, "rb") as f:
-            img_bytes = f.read()
+            raw_bytes = f.read()
+
+        # Normalise + downscale exactly as the API does before passing to any strategy.
+        # Previously non-PaddleOCR strategies received a raw file path, bypassing
+        # decode_and_downscale and the YOLO box — this now matches the real code path.
+        img_bytes = decode_and_downscale(raw_bytes)
 
         t_yolo_start = time.time()
         yolo_res = filter_vehicle_and_occupancy(img_bytes)
         t_yolo = round((time.time() - t_yolo_start) * 1000, 2)
-        print(f"[YOLO v11 Prescreening] ({t_yolo:>7.2f} ms): vehicle={yolo_res['vehicle_type']}, box={yolo_res.get('vehicle_box')}")
+        vehicle_box = yolo_res.get("vehicle_box")
+        print(f"[YOLO v11 Prescreening] ({t_yolo:>7.2f} ms): vehicle={yolo_res['vehicle_type']}, box={vehicle_box}")
 
         for st_name, engine in strategy_engines.items():
             t0 = time.time()
-            if st_name == ProviderEnum.PADDLEOCR.value:
-                result = engine.recognize(img_bytes, vehicle_box=yolo_res.get("vehicle_box"))
-            else:
-                result = engine.recognize(img_path)
+            result = engine.recognize(img_bytes, vehicle_box=vehicle_box)
             t_exec = round((time.time() - t0) * 1000, 2)
             print(f"[{st_name.upper():<20}] ({t_exec:>7.2f} ms): {result}")
 

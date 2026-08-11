@@ -21,10 +21,18 @@ from app.services.yolo_filter import filter_vehicle_and_occupancy
 
 router = APIRouter(tags=["ANPR Recognition"])
 
-FALLBACK_PROVIDERS = [
+# Build the waterfall order so the operator-configured DEFAULT_PROVIDER is always
+# tried first. The remaining providers follow in a fixed fallback sequence.
+# Previously this was hard-coded, meaning DEFAULT_PROVIDER in .env was silently
+# ignored by the waterfall even though /providers reported it as the default.
+_FIXED_FALLBACK_ORDER = [
     ProviderEnum.PADDLEOCR,
     ProviderEnum.NVIDIA,
     ProviderEnum.PLATERECOGNIZER,
+]
+FALLBACK_PROVIDERS: list[ProviderEnum] = [
+    settings.DEFAULT_PROVIDER,
+    *[p for p in _FIXED_FALLBACK_ORDER if p != settings.DEFAULT_PROVIDER],
 ]
 
 @router.get("/providers", response_model=ProvidersResponse, summary="List Supported Recognition Providers")

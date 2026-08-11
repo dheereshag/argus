@@ -142,15 +142,15 @@ def warp_perspective_crop(img_bytes: bytes) -> bytes:
 
                 success, encoded = cv2.imencode(".jpg", warped)
                 if success:
-                    return bytes(encoded.tobytes())
+                    return encoded.tobytes()
 
     # 2. Rotation De-skewing fallback using minAreaRect
     contours, _ = cv2.findContours(edged.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     if contours:
         largest_c = max(contours, key=cv2.contourArea)
         if cv2.contourArea(largest_c) > (0.05 * w * h):
-            rect = cv2.minAreaRect(largest_c)
-            angle = rect[-1]
+            min_rect = cv2.minAreaRect(largest_c)  # cv2.RotatedRect — different type from `rect` above
+            angle = min_rect[-1]
             if angle < -45:  # noqa: PLR2004
                 angle = 90 + angle
 

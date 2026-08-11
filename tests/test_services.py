@@ -15,6 +15,15 @@ from app.services.yolo_filter import filter_vehicle_and_occupancy
 
 
 class DummyStrategy(BasePlateRecognizer):
+    """Minimal concrete subclass for factory and parse tests."""
+
+    def _recognize_single_image(
+        self,
+        image_input: Union[str, bytes],
+        filename: str = "image.jpg",
+    ) -> List[Dict[str, Any]]:
+        return [{"plate": "MH12AB1234", "state": "Maharashtra"}]
+
     def recognize(
         self,
         image_input: Union[str, bytes],
