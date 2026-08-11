@@ -1,5 +1,5 @@
 import threading
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, TypedDict, Union
 
 from PIL import Image
 from ultralytics import YOLO
@@ -9,6 +9,18 @@ from app.core.contracts import bounded, ensure, require
 from app.core.logging import logger
 from app.schemas.plate import RecognitionStatusEnum
 from app.services.image_processing import clamp_box, load_rgb
+
+class YoloResult(TypedDict, total=True):
+    """Typed return value of filter_vehicle_and_occupancy."""
+    is_eligible: bool
+    status: Optional[Any]                            # RecognitionStatusEnum | None
+    status_message: str
+    vehicle_detected: bool
+    vehicle_type: Optional[str]
+    human_detected: bool
+    vehicle_box: Optional[Tuple[int, int, int, int]]
+    vehicle_count: int
+
 
 # Global lazy-loaded YOLO model instance, guarded by a lock.
 #
@@ -127,7 +139,7 @@ def filter_vehicle_and_occupancy(
     image_input: Union[str, bytes],
     human_conf_thresh: Optional[float] = None,
     vehicle_conf_thresh: Optional[float] = None,
-) -> Dict[str, Any]:
+) -> YoloResult:
     """
     Pre-screen a frame: is there exactly one 4-wheeler and no person?
 

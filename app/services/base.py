@@ -1,4 +1,4 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from app.core.config import settings
@@ -7,21 +7,22 @@ from app.services.constants import INDIAN_PLATE_REGEX, STATE_CODES
 from app.services.image_processing import box_area, crop_image_roi, warp_perspective_crop
 
 
-class BasePlateRecognizer(ABC):  # noqa: B024
+class BasePlateRecognizer(ABC):
     """
     Abstract Base Class for License Plate Recognition Strategies.
     Implements a unified Template Method with multi-tier ROI and perspective warping fallback.
     """
 
+    @abstractmethod
     def _recognize_single_image(
         self,
         image_input: Union[str, bytes],
         filename: str = "image.jpg"
     ) -> List[Dict[str, Any]]:
         """
-        Subclasses implement this method to perform OCR/Vision extraction on a single image.
+        Subclasses must implement this to perform OCR/Vision extraction on a single image.
+        Failure to do so raises TypeError at instantiation time, not silently at runtime.
         """
-        return []
 
     def recognize(  # noqa: C901
         self,

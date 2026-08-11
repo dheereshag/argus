@@ -2,6 +2,7 @@ import os
 from typing import Any, Dict, List, Union
 
 import requests
+from requests.exceptions import RequestException
 
 from app.core.config import settings
 from app.core.logging import logger
@@ -48,13 +49,17 @@ class PlateRecognizerStrategy(BasePlateRecognizer):
             return []
 
         files = dict(upload=(filename, img_bytes, "image/jpeg"))
-        response = requests.post(
-            self.api_url,
-            data=dict(regions=self.regions),
-            files=files,
-            headers={"Authorization": f"Token {self.api_token}"},
-            timeout=(settings.HTTP_CONNECT_TIMEOUT, settings.HTTP_READ_TIMEOUT),
-        )
+        try:
+            response = requests.post(
+                self.api_url,
+                data=dict(regions=self.regions),
+                files=files,
+                headers={"Authorization": f"Token {self.api_token}"},
+                timeout=(settings.HTTP_CONNECT_TIMEOUT, settings.HTTP_READ_TIMEOUT),
+            )
+        except RequestException as exc:
+            logger.error(f"[PlateRecognizerStrategy] Network error: {exc}")
+            return []
 
         if response.status_code not in (200, 201):
             logger.error(f"[PlateRecognizerStrategy] Error {response.status_code}: {response.text}")
