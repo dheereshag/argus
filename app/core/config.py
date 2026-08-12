@@ -74,5 +74,14 @@ class Settings(BaseSettings):
     )
 
 settings = Settings()
-os.environ["YOLO_CONFIG_DIR"] = settings.YOLO_CONFIG_DIR
+
+# Ultralytics resolves YOLO_CONFIG_DIR relative to the current working
+# directory and appends its own "Ultralytics" subfolder. A relative path like
+# ".cache/ultralytics" is not writable when the CWD differs (e.g. running from
+# a service manager or a different shell), which makes ultralytics silently
+# fall back to /tmp/Ultralytics. Resolve to an absolute path and create the
+# directory up front so the configured location is always writable.
+_yolo_config_dir = os.path.abspath(settings.YOLO_CONFIG_DIR)
+os.makedirs(_yolo_config_dir, exist_ok=True)
+os.environ["YOLO_CONFIG_DIR"] = _yolo_config_dir
 

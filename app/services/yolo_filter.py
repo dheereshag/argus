@@ -2,9 +2,15 @@ import threading
 from typing import Any, Dict, List, Optional, Tuple, TypedDict, Union
 
 from PIL import Image
+
+# Import order matters: app.core.config sets the YOLO_CONFIG_DIR environment
+# variable, and ultralytics resolves its user config directory at import time.
+# If ultralytics is imported first (e.g. via scripts/check_human_gate.py, which
+# imports this module before anything else), it falls back to /tmp/Ultralytics
+# and logs a spurious warning. Import config first so the env var is set.
+from app.core.config import settings
 from ultralytics import YOLO
 
-from app.core.config import settings
 from app.core.contracts import bounded, ensure, require
 from app.core.logging import logger
 from app.schemas.plate import RecognitionStatusEnum
