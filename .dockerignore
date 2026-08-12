@@ -1,0 +1,27 @@
+# Version control
+.git
+.gitignore
+
+# Python / uv
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+uv.lock.bak
+
+# Test & eval artifacts
+data/
+eval_report.json
+eval_baseline.json
+eval.py
+
+# Logs & caches
+logs/
+.cache/
+*.log
+
+# Docs & misc
+docs/
+scripts/
+THIRD_PARTY_LICENSES.md
+README.md
