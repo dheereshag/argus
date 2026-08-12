@@ -2,7 +2,7 @@
 
 # paddlepaddle has no Linux ARM64 wheels, so the image must target amd64.
 # On Apple Silicon this runs under Rosetta/QEMU emulation.
-FROM python:3.12-slim
+FROM python:3.12
 
 # Copy uv from the official uv image (no curl needed).
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
