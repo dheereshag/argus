@@ -81,13 +81,20 @@ def _is_decal_word(word: str) -> bool:
 
 
 def _enhance_contrast(img: Image.Image) -> Image.Image:
-    """Enhance local image contrast using CLAHE for low-contrast license plates."""
+    """Enhance local image contrast and resolution using CLAHE and upscaling for low-contrast/distant plates."""
     np_img = np.array(img)
+    h, w = np_img.shape[:2]
+
+    # If crop is low-resolution (e.g. distant truck bumper), upscale 2.5x with bicubic interpolation
+    if w < 600 or h < 600:
+        np_img = cv2.resize(np_img, (0, 0), fx=2.5, fy=2.5, interpolation=cv2.INTER_CUBIC)
+
     if len(np_img.shape) == 3:
         gray = cv2.cvtColor(np_img, cv2.COLOR_RGB2GRAY)
     else:
         gray = np_img
-    clahe = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8))
+
+    clahe = cv2.createCLAHE(clipLimit=3.5, tileGridSize=(4, 4))
     enhanced_gray = clahe.apply(gray)
     enhanced_rgb = cv2.cvtColor(enhanced_gray, cv2.COLOR_GRAY2RGB)
     return Image.fromarray(enhanced_rgb)

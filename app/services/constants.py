@@ -64,7 +64,7 @@ INDIAN_PLATE_REGEX = re.compile(
 # Positional character confusions for Indian license plates
 CHAR_TO_DIGIT = {
     "O": "0", "D": "0", "Q": "0",
-    "I": "1", "L": "1",
+    "I": "1", "L": "1", "H": "1",
     "Z": "2",
     "A": "4",
     "S": "5",

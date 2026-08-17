@@ -101,8 +101,8 @@ class BasePlateRecognizer(ABC):
                             detected_plates.append(r)
                     continue
 
-                # 2. Lower bumper crop (60% bottom)
-                bumper_crop = crop_image_roi(image_bytes, box, bottom_crop_ratio=0.60, bottom_roi_only=True)
+                # 2. Lower bumper crop (50% bottom)
+                bumper_crop = crop_image_roi(image_bytes, box, bottom_crop_ratio=0.50, bottom_roi_only=True)
                 res_bumper = _try_crop(bumper_crop)
                 if res_bumper:
                     for r in res_bumper:
