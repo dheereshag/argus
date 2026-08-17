@@ -5,6 +5,7 @@ from app.core.exceptions import ProviderNotFoundError
 from app.core.logging import logger
 from app.schemas.plate import ProviderEnum
 from app.services.base import BasePlateRecognizer
+from app.services.strategies.docling_ocr import DoclingStrategy
 from app.services.strategies.nvidia_vision import NvidiaVisionStrategy
 from app.services.strategies.plate_recognizer import PlateRecognizerStrategy
 from app.services.strategies.tesseract_ocr import TesseractStrategy
@@ -16,6 +17,7 @@ class PlateRecognizerFactory:
     """
 
     _strategies: ClassVar[Dict[ProviderEnum, Type[BasePlateRecognizer]]] = {
+        ProviderEnum.DOCLING: DoclingStrategy,
         ProviderEnum.PLATERECOGNIZER: PlateRecognizerStrategy,
         ProviderEnum.NVIDIA: NvidiaVisionStrategy,
         ProviderEnum.TESSERACT: TesseractStrategy,

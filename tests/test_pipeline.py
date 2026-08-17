@@ -66,16 +66,16 @@ def test_recognize_success_primary_provider(mock_yolo, mock_get_recognizer, samp
         "human_detected": False
     }
 
-    mock_tesseract = MagicMock()
-    mock_tesseract.recognize.return_value = [
+    mock_docling = MagicMock()
+    mock_docling.recognize.return_value = [
         {"plate": "RJ09GA0165", "state": "Rajasthan"}
     ]
-    mock_get_recognizer.return_value = mock_tesseract
+    mock_get_recognizer.return_value = mock_docling
 
     response = recognize_plate_image(sample_image_bytes, filename="car.jpg")
     assert response.success is True
     assert response.status == RecognitionStatusEnum.SUCCESS
-    assert response.provider.value == "tesseract"
+    assert response.provider.value == "docling"
     assert len(response.results) == 1
     assert response.results[0].plate == "RJ09GA0165"
     assert response.results[0].state == "Rajasthan"
@@ -93,6 +93,9 @@ def test_recognize_fallback_to_nvidia(mock_yolo, mock_get_recognizer, sample_ima
         "human_detected": False
     }
 
+    mock_docling = MagicMock()
+    mock_docling.recognize.return_value = []  # Docling finds no plate
+
     mock_tesseract = MagicMock()
     mock_tesseract.recognize.return_value = []  # Tesseract finds no plate
 
@@ -101,7 +104,7 @@ def test_recognize_fallback_to_nvidia(mock_yolo, mock_get_recognizer, sample_ima
         {"plate": "MH12AB1234", "state": "Maharashtra"}
     ]
 
-    mock_get_recognizer.side_effect = [mock_tesseract, mock_nvidia]
+    mock_get_recognizer.side_effect = [mock_docling, mock_tesseract, mock_nvidia]
 
     response = recognize_plate_image(sample_image_bytes, filename="car.jpg")
     assert response.success is True

@@ -5,6 +5,7 @@ import sys
 from app.core.config import settings
 from app.core.logging import logger
 from app.services.pipeline import recognize_plate_image
+from app.services.strategies.docling_ocr import check_docling_engine
 from app.services.strategies.tesseract_ocr import check_tesseract_engine
 from app.services.yolo_filter import get_yolo_model
 
@@ -12,17 +13,18 @@ from app.services.yolo_filter import get_yolo_model
 def main():
     parser = argparse.ArgumentParser(description=f"{settings.PROJECT_NAME} CLI")
     parser.add_argument("image", help="Path to image file for plate recognition")
-    parser.add_argument("--provider", default=None, help="Recognition provider override (tesseract, nvidia, platerecognizer)")
+    parser.add_argument("--provider", default=None, help="Recognition provider override (docling, tesseract, nvidia, platerecognizer)")
 
     args = parser.parse_args()
 
-    # Warm YOLO model & check Tesseract engine
+    # Warm YOLO model & check OCR engines
     try:
         get_yolo_model()
         logger.info("YOLO v11 model loaded successfully.")
     except Exception as e:
         logger.warning(f"Warning loading YOLO model: {e}")
 
+    check_docling_engine()
     check_tesseract_engine()
 
     try:

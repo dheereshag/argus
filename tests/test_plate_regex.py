@@ -42,6 +42,11 @@ NON_PLATE_STRINGS = [
     "SRTRANSPORT2011",                              # operator name -> "ANSPORT2011"
     "INSURANCEUPTO2026",                            # sticker       -> "UPTO2026"
     "ALAMYDBP2A4904ALAMYIMAGEIDCRE1JFWWWALAMYCOM",  # the eval_report.json watermark
+    "TN5ASS3555",                                   # random background text
+    "OD00S5554",                                    # letter in district position
+    "MHABI1065",                                    # MHA CAB text
+    "TS2S128",                                      # letter in district position
+    "ARSS2557",                                     # letter in district position
 ]
 
 # Strings that must still be accepted. Regressions here mean the fix was too strict.
@@ -114,9 +119,9 @@ def test_validation_path_uses_fullmatch_not_search():
     import inspect
 
     from app.services import base
-    from app.services.strategies import tesseract_ocr
+    from app.services.strategies import docling_ocr, tesseract_ocr
 
-    for module in (base, tesseract_ocr):
+    for module in (base, docling_ocr, tesseract_ocr):
         source = inspect.getsource(module)
         assert "INDIAN_PLATE_REGEX.search(" not in source, (
             f"{module.__name__} uses INDIAN_PLATE_REGEX.search(). Use .fullmatch() — "

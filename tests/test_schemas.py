@@ -10,6 +10,7 @@ from app.schemas.plate import (
 def test_provider_enum_values():
     assert ProviderEnum.PLATERECOGNIZER.value == "platerecognizer"
     assert ProviderEnum.NVIDIA.value == "nvidia"
+    assert ProviderEnum.DOCLING.value == "docling"
     assert ProviderEnum.TESSERACT.value == "tesseract"
 
 def test_recognition_status_enum():

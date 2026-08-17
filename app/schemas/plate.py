@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 class ProviderEnum(str, Enum):
     PLATERECOGNIZER = "platerecognizer"
     NVIDIA = "nvidia"
+    DOCLING = "docling"
     TESSERACT = "tesseract"
 
 class RecognitionStatusEnum(str, Enum):

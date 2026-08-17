@@ -115,7 +115,7 @@ def test_yolo_filter_eligible_vehicle(mock_get_model, sample_image_bytes):
     assert res["human_detected"] is False
 
 @patch("app.services.yolo_filter.get_yolo_model")
-def test_yolo_filter_rejected_human(mock_get_model, sample_image_bytes):
+def test_yolo_filter_human_detection_policy(mock_get_model, sample_image_bytes):
     mock_box_human = MagicMock()
     mock_box_human.__len__.return_value = 2
     mock_box_human.cls.cpu().numpy.return_value = [0, 2]  # Class 0 = person, 2 = car
@@ -129,10 +129,18 @@ def test_yolo_filter_rejected_human(mock_get_model, sample_image_bytes):
     mock_model.return_value = [mock_results]
     mock_get_model.return_value = mock_model
 
-    res = filter_vehicle_and_occupancy(sample_image_bytes)
-    assert res["is_eligible"] is False
-    assert res["status"] == RecognitionStatusEnum.REJECTED_HUMAN_DETECTED
-    assert res["human_detected"] is True
+    # Default policy: reject_on_human is False -> eligible
+    res_default = filter_vehicle_and_occupancy(sample_image_bytes)
+    assert res_default["is_eligible"] is True
+    assert res_default["status"] is None
+    assert res_default["human_detected"] is True
+    assert res_default["vehicle_detected"] is True
+
+    # Explicit policy: reject_on_human is True -> rejected
+    res_rejected = filter_vehicle_and_occupancy(sample_image_bytes, reject_on_human=True)
+    assert res_rejected["is_eligible"] is False
+    assert res_rejected["status"] == RecognitionStatusEnum.REJECTED_HUMAN_DETECTED
+    assert res_rejected["human_detected"] is True
 
 @patch("app.services.yolo_filter.get_yolo_model")
 def test_yolo_filter_rejected_no_four_wheeler(mock_get_model, sample_image_bytes):
@@ -155,7 +163,7 @@ def test_yolo_filter_rejected_no_four_wheeler(mock_get_model, sample_image_bytes
     assert res["vehicle_detected"] is False
 
 @patch("app.services.yolo_filter.get_yolo_model")
-def test_yolo_filter_rejected_multiple_vehicles(mock_get_model, sample_image_bytes):
+def test_yolo_filter_multiple_vehicles_policy(mock_get_model, sample_image_bytes):
     mock_box_multiple = MagicMock()
     mock_box_multiple.__len__.return_value = 2
     mock_box_multiple.cls.cpu().numpy.return_value = [2, 7]  # Class 2 = car, 7 = truck
@@ -169,11 +177,36 @@ def test_yolo_filter_rejected_multiple_vehicles(mock_get_model, sample_image_byt
     mock_model.return_value = [mock_results]
     mock_get_model.return_value = mock_model
 
-    res = filter_vehicle_and_occupancy(sample_image_bytes)
-    assert res["is_eligible"] is False
-    assert res["status"] == RecognitionStatusEnum.REJECTED_MULTIPLE_VEHICLES
-    assert res["vehicle_detected"] is True
-    assert res["vehicle_count"] == 2
+    # Default policy: reject_on_multiple_vehicles is False -> eligible with primary vehicle
+    res_default = filter_vehicle_and_occupancy(sample_image_bytes)
+    assert res_default["is_eligible"] is True
+    assert res_default["status"] is None
+    assert res_default["vehicle_detected"] is True
+    assert res_default["vehicle_count"] == 2
+
+    # Explicit policy: reject_on_multiple_vehicles is True -> rejected
+    res_rejected = filter_vehicle_and_occupancy(sample_image_bytes, reject_on_multiple_vehicles=True)
+    assert res_rejected["is_eligible"] is False
+    assert res_rejected["status"] == RecognitionStatusEnum.REJECTED_MULTIPLE_VEHICLES
+    assert res_rejected["vehicle_detected"] is True
+    assert res_rejected["vehicle_count"] == 2
+
+from app.services.strategies.docling_ocr import DoclingStrategy
+
+@patch("app.services.strategies.docling_ocr.get_docling_engine")
+def test_docling_ocr_strategy_mocked(mock_get_engine, sample_image_bytes):
+    mock_engine = MagicMock()
+    mock_engine.return_value = (
+        [([0, 0, 100, 30], "RJ09GA0165", 0.98)],
+        [0.01, 0.01, 0.01]
+    )
+    mock_get_engine.return_value = mock_engine
+
+    strategy = DoclingStrategy()
+    results = strategy.recognize(sample_image_bytes)
+    assert len(results) == 1
+    assert results[0]["plate"] == "RJ09GA0165"
+    assert results[0]["state"] == "Rajasthan"
 
 @patch("pytesseract.image_to_string")
 def test_tesseract_ocr_strategy_mocked(mock_image_to_string, sample_image_bytes):

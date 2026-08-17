@@ -139,8 +139,11 @@ class BasePlateRecognizer(ABC):
             return None
 
         matched_plate = match.group(0).replace(" ", "").replace(".", "").replace("-", "").upper()
-        state_code = match.group(1) or match.group(6)
-        state_name = STATE_CODES.get(state_code.upper(), "Unknown State") if state_code else "Unknown State"
+        if "BH" in matched_plate and matched_plate[2:4] == "BH":
+            state_code = "BH"
+        else:
+            state_code = matched_plate[:2]
+        state_name = STATE_CODES.get(state_code, "Unknown State")
         return {
             "plate": matched_plate,
             "state": state_name

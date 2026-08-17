@@ -145,9 +145,11 @@ def filter_vehicle_and_occupancy(
     image_input: Union[str, bytes],
     human_conf_thresh: Optional[float] = None,
     vehicle_conf_thresh: Optional[float] = None,
+    reject_on_human: Optional[bool] = None,
+    reject_on_multiple_vehicles: Optional[bool] = None,
 ) -> YoloResult:
     """
-    Pre-screen a frame: is there exactly one 4-wheeler and no person?
+    Pre-screen a frame: is there a 4-wheeler and valid occupancy condition?
 
     Returns a dict the endpoint maps onto RecognitionResponse. `vehicle_box` is
     guaranteed to be either None or a box already clamped to the frame, so
@@ -157,6 +159,10 @@ def filter_vehicle_and_occupancy(
         human_conf_thresh = settings.HUMAN_CONF_THRESH
     if vehicle_conf_thresh is None:
         vehicle_conf_thresh = settings.VEHICLE_CONF_THRESH
+    if reject_on_human is None:
+        reject_on_human = settings.REJECT_ON_HUMAN_DETECTED
+    if reject_on_multiple_vehicles is None:
+        reject_on_multiple_vehicles = settings.REJECT_ON_MULTIPLE_VEHICLES
 
     require(
         0.0 <= human_conf_thresh <= 1.0,
@@ -177,7 +183,8 @@ def filter_vehicle_and_occupancy(
     primary_vehicle_type = detected_vehicle_types[0] if detected_vehicle_types else None
     primary_vehicle_box = vehicle_boxes[0] if vehicle_boxes else None
 
-    if human_detected:
+    if human_detected and reject_on_human:
+        logger.warning("Rejected frame: Human presence detected.")
         return {
             "is_eligible": False,
             "status": RecognitionStatusEnum.REJECTED_HUMAN_DETECTED,
@@ -189,7 +196,7 @@ def filter_vehicle_and_occupancy(
             "vehicle_count": vehicle_count
         }
 
-    if vehicle_count > 1:
+    if vehicle_count > 1 and reject_on_multiple_vehicles:
         types_str = ", ".join(detected_vehicle_types)
         logger.warning(f"Rejected frame: {vehicle_count} vehicles detected ({types_str}).")
         return {
@@ -215,13 +222,15 @@ def filter_vehicle_and_occupancy(
             "vehicle_count": 0
         }
 
+    occupancy_note = "with human presence" if human_detected else "with no human occupancy"
+    multi_note = f" (primary of {vehicle_count} vehicles)" if vehicle_count > 1 else ""
     return {
         "is_eligible": True,
         "status": None,
-        "status_message": f"4-wheeler ({primary_vehicle_type}) detected with no human occupancy. Eligible for plate recognition.",
+        "status_message": f"4-wheeler ({primary_vehicle_type}){multi_note} detected {occupancy_note}. Eligible for plate recognition.",
         "vehicle_detected": True,
         "vehicle_type": primary_vehicle_type,
         "human_detected": human_detected,
         "vehicle_box": primary_vehicle_box,
-        "vehicle_count": 1
+        "vehicle_count": vehicle_count
     }

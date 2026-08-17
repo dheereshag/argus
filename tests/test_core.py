@@ -9,7 +9,7 @@ from app.core.exceptions import (
 def test_settings_default_values():
     assert settings.PROJECT_NAME == "Argus ANPR Microservice"
     assert settings.VERSION  # non-empty — exact value varies with installed package
-    assert settings.DEFAULT_PROVIDER.value in ["tesseract", "platerecognizer", "nvidia"]
+    assert settings.DEFAULT_PROVIDER.value in ["docling", "tesseract", "platerecognizer", "nvidia"]
     assert settings.HUMAN_CONF_THRESH == 0.30
     assert settings.VEHICLE_CONF_THRESH == 0.35
 

@@ -49,6 +49,10 @@ class Settings(BaseSettings):
     MAX_IMAGE_PIXELS: int = 50_000_000             # decompression-bomb guard (w * h)
     MAX_IMAGE_EDGE_PX: int = 1920                  # downscale longest edge before inference
 
+    # Pre-screening Rejection Policies
+    REJECT_ON_HUMAN_DETECTED: bool = False
+    REJECT_ON_MULTIPLE_VEHICLES: bool = False
+
     # Work bounds (NASA rule 2 — every loop has a fixed upper bound).
     #
     # The recognition waterfall costs, per vehicle box:
@@ -59,10 +63,13 @@ class Settings(BaseSettings):
     # area-sorted, so the largest few are the only plausible candidates.
     MAX_VEHICLE_BOXES: int = 3
 
+    # Maximum candidate sub-crops examined per ROI crop in Tesseract OCR
+    MAX_CANDIDATE_CROPS: int = 48
+
     # OCR line pairing is O(n) over detected text lines with a 2-wide and
-    # 3-wide window. A busy frame (signage, hoardings, a tarpaulin of text)
-    # produces many lines, none of them plates.
-    MAX_OCR_LINES: int = 40
+    # 3-wide window. A busy frame or sparse text mode produces multiple
+    # text fragments across lines.
+    MAX_OCR_LINES: int = 500
 
     model_config = SettingsConfigDict(
         env_file=".env",

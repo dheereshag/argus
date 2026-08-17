@@ -47,18 +47,14 @@ STATE_CODES = {
 STATE_PREFIX_PATTERN = "|".join(sorted([k for k in STATE_CODES.keys() if k != "BH"], key=len, reverse=True))
 
 # Regex matching Indian License Plates.
-# Standard format: State(2L) + RTO(1-2 alphanum) + Series(1-3L) + Serial(3-4 digits)
-# Examples: MH04BG649, DL1CX2744, PBNFD2345, RJ09GA0165
-# BH series: 22BH1234AA
-# RTO/District code is 1-2 alphanumeric:
-#   - 1-2 digits for most states (e.g. MH04, DL1)
-#   - Single letter for some states with letter-based RTO sub-divisions (e.g. PBN = Punjab, N office)
-# Serial is 3-4 digits: modern plates use 4 digits (with leading zeros), older/smaller RTOs may use 3.
+# Standard format: State(2L) + District(2 digits 01-99, or 1 digit for DL) + Series(1-3L) + Serial(3-4 digits)
+# BH series: Year(2 digits) + BH + Serial(4 digits) + Series(1-2L)
+# Examples: MH04BG649, DL1CX2744, RJ09GA0165, RJ14GJ4976, 22BH1234AA
 INDIAN_PLATE_REGEX = re.compile(
     r'(?:'
-    rf'({STATE_PREFIX_PATTERN})[\s.-]?([A-Z0-9]{{1,2}})[\s.-]?([A-Za-z]{{1,3}})[\s.-]?(\d{{3,4}})'  # Standard: State + 1-2 alphanum district + 1-3 letter series + 3-4 digit serial
+    rf'({STATE_PREFIX_PATTERN})[\s.-]?(?:0[1-9]|[1-9]\d|(?<=DL)[1-9])[\s.-]?([A-Za-z]{{1,3}})[\s.-]?(\d{{3,4}})'
     r'|'
-    r'(\d{2})[\s.-]?(BH)[\s.-]?(\d{4})[\s.-]?([A-Za-z]{1,2})'                                        # Bharat (BH) series
+    r'(\d{2})[\s.-]?(BH)[\s.-]?(\d{4})[\s.-]?([A-Za-z]{1,2})'
     r')',
     re.IGNORECASE
 )

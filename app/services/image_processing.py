@@ -4,7 +4,7 @@ from typing import Optional, Tuple, Union
 
 import cv2
 import numpy as np
-from PIL import Image, ImageDraw, ImageOps
+from PIL import Image, ImageDraw, ImageFile, ImageOps
 
 from app.core.config import settings
 from app.core.contracts import ensure, require
@@ -14,6 +14,7 @@ from app.core.exceptions import InvalidImageError, PayloadTooLargeError
 # this makes an oversized image raise instead. A ~200 KB crafted PNG can declare
 # 40000x40000 and consume gigabytes on decode.
 Image.MAX_IMAGE_PIXELS = settings.MAX_IMAGE_PIXELS
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 # A crop narrower than this cannot contain a readable plate. Used to reject
 # degenerate boxes rather than feeding a 2-pixel sliver to OCR.
