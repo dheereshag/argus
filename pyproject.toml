@@ -5,7 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "docling>=2.120.1",
+    "docling[easyocr,ocrmac,rapidocr]>=2.120.1",
     "loguru>=0.7.2",
     "numpy>=2.5.1",
     "onnxruntime>=1.28.0",

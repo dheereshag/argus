@@ -91,26 +91,27 @@ class BasePlateRecognizer(ABC):
                     raw_text_fallbacks.append(res_warped)
             return None
 
-        # Fallback ROI specifications: (bottom_crop_ratio, bottom_roi_only)
-        # Tier 1: Bottom 1/3 ROI, Tier 2: Bottom 1/2 ROI, Tier 3: Bottom 2/3 ROI, Tier 4: Full vehicle crop
-        tier_specs = ((1.0 / 3.0, True), (0.50, True), (2.0 / 3.0, True), (1.0, False))
-
-        # Iterate across all vehicle bounding boxes through ROI tiers
+        # Iterate across vehicle bounding boxes:
+        # Step 1: Full vehicle crop (with perspective de-skew fallback)
+        # Step 2: Lower 60% bumper crop (isolates plate from top cab decals if needed)
         for box in boxes_to_check:
-            for ratio, bottom_only in tier_specs:
-                if not bottom_only and not box:
-                    continue
-                roi_bytes = crop_image_roi(image_input, box, bottom_crop_ratio=ratio, bottom_roi_only=bottom_only)
-                res = _try_crop(roi_bytes)
+            if box:
+                # 1. Full vehicle crop
+                veh_crop = crop_image_roi(image_input, box, bottom_crop_ratio=1.0, bottom_roi_only=False)
+                res = _try_crop(veh_crop)
                 if res:
                     return res
 
-        # Tier 5: Full original image frame fallback
-        res5 = self._recognize_single_image(image_input, filename=filename)
-        if any(r.get("plate") and r.get("plate") != "N/A" for r in res5):
-            return res5
-        if res5:
-            raw_text_fallbacks.append(res5)
+                # 2. Lower bumper crop fallback (60% bottom)
+                bumper_crop = crop_image_roi(image_input, box, bottom_crop_ratio=0.60, bottom_roi_only=True)
+                res_bumper = _try_crop(bumper_crop)
+                if res_bumper:
+                    return res_bumper
+
+        # Step 3: Full original image frame fallback
+        res_full = _try_crop(image_input)
+        if res_full:
+            return res_full
 
         return raw_text_fallbacks[0] if raw_text_fallbacks else []
 
