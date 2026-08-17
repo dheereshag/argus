@@ -90,7 +90,8 @@ SERIES_CORRECTIONS = {
 }
 
 STATE_PREFIX_CORRECTIONS = {
-    "W8": "WB", "RT": "RJ", "R3": "RJ", "D1": "DL", "D7": "DL", "H8": "HR", "AS": "AS"
+    "W8": "WB", "RT": "RJ", "R3": "RJ", "D1": "DL", "D7": "DL", "H8": "HR", "AS": "AS",
+    "0D": "OD", "0R": "OR", "00": "OD", "0L": "DL", "K1": "KL", "T1": "TN", "A1": "AP"
 }
 
 # Common non-plate commercial vehicle words/decals

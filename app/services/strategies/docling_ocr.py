@@ -1,6 +1,7 @@
 import re
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+import cv2
 import numpy as np
 from PIL import Image
 
@@ -66,10 +67,23 @@ def _is_decal_word(word: str) -> bool:
     return word in NON_PLATE_WORDS or any(w in word for w in ("CARRIER", "LEYLAND", "TRANSPORT", "NATIONALPERMIT"))
 
 
+def _enhance_contrast(img: Image.Image) -> Image.Image:
+    """Enhance local image contrast using CLAHE for low-contrast license plates."""
+    np_img = np.array(img)
+    if len(np_img.shape) == 3:
+        gray = cv2.cvtColor(np_img, cv2.COLOR_RGB2GRAY)
+    else:
+        gray = np_img
+    clahe = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8))
+    enhanced_gray = clahe.apply(gray)
+    enhanced_rgb = cv2.cvtColor(enhanced_gray, cv2.COLOR_GRAY2RGB)
+    return Image.fromarray(enhanced_rgb)
+
+
 class DoclingStrategy(BasePlateRecognizer):
     """
     Concrete ANPR Strategy using RapidOCR ONNX Runtime engine
-    with spatial layout parsing and positional Indian plate normalisation.
+    with spatial layout parsing, sub-token word isolation, and positional Indian plate normalisation.
     """
 
     def __init__(self, **kwargs):
@@ -129,13 +143,23 @@ class DoclingStrategy(BasePlateRecognizer):
             if not text or score < 0.20:
                 continue
             raw_text_parts.append(text.strip())
+
+            # Full line cleaned
             cleaned = re.sub(r"[^A-Za-z0-9]", "", text).upper()
             if cleaned and len(cleaned) >= 2 and not _is_decal_word(cleaned):
-                clean_lines.append(cleaned)
+                if cleaned not in clean_lines:
+                    clean_lines.append(cleaned)
+
+            # Sub-tokens (when a line contains multiple space-separated words)
+            for part in text.split():
+                part_cleaned = re.sub(r"[^A-Za-z0-9]", "", part).upper()
+                if part_cleaned and len(part_cleaned) >= 2 and not _is_decal_word(part_cleaned):
+                    if part_cleaned not in clean_lines:
+                        clean_lines.append(part_cleaned)
 
         raw_text_summary = " ".join(raw_text_parts) if raw_text_parts else "N/A"
 
-        # 1. Check individual recognized text lines
+        # 1. Check individual recognized text tokens
         for cand_raw in clean_lines:
             for cand_norm in normalize_candidate_strings(cand_raw):
                 match = INDIAN_PLATE_REGEX.fullmatch(cand_norm)
@@ -148,16 +172,15 @@ class DoclingStrategy(BasePlateRecognizer):
         # 2. Check 2-line adjacent and near-adjacent combinations (stacked plates)
         n = len(clean_lines)
         for i in range(n):
-            for j in (i + 1, i + 2):
-                if j < n:
-                    pair_raw = clean_lines[i] + clean_lines[j]
-                    for pair_norm in normalize_candidate_strings(pair_raw):
-                        match = INDIAN_PLATE_REGEX.fullmatch(pair_norm)
-                        if match:
-                            info = self.parse_plate_info(match.group(0))
-                            if info:
-                                info["raw_text"] = raw_text_summary
-                                return [info]
+            for j in range(i + 1, min(i + 4, n)):
+                pair_raw = clean_lines[i] + clean_lines[j]
+                for pair_norm in normalize_candidate_strings(pair_raw):
+                    match = INDIAN_PLATE_REGEX.fullmatch(pair_norm)
+                    if match:
+                        info = self.parse_plate_info(match.group(0))
+                        if info:
+                            info["raw_text"] = raw_text_summary
+                            return [info]
 
         # 3. Fallback: If no valid plate matched
         return [{
@@ -171,6 +194,21 @@ class DoclingStrategy(BasePlateRecognizer):
         image_input: Union[str, bytes],
         filename: str = "image.jpg"
     ) -> List[Dict[str, Any]]:
-        """Process an image input with Docling RapidOCR engine."""
+        """Process an image input with Docling RapidOCR engine, with CLAHE enhancement fallback."""
         pil_img = load_rgb(image_input)
-        return self._extract_plates_from_image_array(pil_img)
+        res = self._extract_plates_from_image_array(pil_img)
+        if any(r.get("plate") and r.get("plate") != "N/A" for r in res):
+            return res
+
+        # CLAHE Contrast Enhancement Fallback
+        try:
+            enhanced_img = _enhance_contrast(pil_img)
+            res_enh = self._extract_plates_from_image_array(enhanced_img)
+            if any(r.get("plate") and r.get("plate") != "N/A" for r in res_enh):
+                return res_enh
+            if res_enh:
+                return res_enh
+        except Exception as e:
+            logger.debug(f"Contrast enhancement fallback skipped: {e}")
+
+        return res
