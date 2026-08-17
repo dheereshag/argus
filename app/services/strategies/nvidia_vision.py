@@ -77,13 +77,14 @@ class NvidiaVisionStrategy(BasePlateRecognizer):
 
     def _get_base64_and_mime(self, image_input: Union[str, bytes], filename: str) -> Tuple[str, str]:
         if isinstance(image_input, bytes):
-            base64_str = base64.b64encode(image_input).decode("utf-8")
+            raw_data = image_input
             ext = os.path.splitext(filename)[1].lower().replace(".", "")
         else:
             with open(image_input, "rb") as img_file:
-                base64_str = base64.b64encode(img_file.read()).decode("utf-8")
+                raw_data = img_file.read()
             ext = os.path.splitext(image_input)[1].lower().replace(".", "")
 
+        base64_str = base64.b64encode(raw_data).decode("utf-8")
         mime_type = "image/jpeg" if ext in ("jpg", "jpeg", "") else f"image/{ext}"
         return base64_str, mime_type
 

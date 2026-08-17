@@ -8,7 +8,6 @@ dependencies = [
     "loguru>=0.7.2",
     "numpy>=2.5.1",
     "onnxruntime>=1.28.0",
-    "opencv-python>=5.0.0.93",
     "opencv-python-headless>=5.0.0.93",
     "pillow>=12.3.0",
     "pydantic>=2.13.4",

@@ -64,9 +64,6 @@ class Settings(BaseSettings):
     # produces many lines, none of them plates.
     MAX_OCR_LINES: int = 40
 
-    # CORS Settings
-    ALLOWED_ORIGINS: List[str] = ["*"]
-
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

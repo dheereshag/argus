@@ -10,6 +10,9 @@ from app.services.base import BasePlateRecognizer
 from app.services.constants import INDIAN_PLATE_REGEX
 
 
+_MAX_FILE_SIZE_BYTES = int(3.5 * 1024 * 1024)  # 3.5 MB limit
+
+
 class PlateRecognizerStrategy(BasePlateRecognizer):
     """
     Concrete Strategy using Plate Recognizer Cloud API.
@@ -30,21 +33,17 @@ class PlateRecognizerStrategy(BasePlateRecognizer):
         if not self.api_token:
             raise ValueError("PLATE_RECOGNIZER_TOKEN is missing in settings/env.")
 
-        # Check file size < 3.5MB before making API call
-        MAX_FILE_SIZE_BYTES = int(3.5 * 1024 * 1024)  # 3.5 MB limit
-
         if isinstance(image_input, bytes):
             img_bytes = image_input
-            file_size = len(img_bytes)
         else:
-            file_size = os.path.getsize(image_input)
             with open(image_input, "rb") as fp:
                 img_bytes = fp.read()
 
-        if file_size >= MAX_FILE_SIZE_BYTES:
+        file_size = len(img_bytes)
+        if file_size >= _MAX_FILE_SIZE_BYTES:
             logger.warning(
                 f"[PlateRecognizerStrategy] Skipping API call: file size {file_size / (1024 * 1024):.2f}MB "
-                f"exceeds 3.5MB limit ({file_size} bytes >= {MAX_FILE_SIZE_BYTES} bytes)."
+                f"exceeds 3.5MB limit ({file_size} bytes >= {_MAX_FILE_SIZE_BYTES} bytes)."
             )
             return []
 

@@ -292,13 +292,12 @@ def crop_image_roi(
     return _to_jpeg_bytes(cropped)
 
 
-def save_debug_images(  # noqa: PLR0917
+def save_debug_images(
     img_bytes: bytes,
     filename: str,
     vehicle_boxes: list,
     vehicle_type: str,
     output_dir: str = "eval_debug_crops",
-    bottom_crop_ratio: float = 0.50
 ) -> None:
     """
     Save annotated YOLO box image, full vehicle crops, and bottom ROI crops for OCR debugging.
