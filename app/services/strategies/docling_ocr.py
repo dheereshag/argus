@@ -78,7 +78,7 @@ def _enhance_contrast(img: Image.Image) -> Image.Image:
 class DoclingStrategy(BasePlateRecognizer):
     """
     Concrete ANPR Strategy using RapidOCR ONNX Runtime engine
-    with 2D spatial layout parsing, sub-token word isolation, and positional Indian plate normalisation.
+    with 2D spatial layout parsing, bumper-position candidate ranking, and positional Indian plate normalisation.
     """
 
     def __init__(self, **kwargs):
@@ -157,18 +157,27 @@ class DoclingStrategy(BasePlateRecognizer):
 
         raw_text_summary = " ".join(raw_text_parts) if raw_text_parts else "N/A"
 
-        # 1. Check individual recognized text tokens
-        for cand_raw, _, _ in clean_tokens:
-            for cand_norm in normalize_candidate_strings(cand_raw):
+        # Candidate collection with vertical position weighting
+        # List of (y_position, priority_rank, candidate_dict)
+        plate_candidates: List[Tuple[float, int, Dict[str, Any]]] = []
+        seen_matched_plates = set()
+
+        # 1. Collect individual recognized text tokens
+        for cand_raw, _, cy in clean_tokens:
+            y_pos = cy if cy is not None else 0.0
+            for rank, cand_norm in enumerate(normalize_candidate_strings(cand_raw)):
                 match = INDIAN_PLATE_REGEX.fullmatch(cand_norm)
                 if match:
                     info = self.parse_plate_info(match.group(0))
                     if info:
-                        info["raw_text"] = raw_text_summary
-                        return [info]
+                        plate_num = info.get("plate")
+                        if plate_num and plate_num not in seen_matched_plates:
+                            seen_matched_plates.add(plate_num)
+                            info["raw_text"] = raw_text_summary
+                            plate_candidates.append((y_pos, rank, info))
 
-        # 2. Check 2-line combinations sorted by 2D spatial proximity
-        candidate_pairs: List[Tuple[float, str]] = []
+        # 2. Collect 2-line combinations sorted by 2D spatial proximity
+        candidate_pairs: List[Tuple[float, str, float]] = []  # (dist, text, y_pos)
         n = len(clean_tokens)
         for i in range(n):
             tok_a, cx_a, cy_a = clean_tokens[i]
@@ -176,25 +185,36 @@ class DoclingStrategy(BasePlateRecognizer):
                 tok_b, cx_b, cy_b = clean_tokens[j]
                 if cx_a is not None and cy_a is not None and cx_b is not None and cy_b is not None:
                     dist = math.hypot(cx_a - cx_b, cy_a - cy_b)
+                    y_mean = float((cy_a + cy_b) / 2.0)
                 else:
                     dist = float(abs(i - j) * 100.0)
+                    y_mean = cy_a or cy_b or 0.0
 
-                candidate_pairs.append((dist, tok_a + tok_b))
-                candidate_pairs.append((dist + 0.1, tok_b + tok_a))
+                candidate_pairs.append((dist, tok_a + tok_b, y_mean))
+                candidate_pairs.append((dist + 0.1, tok_b + tok_a, y_mean))
 
         # Sort candidate pairs by spatial proximity (closest first)
         candidate_pairs.sort(key=lambda p: p[0])
 
-        for _, pair_raw in candidate_pairs:
-            for pair_norm in normalize_candidate_strings(pair_raw):
+        for _, pair_raw, y_pos in candidate_pairs:
+            for rank, pair_norm in enumerate(normalize_candidate_strings(pair_raw)):
                 match = INDIAN_PLATE_REGEX.fullmatch(pair_norm)
                 if match:
                     info = self.parse_plate_info(match.group(0))
                     if info:
-                        info["raw_text"] = raw_text_summary
-                        return [info]
+                        plate_num = info.get("plate")
+                        if plate_num and plate_num not in seen_matched_plates:
+                            seen_matched_plates.add(plate_num)
+                            info["raw_text"] = raw_text_summary
+                            plate_candidates.append((y_pos, rank, info))
 
-        # 3. Fallback: If no valid plate matched
+        # 3. Select best candidate based on lower-bumper vertical priority (highest y)
+        if plate_candidates:
+            # Sort by vertical center descending (lower bumper mount first), then by normalization rank
+            plate_candidates.sort(key=lambda c: (c[0], -c[1]), reverse=True)
+            return [plate_candidates[0][2]]
+
+        # 4. Fallback: If no valid plate matched
         return [{
             "plate": "N/A",
             "state": "N/A",
