@@ -10,7 +10,10 @@ from app.services.constants import INDIAN_PLATE_REGEX, STATE_CODES
 from app.services.factory import PlateRecognizerFactory
 from app.services.strategies.nvidia_vision import NvidiaVisionStrategy
 from app.services.strategies.plate_recognizer import PlateRecognizerStrategy
-from app.services.strategies.tesseract_ocr import TesseractStrategy
+from app.services.strategies.tesseract_ocr import (
+    TesseractStrategy,
+    normalize_candidate_strings,
+)
 from app.services.yolo_filter import filter_vehicle_and_occupancy
 
 
@@ -224,3 +227,14 @@ def test_plate_recognizer_skips_large_file():
     large_bytes = b"0" * int(3.6 * 1024 * 1024)
     res = recognizer._recognize_single_image(large_bytes)
     assert res == []
+
+def test_normalize_candidate_strings():
+    # State prefix corrections
+    assert "WB12AB1234" in normalize_candidate_strings("W812AB1234")
+    assert "RJ14GJ4976" in normalize_candidate_strings("RT14G34976")
+    assert "RJ09GA0165" in normalize_candidate_strings("RJ09GA0165")
+
+    # Positional character confusions (O/0, I/1, G3/GJ)
+    variants = normalize_candidate_strings("RT14G34976")
+    assert "RJ14GJ4976" in variants
+

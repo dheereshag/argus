@@ -116,7 +116,7 @@ def warp_perspective_crop(img_bytes: bytes) -> bytes:
         approx = cv2.approxPolyDP(c, 0.02 * peri, True)
 
         # If a 4-point polygon quadrilateral is found with reasonable area (> 5% of crop area)
-        if len(approx) == 4 and cv2.contourArea(approx) > (0.05 * w * h):  # noqa: PLR2004
+        if len(approx) == 4 and cv2.contourArea(approx) > (0.05 * w * h):  
             pts = approx.reshape(4, 2)
             rect = order_points(pts)
             tl, tr, br, bl = rect
@@ -129,7 +129,7 @@ def warp_perspective_crop(img_bytes: bytes) -> bytes:
             height_b = np.sqrt(((tl[0] - bl[0]) ** 2) + ((tl[1] - bl[1]) ** 2))
             max_height = max(int(height_a), int(height_b))
 
-            if max_width > 20 and max_height > 10:  # noqa: PLR2004
+            if max_width > 20 and max_height > 10:  
                 dst = np.array([
                     [0, 0],
                     [max_width - 1, 0],
@@ -151,10 +151,10 @@ def warp_perspective_crop(img_bytes: bytes) -> bytes:
         if cv2.contourArea(largest_c) > (0.05 * w * h):
             min_rect = cv2.minAreaRect(largest_c)  # cv2.RotatedRect — different type from `rect` above
             angle = min_rect[-1]
-            if angle < -45:  # noqa: PLR2004
+            if angle < -45:  
                 angle = 90 + angle
 
-            if abs(angle) > 3.0:  # noqa: PLR2004
+            if abs(angle) > 3.0:  
                 center = (w // 2, h // 2)
                 M = cv2.getRotationMatrix2D(center, angle, 1.0)
                 rotated = cv2.warpAffine(img, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
@@ -168,7 +168,7 @@ def warp_perspective_crop(img_bytes: bytes) -> bytes:
 
 def box_area(box: Optional[Tuple[int, int, int, int]]) -> int:
     """Area of an xyxy box, 0 for anything malformed. Never raises — used as a sort key."""
-    if not box or len(box) != 4:  # noqa: PLR2004
+    if not box or len(box) != 4:  
         return 0
     x1, y1, x2, y2 = box
     return max(0, int(x2) - int(x1)) * max(0, int(y2) - int(y1))
@@ -198,7 +198,7 @@ def clamp_box(
     """
     require(width > 0 and height > 0, f"image dimensions must be positive, got {width}x{height}")
 
-    if not box or len(box) != 4:  # noqa: PLR2004
+    if not box or len(box) != 4:  
         return None
 
     try:

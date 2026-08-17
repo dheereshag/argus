@@ -121,7 +121,7 @@ def _run_detection(
             continue
 
         raw_box = None
-        if xyxy is not None and idx < len(xyxy) and len(xyxy[idx]) >= 4:  # noqa: PLR2004
+        if xyxy is not None and idx < len(xyxy) and len(xyxy[idx]) >= 4:  
             xb = xyxy[idx]
             raw_box = (int(xb[0]), int(xb[1]), int(xb[2]), int(xb[3]))
         box = clamp_box(raw_box, width, height)

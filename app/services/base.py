@@ -144,7 +144,7 @@ class BasePlateRecognizer(ABC):
             return None
 
         clean_cand = raw_plate.strip().upper()
-        if len(clean_cand) >= 2 and clean_cand[:2] == "W8":  # noqa: PLR2004
+        if len(clean_cand) >= 2 and clean_cand[:2] == "W8":  
             clean_cand = "WB" + clean_cand[2:]
 
         match = INDIAN_PLATE_REGEX.fullmatch(clean_cand)

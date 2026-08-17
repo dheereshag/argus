@@ -135,7 +135,7 @@ class NvidiaVisionStrategy(BasePlateRecognizer):
                     json=payload,
                     timeout=(settings.HTTP_CONNECT_TIMEOUT, settings.HTTP_READ_TIMEOUT),
                 )
-                if response.status_code == 200:  # noqa: PLR2004
+                if response.status_code == 200:  
                     try:
                         res_json = response.json()
                     except ValueError:
