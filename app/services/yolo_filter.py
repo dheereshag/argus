@@ -193,6 +193,7 @@ def filter_vehicle_and_occupancy(
             "vehicle_type": primary_vehicle_type,
             "human_detected": human_detected,
             "vehicle_box": primary_vehicle_box,
+            "vehicle_boxes": vehicle_boxes,
             "vehicle_count": vehicle_count
         }
 
@@ -207,6 +208,7 @@ def filter_vehicle_and_occupancy(
             "vehicle_type": primary_vehicle_type,
             "human_detected": human_detected,
             "vehicle_box": primary_vehicle_box,
+            "vehicle_boxes": vehicle_boxes,
             "vehicle_count": vehicle_count
         }
 
@@ -219,11 +221,12 @@ def filter_vehicle_and_occupancy(
             "vehicle_type": None,
             "human_detected": human_detected,
             "vehicle_box": None,
+            "vehicle_boxes": [],
             "vehicle_count": 0
         }
 
     occupancy_note = "with human presence" if human_detected else "with no human occupancy"
-    multi_note = f" (primary of {vehicle_count} vehicles)" if vehicle_count > 1 else ""
+    multi_note = f" ({vehicle_count} vehicles detected)" if vehicle_count > 1 else ""
     return {
         "is_eligible": True,
         "status": None,
@@ -232,5 +235,6 @@ def filter_vehicle_and_occupancy(
         "vehicle_type": primary_vehicle_type,
         "human_detected": human_detected,
         "vehicle_box": primary_vehicle_box,
+        "vehicle_boxes": vehicle_boxes,
         "vehicle_count": vehicle_count
     }

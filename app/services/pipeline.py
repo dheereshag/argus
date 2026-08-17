@@ -61,6 +61,7 @@ def run_waterfall(
     image_bytes: bytes,
     filename: str,
     vehicle_box: Optional[tuple] = None,
+    vehicle_boxes: Optional[List[Tuple[int, int, int, int]]] = None,
     override_provider: Optional[ProviderEnum] = None,
 ) -> Tuple[List[PlateResult], ProviderEnum]:
     providers = [override_provider] if override_provider else get_fallback_providers()
@@ -73,6 +74,7 @@ def run_waterfall(
                 image_bytes,
                 filename=filename,
                 vehicle_box=vehicle_box,
+                vehicle_boxes=vehicle_boxes,
             )
         except ContractViolation:
             raise
@@ -161,11 +163,12 @@ def recognize_plate_image(
             execution_time_ms=execution_time_ms
         )
 
-    # Step 2: Recognition Waterfall
+    # Step 2: Recognition Waterfall across all detected vehicle boxes
     plate_results, active_provider = run_waterfall(
         image_bytes,
         filename=filename,
         vehicle_box=yolo_result.get("vehicle_box"),
+        vehicle_boxes=yolo_result.get("vehicle_boxes"),
         override_provider=target_provider,
     )
 

@@ -51,7 +51,7 @@ class Settings(BaseSettings):
 
     # Work bounds (NASA rule 2 — every loop has a fixed upper bound).
     # Boxes are area-sorted, so the largest few are the only plausible candidates.
-    MAX_VEHICLE_BOXES: int = 3
+    MAX_VEHICLE_BOXES: int = 5
 
     # OCR line processing upper bound
     MAX_OCR_LINES: int = 500

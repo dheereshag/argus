@@ -79,20 +79,35 @@ class BasePlateRecognizer(ABC):
                     raw_text_fallbacks.append(res_warped)
             return None
 
-        # Step 1 & 2: Vehicle Crop & Lower Bumper Crop
+        detected_plates: List[Dict[str, Any]] = []
+        seen_plate_nums = set()
+
+        # Step 1 & 2: Vehicle Crop & Lower Bumper Crop across each detected vehicle
         for box in boxes_to_check:
             if box:
                 # 1. Full vehicle crop
                 veh_crop = crop_image_roi(image_bytes, box, bottom_crop_ratio=1.0, bottom_roi_only=False)
                 res = _try_crop(veh_crop)
                 if res:
-                    return res
+                    for r in res:
+                        p = r.get("plate")
+                        if p and p != "N/A" and p not in seen_plate_nums:
+                            seen_plate_nums.add(p)
+                            detected_plates.append(r)
+                    continue
 
                 # 2. Lower bumper crop (60% bottom)
                 bumper_crop = crop_image_roi(image_bytes, box, bottom_crop_ratio=0.60, bottom_roi_only=True)
                 res_bumper = _try_crop(bumper_crop)
                 if res_bumper:
-                    return res_bumper
+                    for r in res_bumper:
+                        p = r.get("plate")
+                        if p and p != "N/A" and p not in seen_plate_nums:
+                            seen_plate_nums.add(p)
+                            detected_plates.append(r)
+
+        if detected_plates:
+            return detected_plates
 
         # Step 3: Full original frame fallback
         res_full = _try_crop(image_bytes)

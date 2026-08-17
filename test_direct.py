@@ -59,11 +59,12 @@ def test_models():
         yolo_res = filter_vehicle_and_occupancy(img_bytes)
         t_yolo = round((time.time() - t_yolo_start) * 1000, 2)
         vehicle_box = yolo_res.get("vehicle_box")
-        print(f"[YOLO v11 Prescreening] ({t_yolo:>7.2f} ms): vehicle={yolo_res['vehicle_type']}, box={vehicle_box}")
+        vehicle_boxes = yolo_res.get("vehicle_boxes")
+        print(f"[YOLO v11 Prescreening] ({t_yolo:>7.2f} ms): vehicle={yolo_res['vehicle_type']}, box={vehicle_box}, count={yolo_res.get('vehicle_count', 1)}")
 
         for st_name, engine in strategy_engines.items():
             t0 = time.time()
-            result = engine.recognize(img_bytes, vehicle_box=vehicle_box)
+            result = engine.recognize(img_bytes, vehicle_box=vehicle_box, vehicle_boxes=vehicle_boxes)
             t_exec = round((time.time() - t0) * 1000, 2)
             print(f"[{st_name.upper():<20}] ({t_exec:>7.2f} ms): {result}")
 
