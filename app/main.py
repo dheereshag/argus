@@ -6,14 +6,13 @@ from app.core.config import settings
 from app.core.logging import logger
 from app.services.pipeline import recognize_plate_image
 from app.services.strategies.docling_ocr import check_docling_engine
-from app.services.strategies.tesseract_ocr import check_tesseract_engine
 from app.services.yolo_filter import get_yolo_model
 
 
 def main():
     parser = argparse.ArgumentParser(description=f"{settings.PROJECT_NAME} CLI")
     parser.add_argument("image", help="Path to image file for plate recognition")
-    parser.add_argument("--provider", default=None, help="Recognition provider override (docling, tesseract, nvidia, platerecognizer)")
+    parser.add_argument("--provider", default=None, help="Recognition provider override (docling, nvidia, platerecognizer)")
 
     args = parser.parse_args()
 
@@ -25,7 +24,6 @@ def main():
         logger.warning(f"Warning loading YOLO model: {e}")
 
     check_docling_engine()
-    check_tesseract_engine()
 
     try:
         response = recognize_plate_image(args.image, provider=args.provider)

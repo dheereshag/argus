@@ -96,15 +96,12 @@ def test_recognize_fallback_to_nvidia(mock_yolo, mock_get_recognizer, sample_ima
     mock_docling = MagicMock()
     mock_docling.recognize.return_value = []  # Docling finds no plate
 
-    mock_tesseract = MagicMock()
-    mock_tesseract.recognize.return_value = []  # Tesseract finds no plate
-
     mock_nvidia = MagicMock()
     mock_nvidia.recognize.return_value = [
         {"plate": "MH12AB1234", "state": "Maharashtra"}
     ]
 
-    mock_get_recognizer.side_effect = [mock_docling, mock_tesseract, mock_nvidia]
+    mock_get_recognizer.side_effect = [mock_docling, mock_nvidia]
 
     response = recognize_plate_image(sample_image_bytes, filename="car.jpg")
     assert response.success is True

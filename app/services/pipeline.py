@@ -19,7 +19,6 @@ from app.services.yolo_filter import filter_vehicle_and_occupancy
 
 _FIXED_FALLBACK_ORDER = [
     ProviderEnum.DOCLING,
-    ProviderEnum.TESSERACT,
     ProviderEnum.NVIDIA,
     ProviderEnum.PLATERECOGNIZER,
 ]

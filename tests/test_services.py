@@ -10,8 +10,8 @@ from app.services.constants import INDIAN_PLATE_REGEX, STATE_CODES
 from app.services.factory import PlateRecognizerFactory
 from app.services.strategies.nvidia_vision import NvidiaVisionStrategy
 from app.services.strategies.plate_recognizer import PlateRecognizerStrategy
-from app.services.strategies.tesseract_ocr import (
-    TesseractStrategy,
+from app.services.strategies.docling_ocr import (
+    DoclingStrategy,
     normalize_candidate_strings,
 )
 from app.services.yolo_filter import filter_vehicle_and_occupancy
@@ -70,13 +70,13 @@ def test_base_plate_recognizer_parse_plate_info():
 
 def test_factory_list_and_get():
     providers = PlateRecognizerFactory.list_providers()
-    assert ProviderEnum.TESSERACT in providers
+    assert ProviderEnum.DOCLING in providers
     assert ProviderEnum.NVIDIA in providers
     assert ProviderEnum.PLATERECOGNIZER in providers
 
     # Valid get
-    recognizer = PlateRecognizerFactory.get_recognizer(ProviderEnum.TESSERACT)
-    assert isinstance(recognizer, TesseractStrategy)
+    recognizer = PlateRecognizerFactory.get_recognizer(ProviderEnum.DOCLING)
+    assert isinstance(recognizer, DoclingStrategy)
 
     # String input get
     recognizer_str = PlateRecognizerFactory.get_recognizer("nvidia")
@@ -87,11 +87,11 @@ def test_factory_list_and_get():
         PlateRecognizerFactory.get_recognizer("unknown_provider")
 
 def test_factory_custom_registration():
-    PlateRecognizerFactory.register_strategy(ProviderEnum.TESSERACT, DummyStrategy)
-    rec = PlateRecognizerFactory.get_recognizer(ProviderEnum.TESSERACT)
+    PlateRecognizerFactory.register_strategy(ProviderEnum.DOCLING, DummyStrategy)
+    rec = PlateRecognizerFactory.get_recognizer(ProviderEnum.DOCLING)
     assert isinstance(rec, DummyStrategy)
     # Restore original strategy
-    PlateRecognizerFactory.register_strategy(ProviderEnum.TESSERACT, TesseractStrategy)
+    PlateRecognizerFactory.register_strategy(ProviderEnum.DOCLING, DoclingStrategy)
 
 @patch("app.services.yolo_filter.get_yolo_model")
 def test_yolo_filter_eligible_vehicle(mock_get_model, sample_image_bytes):
@@ -208,15 +208,6 @@ def test_docling_ocr_strategy_mocked(mock_get_engine, sample_image_bytes):
     assert results[0]["plate"] == "RJ09GA0165"
     assert results[0]["state"] == "Rajasthan"
 
-@patch("pytesseract.image_to_string")
-def test_tesseract_ocr_strategy_mocked(mock_image_to_string, sample_image_bytes):
-    mock_image_to_string.return_value = "RJ09GA0165\n"
-
-    strategy = TesseractStrategy(bottom_crop_ratio=0.5)
-    results = strategy.recognize(sample_image_bytes)
-    assert len(results) == 1
-    assert results[0]["plate"] == "RJ09GA0165"
-    assert results[0]["state"] == "Rajasthan"
 
 @patch("requests.post")
 def test_nvidia_vision_strategy_mocked(mock_post, sample_image_bytes):

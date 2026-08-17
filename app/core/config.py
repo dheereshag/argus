@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     NEMOTRON_API_KEY: str = ""
     NVIDIA_API_KEY: str = ""
     NVIDIA_INVOKE_URL: str = "https://integrate.api.nvidia.com/v1/chat/completions"
-    DEFAULT_PROVIDER: ProviderEnum = ProviderEnum.TESSERACT
+    DEFAULT_PROVIDER: ProviderEnum = ProviderEnum.DOCLING
 
     # YOLO Model Settings
     YOLO_MODEL_NAME: str = "yolo11n.pt"
@@ -34,9 +34,8 @@ class Settings(BaseSettings):
     HUMAN_CONF_THRESH: float = 0.30
     VEHICLE_CONF_THRESH: float = 0.35
 
-    # Tesseract OCR Tuning Settings
-    TESSERACT_LANG: str = "eng"
-    TESSERACT_PSM: int = 6
+    # Docling OCR Settings
+    DOCLING_OCR_ENGINE: str = "rapidocr"  # options: rapidocr, easyocr, ocrmac
 
     # Outbound HTTP timeouts (seconds). Never leave these unset: a provider that
     # accepts the connection and then stalls will otherwise hang the worker
@@ -63,7 +62,7 @@ class Settings(BaseSettings):
     # area-sorted, so the largest few are the only plausible candidates.
     MAX_VEHICLE_BOXES: int = 3
 
-    # Maximum candidate sub-crops examined per ROI crop in Tesseract OCR
+    # Maximum candidate sub-crops examined per ROI crop in OCR engine
     MAX_CANDIDATE_CROPS: int = 48
 
     # OCR line pairing is O(n) over detected text lines with a 2-wide and

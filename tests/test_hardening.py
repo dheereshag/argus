@@ -175,7 +175,7 @@ def test_malformed_provider_output_does_not_error():
         "not a dict",
         {"plate": "MH12AB1234"},
     ]
-    results = validate_plate_results(mixed, ProviderEnum.TESSERACT)
+    results = validate_plate_results(mixed, ProviderEnum.DOCLING)
 
     assert [r.plate for r in results] == ["RJ09GA0165", "MH12AB1234"]
 
@@ -233,9 +233,9 @@ def test_no_bare_image_open_outside_the_helper():
     import inspect
 
     from app.services import image_processing
-    from app.services.strategies import tesseract_ocr
+    from app.services.strategies import docling_ocr
 
-    source = inspect.getsource(tesseract_ocr)
+    source = inspect.getsource(docling_ocr)
     assert "Image.open(" not in source
 
     ip_source = inspect.getsource(image_processing)

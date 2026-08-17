@@ -311,9 +311,9 @@ def evaluate_dataset(  # noqa: C901, PLR0917, PLR0912, PLR0915
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Evaluate ANPR on train and val datasets.")
     group = parser.add_mutually_exclusive_group()
-    group.add_argument("--tesseract", action="store_true", help="Tesseract OCR only")
+    group.add_argument("--docling", action="store_true", help="Docling OCR only")
     group.add_argument("--waterfall", action="store_true",
-                       help="Full waterfall: Tesseract -> NVIDIA -> PlateRecognizer")
+                       help="Full waterfall: Docling -> NVIDIA -> PlateRecognizer")
 
     parser.add_argument(
         "--image", "--images", "-i",
@@ -367,8 +367,8 @@ if __name__ == "__main__":
         target_files.extend(args.files)
 
     providers = (
-        [ProviderEnum.TESSERACT, ProviderEnum.NVIDIA, ProviderEnum.PLATERECOGNIZER]
-        if args.waterfall else [ProviderEnum.TESSERACT]
+        [ProviderEnum.DOCLING, ProviderEnum.NVIDIA, ProviderEnum.PLATERECOGNIZER]
+        if args.waterfall else [ProviderEnum.DOCLING]
     )
 
     all_rows = []

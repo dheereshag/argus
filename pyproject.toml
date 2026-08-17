@@ -13,7 +13,6 @@ dependencies = [
     "pillow>=12.3.0",
     "pydantic>=2.13.4",
     "pydantic-settings>=2.15.0",
-    "pytesseract>=0.3.13",
     "rapidocr-onnxruntime>=1.4.4",
     "requests>=2.32.0",
     "ultralytics>=8.4.106",
