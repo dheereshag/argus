@@ -16,35 +16,20 @@ from app.services.constants import (
 )
 from app.services.image_processing import load_rgb
 
-# Singleton RapidOCR engine instance
-_DOCLING_ENGINE = None
+from rapidocr import RapidOCR
+
+# Direct RapidOCR engine instance
+_DOCLING_ENGINE = RapidOCR()
 
 
-def get_docling_engine() -> Any:
-    """
-    Get or initialize the RapidOCR engine singleton.
-    """
-    global _DOCLING_ENGINE  # noqa: PLW0603
-    if _DOCLING_ENGINE is None:
-        try:
-            from rapidocr import RapidOCR  # noqa: PLC0415
-        except ImportError:
-            from rapidocr_onnxruntime import RapidOCR  # noqa: PLC0415
-        _DOCLING_ENGINE = RapidOCR()
-        logger.info("Docling RapidOCR engine initialized successfully.")
+def get_docling_engine() -> RapidOCR:
+    """Return the RapidOCR engine instance."""
     return _DOCLING_ENGINE
 
 
 def check_docling_engine() -> bool:
-    """
-    Verify that the Docling / RapidOCR engine is operational.
-    """
-    try:
-        engine = get_docling_engine()
-        return engine is not None
-    except Exception as e:
-        logger.warning(f"Docling OCR check failed: {e}")
-        return False
+    """Verify that the RapidOCR engine is operational."""
+    return _DOCLING_ENGINE is not None
 
 
 def _get_box_y_center(box: Any) -> Optional[float]:
