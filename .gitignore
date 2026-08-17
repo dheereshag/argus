@@ -185,4 +185,13 @@ human_gate_spike/
 # Note this is `data/*` and not `data/` on purpose. Git cannot re-include a
 # file whose parent DIRECTORY is excluded, so `data/` followed by
 # `!data/labels.csv` silently fails to track the labels.
+# Exclude all JPGs in the tests folder
 tests/*.jpg
+
+# Explicitly re-include only 1.jpg through 5.jpg
+!tests/1.jpg
+!tests/2.jpg
+!tests/3.jpg
+!tests/4.jpg
+!tests/5.jpg
+

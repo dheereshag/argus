@@ -34,9 +34,6 @@ class Settings(BaseSettings):
     HUMAN_CONF_THRESH: float = 0.30
     VEHICLE_CONF_THRESH: float = 0.35
 
-    # Docling OCR Settings
-    DOCLING_OCR_ENGINE: str = "rapidocr"  # options: rapidocr, easyocr, ocrmac
-
     # Outbound HTTP timeouts (seconds). Never leave these unset: a provider that
     # accepts the connection and then stalls will otherwise hang the worker
     # thread indefinitely.

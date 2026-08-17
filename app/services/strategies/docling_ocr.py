@@ -1,5 +1,4 @@
 import re
-import threading
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -12,28 +11,28 @@ from app.services.base import BasePlateRecognizer
 from app.services.constants import INDIAN_PLATE_REGEX, STATE_CODES
 from app.services.image_processing import load_rgb
 
-# Singleton RapidOCR engine instance (Docling's ONNX OCR engine)
+# Singleton RapidOCR engine instance
 _DOCLING_ENGINE = None
-_DOCLING_LOCK = threading.Lock()
 
 
-def get_docling_engine():
+def get_docling_engine() -> Any:
     """
-    Lazy-load RapidOCR / Docling OCR engine singleton with thread lock.
+    Get or initialize the RapidOCR engine singleton.
     """
     global _DOCLING_ENGINE
     if _DOCLING_ENGINE is None:
-        with _DOCLING_LOCK:
-            if _DOCLING_ENGINE is None:
-                from rapidocr_onnxruntime import RapidOCR  # noqa: PLC0415
-                _DOCLING_ENGINE = RapidOCR()
-                logger.debug("Docling RapidOCR engine initialized successfully.")
+        try:
+            from rapidocr import RapidOCR  # noqa: PLC0415
+        except ImportError:
+            from rapidocr_onnxruntime import RapidOCR  # noqa: PLC0415
+        _DOCLING_ENGINE = RapidOCR()
+        logger.info("Docling RapidOCR engine initialized successfully.")
     return _DOCLING_ENGINE
 
 
 def check_docling_engine() -> bool:
     """
-    Verify that Docling / RapidOCR engine is operational.
+    Verify that the Docling / RapidOCR engine is operational.
     """
     try:
         engine = get_docling_engine()
@@ -168,7 +167,7 @@ def normalize_candidate_strings(raw_str: str) -> List[str]:
 
 class DoclingStrategy(BasePlateRecognizer):
     """
-    Concrete ANPR Strategy using Docling / RapidOCR (ONNX Runtime engine)
+    Concrete ANPR Strategy using Docling RapidOCR (ONNX Runtime engine)
     for fast, high-accuracy license plate character recognition.
     """
 
@@ -181,24 +180,35 @@ class DoclingStrategy(BasePlateRecognizer):
         engine = get_docling_engine()
         np_img = np.array(img_pil)
 
+        raw_items: List[Tuple[str, float]] = []
+
         try:
-            ocr_res, _ = engine(np_img)
+            res = engine(np_img)
+            if res is None:
+                return []
+
+            # RapidOCR v3.9+ returns RapidOCROutput with .txts, .scores, .boxes
+            if hasattr(res, "txts") and hasattr(res, "scores") and res.txts:
+                raw_items = [(str(t), float(s)) for t, s in zip(res.txts, res.scores)]
+            elif isinstance(res, (tuple, list)) and len(res) == 2 and isinstance(res[0], (list, tuple)):
+                raw_items = [(str(item[1]), float(item[2])) for item in res[0] if len(item) >= 3]
+            elif isinstance(res, (tuple, list)):
+                raw_items = [(str(item[1]), float(item[2])) for item in res if isinstance(item, (list, tuple)) and len(item) >= 3]
         except Exception as e:
-            logger.error(f"[docling] OCR execution failed: {e}")
+            logger.error(f"[docling/rapidocr] OCR execution failed: {e}")
             return []
 
-        if not ocr_res:
+        if not raw_items:
             return []
 
         # Bounded OCR lines
-        lines_data = list(bounded(ocr_res, settings.MAX_OCR_LINES, "OCR text lines"))
+        lines_data = list(bounded(raw_items, settings.MAX_OCR_LINES, "OCR text lines"))
 
         clean_lines: List[str] = []
         raw_text_parts: List[str] = []
 
-        for item in lines_data:
-            _, text, score = item
-            if not text or score < 0.30:
+        for text, score in lines_data:
+            if not text or score < 0.20:
                 continue
             raw_text_parts.append(text.strip())
             cleaned = re.sub(r"[^A-Za-z0-9]", "", text).upper()
@@ -243,6 +253,6 @@ class DoclingStrategy(BasePlateRecognizer):
         image_input: Union[str, bytes],
         filename: str = "image.jpg"
     ) -> List[Dict[str, Any]]:
-        """Process an image input with Docling / RapidOCR."""
+        """Process an image input with Docling RapidOCR engine."""
         pil_img = load_rgb(image_input)
         return self._extract_plates_from_image_array(pil_img)
