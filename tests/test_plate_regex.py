@@ -41,11 +41,11 @@ NON_PLATE_STRINGS = [
     "CHASSIS445566",                                # stencilled ID -> "CHASSIS4455"
     "SRTRANSPORT2011",                              # operator name -> "ANSPORT2011"
     "INSURANCEUPTO2026",                            # sticker       -> "UPTO2026"
-    "ALAMYDBP2A4904ALAMYIMAGEIDCRE1JFWWWALAMYCOM",  # the eval_report.json watermark
-    "TN5ASS3555",                                   # random background text
-    "OD00S5554",                                    # letter in district position
-    "MHABI1065",                                    # MHA CAB text
-    "TS2S128",                                      # letter in district position
+    "ALAMYDBP2A4904ALAMYIMAGEIDCRE1JFWWWALAMYCOM",  # raw unisolated watermark text
+    "SPEED40KMLUCK",                                # decal words
+    "TATA2518DIESEL",                               # model badge
+    "OD00S5554",                                    # 00 is not valid district
+    "MHABI1065",                                    # letter in district position
     "ARSS2557",                                     # letter in district position
 ]
 
@@ -58,6 +58,10 @@ REAL_PLATES = [
     "OR02BU3389",
     "KA25B3155",
     "DL1CX2744",
+    "GJ7UU1804",    # Single-digit district code
+    "BP2A4904",     # BP series single-digit district
+    "BP1A2453",     # BP series single-digit district
+    "TN5ASS3555",   # Single-digit district code
     "22BH1234AA",   # Bharat series
 ]
 
@@ -77,14 +81,11 @@ def test_real_plates_still_parse(recognizer, plate):
     assert info["state"] not in (None, "")
 
 
-def test_bp_is_not_a_state_code():
-    """
-    'BP' was present in STATE_CODES as a catch-all mapped to
-    'Bharat / Police / Custom Series'. It is not an Indian RTO state code, and
-    its only demonstrated effect was attributing a state to a watermark.
-    """
-    assert "BP" not in STATE_CODES
-    assert INDIAN_PLATE_REGEX.fullmatch("BP2A4904") is None
+def test_bp_series_is_valid():
+    """BP (Police / Government Series) is recognized with 1-digit district."""
+    assert "BP" in STATE_CODES
+    assert INDIAN_PLATE_REGEX.fullmatch("BP2A4904") is not None
+    assert INDIAN_PLATE_REGEX.fullmatch("BP1A2453") is not None
 
 
 def test_bh_series_is_retained():

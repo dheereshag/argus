@@ -158,14 +158,14 @@ class DoclingStrategy(BasePlateRecognizer):
         n = len(clean_lines)
         for i in range(n):
             for j in range(i + 1, min(i + 4, n)):
-                pair_raw = clean_lines[i] + clean_lines[j]
-                for pair_norm in normalize_candidate_strings(pair_raw):
-                    match = INDIAN_PLATE_REGEX.fullmatch(pair_norm)
-                    if match:
-                        info = self.parse_plate_info(match.group(0))
-                        if info:
-                            info["raw_text"] = raw_text_summary
-                            return [info]
+                for pair_raw in (clean_lines[i] + clean_lines[j], clean_lines[j] + clean_lines[i]):
+                    for pair_norm in normalize_candidate_strings(pair_raw):
+                        match = INDIAN_PLATE_REGEX.fullmatch(pair_norm)
+                        if match:
+                            info = self.parse_plate_info(match.group(0))
+                            if info:
+                                info["raw_text"] = raw_text_summary
+                                return [info]
 
         # 3. Fallback: If no valid plate matched
         return [{
