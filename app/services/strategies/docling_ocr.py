@@ -1,3 +1,5 @@
+import logging
+import math
 import re
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -21,6 +23,12 @@ from rapidocr import RapidOCR
 # Direct RapidOCR engine instance
 _DOCLING_ENGINE = RapidOCR()
 
+# Suppress RapidOCR internal per-crop empty detection warnings on logger and its handlers
+_rapid_logger = logging.getLogger("RapidOCR")
+_rapid_logger.setLevel(logging.ERROR)
+for _h in _rapid_logger.handlers:
+    _h.setLevel(logging.ERROR)
+
 
 def get_docling_engine() -> RapidOCR:
     """Return the RapidOCR engine instance."""
@@ -32,19 +40,21 @@ def check_docling_engine() -> bool:
     return _DOCLING_ENGINE is not None
 
 
-def _get_box_y_center(box: Any) -> Optional[float]:
-    """Calculate vertical center coordinate of an OCR bounding box for spatial layout sorting."""
+def _get_box_centroid(box: Any) -> Tuple[Optional[float], Optional[float]]:
+    """Calculate (x_center, y_center) centroid of an OCR bounding box."""
     if box is None:
-        return None
+        return None, None
     try:
         if isinstance(box, (list, tuple, np.ndarray)) and len(box) >= 4:
             if all(isinstance(v, (int, float, np.number)) for v in box[:4]):
-                return float((box[1] + box[3]) / 2.0)
+                return float((box[0] + box[2]) / 2.0), float((box[1] + box[3]) / 2.0)
             if all(isinstance(pt, (list, tuple, np.ndarray)) and len(pt) >= 2 for pt in box):
-                return float(np.mean([pt[1] for pt in box]))
+                pts_x = [pt[0] for pt in box]
+                pts_y = [pt[1] for pt in box]
+                return float(np.mean(pts_x)), float(np.mean(pts_y))
     except Exception:
         pass
-    return None
+    return None, None
 
 
 def _is_decal_word(word: str) -> bool:
@@ -68,7 +78,7 @@ def _enhance_contrast(img: Image.Image) -> Image.Image:
 class DoclingStrategy(BasePlateRecognizer):
     """
     Concrete ANPR Strategy using RapidOCR ONNX Runtime engine
-    with spatial layout parsing, sub-token word isolation, and positional Indian plate normalisation.
+    with 2D spatial layout parsing, sub-token word isolation, and positional Indian plate normalisation.
     """
 
     def __init__(self, **kwargs):
@@ -80,7 +90,7 @@ class DoclingStrategy(BasePlateRecognizer):
         engine = get_docling_engine()
         np_img = np.array(img_pil)
 
-        raw_items: List[Tuple[str, float, Optional[float]]] = []  # (text, score, y_center)
+        raw_items: List[Tuple[str, float, Optional[float], Optional[float]]] = []  # (text, score, cx, cy)
 
         try:
             res = engine(np_img)
@@ -91,22 +101,22 @@ class DoclingStrategy(BasePlateRecognizer):
             if hasattr(res, "txts") and hasattr(res, "scores") and res.txts:
                 boxes = getattr(res, "boxes", None)
                 for idx, (t, s) in enumerate(zip(res.txts, res.scores)):
-                    y_center = _get_box_y_center(boxes[idx]) if (boxes is not None and idx < len(boxes)) else None
-                    raw_items.append((str(t), float(s), y_center))
+                    cx, cy = _get_box_centroid(boxes[idx]) if (boxes is not None and idx < len(boxes)) else (None, None)
+                    raw_items.append((str(t), float(s), cx, cy))
 
             elif isinstance(res, (tuple, list)) and len(res) == 2 and isinstance(res[0], (list, tuple)):
                 for item in res[0]:
                     if len(item) >= 3:
                         box, text, score = item[0], item[1], item[2]
-                        y_center = _get_box_y_center(box)
-                        raw_items.append((str(text), float(score), y_center))
+                        cx, cy = _get_box_centroid(box)
+                        raw_items.append((str(text), float(score), cx, cy))
 
             elif isinstance(res, (tuple, list)):
                 for item in res:
                     if isinstance(item, (list, tuple)) and len(item) >= 3:
                         box, text, score = item[0], item[1], item[2]
-                        y_center = _get_box_y_center(box)
-                        raw_items.append((str(text), float(score), y_center))
+                        cx, cy = _get_box_centroid(box)
+                        raw_items.append((str(text), float(score), cx, cy))
         except Exception as e:
             logger.error(f"[docling/rapidocr] OCR execution failed: {e}")
             return []
@@ -115,16 +125,17 @@ class DoclingStrategy(BasePlateRecognizer):
             return []
 
         # Sort items spatially top-to-bottom if coordinates are available
-        if any(item[2] is not None for item in raw_items):
-            raw_items.sort(key=lambda x: (x[2] if x[2] is not None else 9999))
+        if any(item[3] is not None for item in raw_items):
+            raw_items.sort(key=lambda x: (x[3] if x[3] is not None else 9999.0))
 
         # Bounded OCR lines
         lines_data = list(bounded(raw_items, settings.MAX_OCR_LINES, "OCR text lines"))
 
-        clean_lines: List[str] = []
+        clean_tokens: List[Tuple[str, Optional[float], Optional[float]]] = []  # (text, cx, cy)
         raw_text_parts: List[str] = []
+        seen_tokens = set()
 
-        for text, score, _ in lines_data:
+        for text, score, cx, cy in lines_data:
             if not text or score < 0.20:
                 continue
             raw_text_parts.append(text.strip())
@@ -132,20 +143,22 @@ class DoclingStrategy(BasePlateRecognizer):
             # Full line cleaned
             cleaned = re.sub(r"[^A-Za-z0-9]", "", text).upper()
             if cleaned and len(cleaned) >= 2 and not _is_decal_word(cleaned):
-                if cleaned not in clean_lines:
-                    clean_lines.append(cleaned)
+                if cleaned not in seen_tokens:
+                    seen_tokens.add(cleaned)
+                    clean_tokens.append((cleaned, cx, cy))
 
             # Sub-tokens (when a line contains multiple space-separated words)
             for part in text.split():
                 part_cleaned = re.sub(r"[^A-Za-z0-9]", "", part).upper()
                 if part_cleaned and len(part_cleaned) >= 2 and not _is_decal_word(part_cleaned):
-                    if part_cleaned not in clean_lines:
-                        clean_lines.append(part_cleaned)
+                    if part_cleaned not in seen_tokens:
+                        seen_tokens.add(part_cleaned)
+                        clean_tokens.append((part_cleaned, cx, cy))
 
         raw_text_summary = " ".join(raw_text_parts) if raw_text_parts else "N/A"
 
         # 1. Check individual recognized text tokens
-        for cand_raw in clean_lines:
+        for cand_raw, _, _ in clean_tokens:
             for cand_norm in normalize_candidate_strings(cand_raw):
                 match = INDIAN_PLATE_REGEX.fullmatch(cand_norm)
                 if match:
@@ -154,18 +167,32 @@ class DoclingStrategy(BasePlateRecognizer):
                         info["raw_text"] = raw_text_summary
                         return [info]
 
-        # 2. Check 2-line adjacent and near-adjacent combinations (stacked plates)
-        n = len(clean_lines)
+        # 2. Check 2-line combinations sorted by 2D spatial proximity
+        candidate_pairs: List[Tuple[float, str]] = []
+        n = len(clean_tokens)
         for i in range(n):
-            for j in range(i + 1, min(i + 4, n)):
-                for pair_raw in (clean_lines[i] + clean_lines[j], clean_lines[j] + clean_lines[i]):
-                    for pair_norm in normalize_candidate_strings(pair_raw):
-                        match = INDIAN_PLATE_REGEX.fullmatch(pair_norm)
-                        if match:
-                            info = self.parse_plate_info(match.group(0))
-                            if info:
-                                info["raw_text"] = raw_text_summary
-                                return [info]
+            tok_a, cx_a, cy_a = clean_tokens[i]
+            for j in range(i + 1, min(i + 6, n)):
+                tok_b, cx_b, cy_b = clean_tokens[j]
+                if cx_a is not None and cy_a is not None and cx_b is not None and cy_b is not None:
+                    dist = math.hypot(cx_a - cx_b, cy_a - cy_b)
+                else:
+                    dist = float(abs(i - j) * 100.0)
+
+                candidate_pairs.append((dist, tok_a + tok_b))
+                candidate_pairs.append((dist + 0.1, tok_b + tok_a))
+
+        # Sort candidate pairs by spatial proximity (closest first)
+        candidate_pairs.sort(key=lambda p: p[0])
+
+        for _, pair_raw in candidate_pairs:
+            for pair_norm in normalize_candidate_strings(pair_raw):
+                match = INDIAN_PLATE_REGEX.fullmatch(pair_norm)
+                if match:
+                    info = self.parse_plate_info(match.group(0))
+                    if info:
+                        info["raw_text"] = raw_text_summary
+                        return [info]
 
         # 3. Fallback: If no valid plate matched
         return [{
