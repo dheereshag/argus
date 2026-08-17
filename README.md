@@ -1,131 +1,71 @@
-# Argus ANPR Microservice
+# Argus ANPR Engine
 
-An Enterprise Automatic Number Plate Recognition (ANPR) microservice built with **FastAPI**, **YOLO v11**, and the **Strategy & Factory Design Patterns**.
+An Enterprise Automatic Number Plate Recognition (ANPR) Python engine built with **YOLO v11**, **Tesseract OCR**, and **Strategy & Factory Design Patterns**.
 
-It features an intelligent **YOLO v11 Pre-screening Pipeline** to verify 4-wheeler vehicle presence (`car`, `bus`, `truck`) and enforce zero human occupancy before routing to downstream OCR / Vision AI models (**Plate Recognizer**, **NVIDIA Llama-3.2-11b-Vision**, or **PaddleOCR with Smart Bottom ROI Cropping**).
-
----
-
-## 🚀 Deployment on Render
-
-### Start Command (Production)
-```bash
-uv run uvicorn main:app --host 0.0.0.0 --port $PORT
-```
-> Render automatically injects the `$PORT` environment variable.
-
-### Build Command
-```bash
-uv sync
-```
+It features an intelligent **YOLO v11 Pre-screening Pipeline** to verify 4-wheeler vehicle presence (`car`, `bus`, `truck`) and enforce zero human occupancy before routing to downstream OCR / Vision AI models (**Tesseract OCR with Smart Bottom ROI Cropping**, **NVIDIA Llama-3.2-11b-Vision**, or **Plate Recognizer**).
 
 ---
 
 ## ⚙️ Environment Variables (`.env`)
 
-Set the following environment variables on your Render Dashboard or in a local `.env` file:
+Set the following environment variables in your local `.env` file:
 
 ```env
 PLATE_RECOGNIZER_TOKEN=your_plate_recognizer_api_token
 NVIDIA_API_KEY=your_nvidia_api_key
 NVIDIA_INVOKE_URL=https://integrate.api.nvidia.com/v1/chat/completions
-DEFAULT_PROVIDER=paddleocr
+DEFAULT_PROVIDER=tesseract
 YOLO_MODEL_NAME=yolo11n.pt
 YOLO_CONFIG_DIR=/tmp/Ultralytics
 HUMAN_CONF_THRESH=0.30
 VEHICLE_CONF_THRESH=0.35
+TESSERACT_LANG=eng
+TESSERACT_PSM=6
 ```
 
 ---
 
-## 🛠️ Local Development
+## 🛠️ Installation & Usage
 
-### Installation & Sync
+### 1. Installation
 ```bash
 uv sync
 ```
 
-### Run Dev Server
+### 2. System Dependency
+Ensure Tesseract OCR binary is installed on your operating system:
+- **macOS:** `brew install tesseract`
+- **Linux (Ubuntu/Debian/Raspberry Pi OS):** `sudo apt update && sudo apt install -y tesseract-ocr tesseract-ocr-eng`
+
+### 3. Run License Plate Recognition via CLI
 ```bash
-uv run fastapi dev
-```
-Interactive OpenAPI Documentation: **`http://localhost:8000/docs`**
-
----
-
-## 📡 API Reference
-
-### 1. Health Check
-`GET /health`
-```json
-{
-  "status": "healthy",
-  "version": "1.0.0"
-}
+uv run python -m app.main path/to/image.jpg
 ```
 
-### 2. Available Providers
-`GET /providers`
-```json
-{
-  "available_providers": ["platerecognizer", "nvidia", "paddleocr"],
-  "default_provider": "platerecognizer"
-}
-```
+### 4. Use as a Python Library
+```python
+from app.services.pipeline import recognize_plate_image
 
-### 3. License Plate Recognition
-`POST /recognize`
+# Process image file or raw bytes
+response = recognize_plate_image("path/to/image.jpg")
 
-**Query Parameters:**
-- `provider` *(optional)*: `"platerecognizer"` | `"nvidia"` | `"paddleocr"`. Defaults to `DEFAULT_PROVIDER`.
-
-**Form Data:**
-- `file`: Vehicle image file (`JPEG`/`PNG`).
-
-#### Example Response (Success)
-```json
-{
-  "success": true,
-  "status": "success",
-  "status_message": "License plate successfully detected and recognized on truck.",
-  "vehicle_detected": true,
-  "vehicle_type": "truck",
-  "human_detected": false,
-  "filename": "car.jpg",
-  "provider": "platerecognizer",
-  "results": [
-    {
-      "plate": "RJ14GT4976",
-      "state": "Rajasthan"
-    }
-  ],
-  "execution_time_ms": 1450.23
-}
-```
-
-#### Example Response (Early Rejection - Human Detected)
-```json
-{
-  "success": false,
-  "status": "rejected_human_detected",
-  "status_message": "Image rejected: Human presence detected.",
-  "vehicle_detected": true,
-  "vehicle_type": "truck",
-  "human_detected": true,
-  "filename": "car2.jpg",
-  "provider": "platerecognizer",
-  "results": [],
-  "execution_time_ms": 85.12
-}
+if response.success:
+    for plate in response.results:
+        print(f"Plate: {plate.plate}, State: {plate.state}")
+else:
+    print(f"Failed: {response.status_message}")
 ```
 
 ---
 
-## 🏛️ Status Enums (`RecognitionStatusEnum`)
+## 🧪 Evaluation & Direct Testing
 
-| Status Enum | Description |
-| :--- | :--- |
-| `success` | 4-wheeler detected, no human occupancy, plate recognized |
-| `rejected_no_four_wheeler` | No 4-wheeler vehicle (`car`, `bus`, `truck`) detected |
-| `rejected_human_detected` | Human presence detected in frame |
-| `no_plate_detected` | Passed pre-screening, but plate OCR failed |
+### Run Direct Strategy Benchmark
+```bash
+uv run python test_direct.py tesseract
+```
+
+### Run Evaluation Against Ground Truth
+```bash
+uv run python eval.py --tesseract
+```

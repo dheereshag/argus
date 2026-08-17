@@ -10,7 +10,7 @@ from app.schemas.plate import (
 def test_provider_enum_values():
     assert ProviderEnum.PLATERECOGNIZER.value == "platerecognizer"
     assert ProviderEnum.NVIDIA.value == "nvidia"
-    assert ProviderEnum.PADDLEOCR.value == "paddleocr"
+    assert ProviderEnum.TESSERACT.value == "tesseract"
 
 def test_recognition_status_enum():
     assert RecognitionStatusEnum.SUCCESS.value == "success"
@@ -33,7 +33,7 @@ def test_recognition_response_valid():
         vehicle_type="car",
         human_detected=False,
         filename="test.jpg",
-        provider=ProviderEnum.PADDLEOCR,
+        provider=ProviderEnum.TESSERACT,
         results=[PlateResult(plate="RJ09GA0165", state="Rajasthan")],
         execution_time_ms=123.45
     )
@@ -44,8 +44,8 @@ def test_recognition_response_valid():
 
 def test_providers_response():
     resp = ProvidersResponse(
-        available_providers=[ProviderEnum.PADDLEOCR, ProviderEnum.NVIDIA],
-        default_provider=ProviderEnum.PADDLEOCR
+        available_providers=[ProviderEnum.TESSERACT, ProviderEnum.NVIDIA],
+        default_provider=ProviderEnum.TESSERACT
     )
     assert len(resp.available_providers) == 2
-    assert resp.default_provider == ProviderEnum.PADDLEOCR
+    assert resp.default_provider == ProviderEnum.TESSERACT

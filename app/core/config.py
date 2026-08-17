@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     NEMOTRON_API_KEY: str = ""
     NVIDIA_API_KEY: str = ""
     NVIDIA_INVOKE_URL: str = "https://integrate.api.nvidia.com/v1/chat/completions"
-    DEFAULT_PROVIDER: ProviderEnum = ProviderEnum.PADDLEOCR
+    DEFAULT_PROVIDER: ProviderEnum = ProviderEnum.TESSERACT
 
     # YOLO Model Settings
     YOLO_MODEL_NAME: str = "yolo11n.pt"
@@ -34,9 +34,9 @@ class Settings(BaseSettings):
     HUMAN_CONF_THRESH: float = 0.30
     VEHICLE_CONF_THRESH: float = 0.35
 
-    # PaddleOCR Tuning Settings
-    PADDLE_CPU_THREADS: int = 4
-    PADDLE_USE_ANGLE_CLS: bool = True
+    # Tesseract OCR Tuning Settings
+    TESSERACT_LANG: str = "eng"
+    TESSERACT_PSM: int = 6
 
     # Outbound HTTP timeouts (seconds). Never leave these unset: a provider that
     # accepts the connection and then stalls will otherwise hang the worker

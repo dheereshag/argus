@@ -1,84 +1,37 @@
-from contextlib import asynccontextmanager
+import argparse
+import json
+import sys
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-
-from app.api.router import api_router
 from app.core.config import settings
-from app.core.contracts import ContractViolation
-from app.core.exceptions import (
-    ANPRServiceError,
-    anpr_exception_handler,
-    contract_violation_handler,
-)
 from app.core.logging import logger
-from app.services.strategies.paddle_ocr import get_paddle_ocr_engine
+from app.services.pipeline import recognize_plate_image
+from app.services.strategies.tesseract_ocr import check_tesseract_engine
 from app.services.yolo_filter import get_yolo_model
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """
-    Warm both model singletons before any request is served.
+def main():
+    parser = argparse.ArgumentParser(description=f"{settings.PROJECT_NAME} CLI")
+    parser.add_argument("image", help="Path to image file for plate recognition")
+    parser.add_argument("--provider", default=None, help="Recognition provider override (tesseract, nvidia, platerecognizer)")
 
-    This is the second half of the rule 6 fix. The locks in yolo_filter and
-    paddle_ocr make lazy init correct under concurrency; warming here means the
-    race is normally never run at all, because both singletons are already
-    populated by the time the threadpool starts handling requests. It also
-    stops the first real request from paying a multi-second cold start.
+    args = parser.parse_args()
 
-    Order matters: the PyTorch-backed YOLO model loads before PaddlePaddle
-    initialises, which is the ordering the original code was careful about.
-
-    Failures are still only warnings here. Making startup fail loudly, and
-    /ready reflect model state, is issue #8 — deliberately not folded in.
-    """
-    logger.info(f"Starting {settings.PROJECT_NAME} v{settings.VERSION}")
-
+    # Warm YOLO model & check Tesseract engine
     try:
         get_yolo_model()
-        logger.info("YOLO v11 model pre-loaded successfully.")
+        logger.info("YOLO v11 model loaded successfully.")
     except Exception as e:
-        logger.warning(f"Warning loading YOLO model at startup: {e}")
+        logger.warning(f"Warning loading YOLO model: {e}")
+
+    check_tesseract_engine()
 
     try:
-        get_paddle_ocr_engine()
-        logger.info("PaddleOCR engine pre-loaded successfully.")
+        response = recognize_plate_image(args.image, provider=args.provider)
+        print(json.dumps(response.model_dump(), indent=2))
     except Exception as e:
-        logger.warning(f"Warning loading PaddleOCR engine at startup: {e}")
+        logger.error(f"Error processing image '{args.image}': {e}")
+        sys.exit(1)
 
-    yield
-    logger.info(f"Shutting down {settings.PROJECT_NAME}")
 
-app = FastAPI(
-    title=settings.PROJECT_NAME,
-    version=settings.VERSION,
-    description="Enterprise Automatic Number Plate Recognition (ANPR) Microservice.",
-    docs_url="/docs",
-    redoc_url="/redoc",
-    lifespan=lifespan
-)
-
-if settings.ALLOWED_ORIGINS:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.ALLOWED_ORIGINS,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-
-app.add_exception_handler(ANPRServiceError, anpr_exception_handler)
-app.add_exception_handler(ContractViolation, contract_violation_handler)
-
-# Include routes directly without versioning prefix
-app.include_router(api_router)
-
-@app.get("/", include_in_schema=False)
-def root():
-    return {
-        "service": settings.PROJECT_NAME,
-        "version": settings.VERSION,
-        "status": "online",
-        "docs": "/docs"
-    }
+if __name__ == "__main__":
+    main()

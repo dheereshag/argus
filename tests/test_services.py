@@ -9,8 +9,8 @@ from app.services.base import BasePlateRecognizer
 from app.services.constants import INDIAN_PLATE_REGEX, STATE_CODES
 from app.services.factory import PlateRecognizerFactory
 from app.services.strategies.nvidia_vision import NvidiaVisionStrategy
-from app.services.strategies.paddle_ocr import PaddleOCRStrategy
 from app.services.strategies.plate_recognizer import PlateRecognizerStrategy
+from app.services.strategies.tesseract_ocr import TesseractStrategy
 from app.services.yolo_filter import filter_vehicle_and_occupancy
 
 
@@ -67,13 +67,13 @@ def test_base_plate_recognizer_parse_plate_info():
 
 def test_factory_list_and_get():
     providers = PlateRecognizerFactory.list_providers()
-    assert ProviderEnum.PADDLEOCR in providers
+    assert ProviderEnum.TESSERACT in providers
     assert ProviderEnum.NVIDIA in providers
     assert ProviderEnum.PLATERECOGNIZER in providers
 
     # Valid get
-    recognizer = PlateRecognizerFactory.get_recognizer(ProviderEnum.PADDLEOCR)
-    assert isinstance(recognizer, PaddleOCRStrategy)
+    recognizer = PlateRecognizerFactory.get_recognizer(ProviderEnum.TESSERACT)
+    assert isinstance(recognizer, TesseractStrategy)
 
     # String input get
     recognizer_str = PlateRecognizerFactory.get_recognizer("nvidia")
@@ -84,11 +84,11 @@ def test_factory_list_and_get():
         PlateRecognizerFactory.get_recognizer("unknown_provider")
 
 def test_factory_custom_registration():
-    PlateRecognizerFactory.register_strategy(ProviderEnum.PADDLEOCR, DummyStrategy)
-    rec = PlateRecognizerFactory.get_recognizer(ProviderEnum.PADDLEOCR)
+    PlateRecognizerFactory.register_strategy(ProviderEnum.TESSERACT, DummyStrategy)
+    rec = PlateRecognizerFactory.get_recognizer(ProviderEnum.TESSERACT)
     assert isinstance(rec, DummyStrategy)
     # Restore original strategy
-    PlateRecognizerFactory.register_strategy(ProviderEnum.PADDLEOCR, PaddleOCRStrategy)
+    PlateRecognizerFactory.register_strategy(ProviderEnum.TESSERACT, TesseractStrategy)
 
 @patch("app.services.yolo_filter.get_yolo_model")
 def test_yolo_filter_eligible_vehicle(mock_get_model, sample_image_bytes):
@@ -172,16 +172,11 @@ def test_yolo_filter_rejected_multiple_vehicles(mock_get_model, sample_image_byt
     assert res["vehicle_detected"] is True
     assert res["vehicle_count"] == 2
 
-@patch("app.services.strategies.paddle_ocr.get_paddle_ocr_engine")
-def test_paddle_ocr_strategy_mocked(mock_get_engine, sample_image_bytes):
-    mock_engine = MagicMock()
-    # Mock return value of engine.ocr: [[ [box, ("RJ09GA0165", 0.95)] ]]
-    mock_engine.ocr.return_value = [[
-        [None, ("RJ09GA0165", 0.95)]
-    ]]
-    mock_get_engine.return_value = mock_engine
+@patch("pytesseract.image_to_string")
+def test_tesseract_ocr_strategy_mocked(mock_image_to_string, sample_image_bytes):
+    mock_image_to_string.return_value = "RJ09GA0165\n"
 
-    strategy = PaddleOCRStrategy(bottom_crop_ratio=0.5)
+    strategy = TesseractStrategy(bottom_crop_ratio=0.5)
     results = strategy.recognize(sample_image_bytes)
     assert len(results) == 1
     assert results[0]["plate"] == "RJ09GA0165"
@@ -223,7 +218,6 @@ def test_plate_recognizer_strategy_mocked(mock_post, sample_image_bytes):
     assert len(results) == 1
     assert results[0]["plate"] == "RJ09GA0165"
     assert results[0]["state"] == "Rajasthan"
-
 
 def test_plate_recognizer_skips_large_file():
     recognizer = PlateRecognizerStrategy(token="dummy_token")

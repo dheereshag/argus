@@ -6,8 +6,8 @@ from app.core.logging import logger
 from app.schemas.plate import ProviderEnum
 from app.services.base import BasePlateRecognizer
 from app.services.strategies.nvidia_vision import NvidiaVisionStrategy
-from app.services.strategies.paddle_ocr import PaddleOCRStrategy
 from app.services.strategies.plate_recognizer import PlateRecognizerStrategy
+from app.services.strategies.tesseract_ocr import TesseractStrategy
 
 
 class PlateRecognizerFactory:
@@ -18,7 +18,7 @@ class PlateRecognizerFactory:
     _strategies: ClassVar[Dict[ProviderEnum, Type[BasePlateRecognizer]]] = {
         ProviderEnum.PLATERECOGNIZER: PlateRecognizerStrategy,
         ProviderEnum.NVIDIA: NvidiaVisionStrategy,
-        ProviderEnum.PADDLEOCR: PaddleOCRStrategy,
+        ProviderEnum.TESSERACT: TesseractStrategy,
     }
 
     @classmethod

@@ -114,9 +114,9 @@ def test_validation_path_uses_fullmatch_not_search():
     import inspect
 
     from app.services import base
-    from app.services.strategies import paddle_ocr
+    from app.services.strategies import tesseract_ocr
 
-    for module in (base, paddle_ocr):
+    for module in (base, tesseract_ocr):
         source = inspect.getsource(module)
         assert "INDIAN_PLATE_REGEX.search(" not in source, (
             f"{module.__name__} uses INDIAN_PLATE_REGEX.search(). Use .fullmatch() — "

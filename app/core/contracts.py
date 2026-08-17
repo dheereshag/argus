@@ -9,8 +9,7 @@ is the wrong tool for that here, for two reasons:
      happens to run in development. Production containers are exactly where
      someone eventually adds -O.
   2. The rule's stated intent is that a violated assertion takes a defined
-     recovery action, not that the process dies with an AssertionError that
-     FastAPI renders as an opaque 500.
+     recovery action, not that the process dies with an unhandled exception.
 
 So: `require()` for preconditions, `ensure()` for postconditions, both raising
 ContractViolation. They cannot be stripped, they carry a message naming the
