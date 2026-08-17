@@ -4,13 +4,17 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from app.core.config import settings
 from app.core.contracts import bounded, require
 from app.services.constants import INDIAN_PLATE_REGEX, STATE_CODES
-from app.services.image_processing import box_area, crop_image_roi, warp_perspective_crop
+from app.services.image_processing import (
+    box_area,
+    crop_image_roi,
+    warp_perspective_crop,
+)
 
 
 class BasePlateRecognizer(ABC):
     """
-    Abstract Base Class for License Plate Recognition Strategies.
-    Implements a unified Template Method with multi-tier ROI and perspective warping fallback.
+    Abstract Base Class for ANPR Recognition Strategies.
+    Provides standard vehicle crop hierarchy, de-skew fallback, and state resolution.
     """
 
     @abstractmethod
@@ -20,60 +24,44 @@ class BasePlateRecognizer(ABC):
         filename: str = "image.jpg"
     ) -> List[Dict[str, Any]]:
         """
-        Subclasses must implement this to perform OCR/Vision extraction on a single image.
-        Failure to do so raises TypeError at instantiation time, not silently at runtime.
+        Subclasses implement OCR / VLM plate extraction on a single image buffer.
+        Returns a list of dicts with keys: 'plate', 'state', 'raw_text'.
         """
+        pass
 
-    def recognize(  # noqa: C901
+    def recognize(
         self,
         image_input: Union[str, bytes],
         filename: str = "image.jpg",
         vehicle_box: Optional[Tuple[int, int, int, int]] = None,
-        vehicle_boxes: Optional[List[Tuple[int, int, int, int]]] = None,
-        **kwargs
+        vehicle_boxes: Optional[List[Tuple[int, int, int, int]]] = None
     ) -> List[Dict[str, Any]]:
         """
-        Template method executing recognition with 5-tier ROI & perspective warping fallback:
-          1. Tier 1: Bottom 1/3 ROI (~33.3% bottom of vehicle crop or frame) & perspective warped fallback
-          2. Tier 2: Bottom 1/2 ROI (50% bottom of vehicle crop or frame) & perspective warped fallback
-          3. Tier 3: Bottom 2/3 ROI (~66.7% bottom of vehicle crop or frame)
-          4. Tier 4: Full vehicle crop (if vehicle box is present)
-          5. Tier 5: Full original image frame fallback
-
-        If multiple vehicle_boxes are detected, iterates through each vehicle crop until a valid plate is found.
-
-        BOUNDED WORK (NASA rule 2). The tier ladder is a fixed 5, but the box
-        list was previously whatever YOLO returned, and cost multiplies:
-
-            len(boxes) x 5 tiers x 2 (plain + warped) x N providers
-
-        A yard with parked vehicles in frame could therefore drive tens of OCR
-        calls for one weighing, which is where the 27.4 s outlier in
-        eval_report.json comes from. Boxes are area-sorted here and capped at
-        MAX_VEHICLE_BOXES, so total work per request has a stated ceiling.
+        Hierarchical ANPR recognition:
+          1. Vehicle Bounding Box Crop (with perspective de-skew fallback)
+          2. Lower 60% Bumper Crop (isolates plate from top cab text/decals)
+          3. Full Frame Fallback
         """
         require(image_input is not None, "recognize() called with no image")
 
+        if isinstance(image_input, str):
+            filename = filename or image_input
+            with open(image_input, "rb") as f:
+                image_bytes = f.read()
+        else:
+            image_bytes = image_input
+
         raw_text_fallbacks = []
 
-        # Determine list of vehicle boxes to inspect.
+        # Determine candidate vehicle bounding boxes (largest first)
         candidate_boxes = vehicle_boxes if vehicle_boxes else ([vehicle_box] if vehicle_box else [])
-
-        # Sort largest-first so the cap keeps the vehicle most likely to be the
-        # one on the platform. The caller already sorts, but this function does
-        # not get to assume that (rule 7 — validate what the caller hands you).
-        ordered = sorted(
-            (b for b in candidate_boxes if b),
-            key=box_area,
-            reverse=True,
-        )
+        ordered = sorted((b for b in candidate_boxes if b), key=box_area, reverse=True)
         boxes_to_check: List[Optional[Tuple[int, int, int, int]]] = list(
             bounded(ordered, settings.MAX_VEHICLE_BOXES, "vehicle boxes")
         )
         if not boxes_to_check:
             boxes_to_check = [None]
 
-        # Helper to try standard crop first, then perspective-warped crop
         def _try_crop(crop_bytes: bytes) -> Optional[List[Dict[str, Any]]]:
             res = self._recognize_single_image(crop_bytes, filename=filename)
             if any(r.get("plate") and r.get("plate") != "N/A" for r in res):
@@ -81,7 +69,7 @@ class BasePlateRecognizer(ABC):
             if res:
                 raw_text_fallbacks.append(res)
 
-            # Try perspective warped & de-skewed crop
+            # Try perspective de-skewed crop if significant angle detected
             warped_bytes = warp_perspective_crop(crop_bytes)
             if warped_bytes != crop_bytes:
                 res_warped = self._recognize_single_image(warped_bytes, filename=filename)
@@ -91,25 +79,23 @@ class BasePlateRecognizer(ABC):
                     raw_text_fallbacks.append(res_warped)
             return None
 
-        # Iterate across vehicle bounding boxes:
-        # Step 1: Full vehicle crop (with perspective de-skew fallback)
-        # Step 2: Lower 60% bumper crop (isolates plate from top cab decals if needed)
+        # Step 1 & 2: Vehicle Crop & Lower Bumper Crop
         for box in boxes_to_check:
             if box:
                 # 1. Full vehicle crop
-                veh_crop = crop_image_roi(image_input, box, bottom_crop_ratio=1.0, bottom_roi_only=False)
+                veh_crop = crop_image_roi(image_bytes, box, bottom_crop_ratio=1.0, bottom_roi_only=False)
                 res = _try_crop(veh_crop)
                 if res:
                     return res
 
-                # 2. Lower bumper crop fallback (60% bottom)
-                bumper_crop = crop_image_roi(image_input, box, bottom_crop_ratio=0.60, bottom_roi_only=True)
+                # 2. Lower bumper crop (60% bottom)
+                bumper_crop = crop_image_roi(image_bytes, box, bottom_crop_ratio=0.60, bottom_roi_only=True)
                 res_bumper = _try_crop(bumper_crop)
                 if res_bumper:
                     return res_bumper
 
-        # Step 3: Full original image frame fallback
-        res_full = _try_crop(image_input)
+        # Step 3: Full original frame fallback
+        res_full = _try_crop(image_bytes)
         if res_full:
             return res_full
 
@@ -117,35 +103,44 @@ class BasePlateRecognizer(ABC):
 
     def parse_plate_info(self, raw_plate: str) -> Optional[Dict[str, Any]]:
         """
-        Validate a candidate string against the Indian plate regex and map the
-        state code to a full state name.
-
-        The candidate must match the plate pattern in its ENTIRETY (fullmatch).
-        A substring match is not sufficient: text lifted off a vehicle surface
-        routinely contains plate-shaped substrings that are not plates
-        ("GOODYEAR2024" -> "ODYEAR2024", "ASHOKLEYLAND2820" -> "LAND2820").
-
-        Returns None when the candidate is not a well-formed plate. Callers must
-        treat None as "no plate found" and continue their fallback chain.
+        Validate candidate plate string against Indian plate regex and resolve State/UT.
+        Strips whitespace and normalizes known state prefix confusions (e.g. W8 -> WB).
         """
+        import re
+
         if not raw_plate:
             return None
 
-        clean_cand = raw_plate.strip().upper()
-        if len(clean_cand) >= 2 and clean_cand[:2] == "W8":  
-            clean_cand = "WB" + clean_cand[2:]
+        cleaned = re.sub(r"[^A-Za-z0-9]", "", str(raw_plate)).upper()
+        if not cleaned:
+            return None
 
-        match = INDIAN_PLATE_REGEX.fullmatch(clean_cand)
+        if cleaned.startswith("W8"):
+            cleaned = "WB" + cleaned[2:]
+
+        match = INDIAN_PLATE_REGEX.fullmatch(cleaned)
         if not match:
             return None
 
-        matched_plate = match.group(0).replace(" ", "").replace(".", "").replace("-", "").upper()
-        if "BH" in matched_plate and matched_plate[2:4] == "BH":
-            state_code = "BH"
-        else:
-            state_code = matched_plate[:2]
-        state_name = STATE_CODES.get(state_code, "Unknown State")
+        matched_plate = cleaned
+
+        # Standard Indian Series State resolution
+        if match.group(1):
+            state_code = match.group(1).upper()
+            state_name = STATE_CODES.get(state_code, "Unknown State")
+            return {
+                "plate": matched_plate,
+                "state": state_name
+            }
+
+        # Bharat (BH) Series
+        if match.group(5):  # "BH"
+            return {
+                "plate": matched_plate,
+                "state": STATE_CODES.get("BH", "Bharat Series (National)")
+            }
+
         return {
             "plate": matched_plate,
-            "state": state_name
+            "state": "Unknown State"
         }

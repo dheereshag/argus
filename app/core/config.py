@@ -50,21 +50,10 @@ class Settings(BaseSettings):
     REJECT_ON_MULTIPLE_VEHICLES: bool = False
 
     # Work bounds (NASA rule 2 — every loop has a fixed upper bound).
-    #
-    # The recognition waterfall costs, per vehicle box:
-    #   5 ROI tiers x 2 (plain + perspective-warped) x N providers
-    # so an unbounded box list multiplies the whole pipeline. YOLO will happily
-    # return a dozen boxes for a yard with parked vehicles in frame. At a
-    # weighbridge only the vehicle on the platform can matter, and boxes are
-    # area-sorted, so the largest few are the only plausible candidates.
+    # Boxes are area-sorted, so the largest few are the only plausible candidates.
     MAX_VEHICLE_BOXES: int = 3
 
-    # Maximum candidate sub-crops examined per ROI crop in OCR engine
-    MAX_CANDIDATE_CROPS: int = 48
-
-    # OCR line pairing is O(n) over detected text lines with a 2-wide and
-    # 3-wide window. A busy frame or sparse text mode produces multiple
-    # text fragments across lines.
+    # OCR line processing upper bound
     MAX_OCR_LINES: int = 500
 
     model_config = SettingsConfigDict(

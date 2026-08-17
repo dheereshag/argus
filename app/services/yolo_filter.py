@@ -46,7 +46,7 @@ _YOLO_LOCK = threading.Lock()
 
 
 def get_yolo_model() -> YOLO:
-    global _YOLO_MODEL  # noqa: PLW0603
+    global _YOLO_MODEL  
     if _YOLO_MODEL is None:
         with _YOLO_LOCK:
             if _YOLO_MODEL is None:  # re-check: another thread may have won the race
