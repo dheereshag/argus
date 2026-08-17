@@ -1,5 +1,5 @@
 import time
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any
 
 from pydantic import ValidationError
 
@@ -8,6 +8,8 @@ from app.core.contracts import ContractViolation
 from app.core.exceptions import InvalidImageError, PayloadTooLargeError
 from app.core.logging import logger
 from app.schemas.plate import (
+    BoundingBox,
+    ImageInput,
     PlateResult,
     ProviderEnum,
     RecognitionResponse,
@@ -23,7 +25,8 @@ _FIXED_FALLBACK_ORDER = [
     ProviderEnum.PLATERECOGNIZER,
 ]
 
-def get_fallback_providers() -> List[ProviderEnum]:
+
+def get_fallback_providers() -> list[ProviderEnum]:
     return [
         settings.DEFAULT_PROVIDER,
         *[p for p in _FIXED_FALLBACK_ORDER if p != settings.DEFAULT_PROVIDER],
@@ -33,14 +36,14 @@ def get_fallback_providers() -> List[ProviderEnum]:
 def validate_plate_results(
     raw_results: Any,
     provider: ProviderEnum,
-) -> List[PlateResult]:
+) -> list[PlateResult]:
     if not isinstance(raw_results, list):
         logger.error(
             f"Provider '{provider.value}' returned {type(raw_results).__name__}, expected list."
         )
         return []
 
-    validated: List[PlateResult] = []
+    validated: list[PlateResult] = []
     for item in raw_results:
         if not isinstance(item, dict):
             logger.warning(
@@ -60,10 +63,10 @@ def validate_plate_results(
 def run_waterfall(
     image_bytes: bytes,
     filename: str,
-    vehicle_box: Optional[tuple] = None,
-    vehicle_boxes: Optional[List[Tuple[int, int, int, int]]] = None,
-    override_provider: Optional[ProviderEnum] = None,
-) -> Tuple[List[PlateResult], ProviderEnum]:
+    vehicle_box: BoundingBox | None = None,
+    vehicle_boxes: list[BoundingBox] | None = None,
+    override_provider: ProviderEnum | None = None,
+) -> tuple[list[PlateResult], ProviderEnum]:
     providers = [override_provider] if override_provider else get_fallback_providers()
 
     for provider in providers:
@@ -102,9 +105,9 @@ def run_waterfall(
 
 
 def recognize_plate_image(
-    image_input: Union[str, bytes],
+    image_input: ImageInput,
     filename: str = "image.jpg",
-    provider: Optional[Union[ProviderEnum, str]] = None,
+    provider: ProviderEnum | str | None = None,
 ) -> RecognitionResponse:
     """
     Main ANPR entry point for processing an image input (file path or bytes).
@@ -137,7 +140,7 @@ def recognize_plate_image(
     # Step 1: YOLO Pre-screening
     yolo_result = filter_vehicle_and_occupancy(image_bytes)
 
-    target_provider: Optional[ProviderEnum] = None
+    target_provider: ProviderEnum | None = None
     if provider:
         if isinstance(provider, str):
             target_provider = ProviderEnum(provider.lower())
@@ -173,20 +176,22 @@ def recognize_plate_image(
     )
 
     execution_time_ms = round((time.time() - start_time) * 1000, 2)
+    has_valid_plate = any(r.plate != "N/A" for r in plate_results)
+    final_status = RecognitionStatusEnum.SUCCESS if has_valid_plate else RecognitionStatusEnum.NO_PLATE_DETECTED
 
-    if plate_results:
-        final_status = RecognitionStatusEnum.SUCCESS
-        status_msg = f"License plate successfully detected and recognized on {yolo_result['vehicle_type']} via {active_provider.value}."
-        success_flag = True
+    if has_valid_plate:
+        status_msg = (
+            f"License plate successfully detected and recognized on "
+            f"{yolo_result['vehicle_type'] or 'vehicle'} via {active_provider.value}."
+        )
     else:
-        final_status = RecognitionStatusEnum.NO_PLATE_DETECTED
-        status_msg = f"4-wheeler ({yolo_result['vehicle_type']}) detected with no human, but no license plate could be extracted across fallback providers."
-        success_flag = False
-        active_provider = default_prov
-        logger.info(f"No license plate detected in '{filename}' across all fallback providers ({execution_time_ms} ms).")
+        status_msg = (
+            f"4-wheeler ({yolo_result['vehicle_type'] or 'vehicle'}) detected, "
+            f"but no readable license plate characters could be recognized."
+        )
 
     return RecognitionResponse(
-        success=success_flag,
+        success=has_valid_plate,
         status=final_status,
         status_message=status_msg,
         vehicle_detected=yolo_result["vehicle_detected"],

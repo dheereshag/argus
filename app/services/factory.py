@@ -1,4 +1,4 @@
-from typing import ClassVar, Dict, List, Optional, Type, Union
+from typing import ClassVar
 
 from app.core.config import settings
 from app.core.exceptions import ProviderNotFoundError
@@ -15,14 +15,14 @@ class PlateRecognizerFactory:
     Factory Pattern for selecting and instantiating ANPR Model Strategies dynamically.
     """
 
-    _strategies: ClassVar[Dict[ProviderEnum, Type[BasePlateRecognizer]]] = {
+    _strategies: ClassVar[dict[ProviderEnum, type[BasePlateRecognizer]]] = {
         ProviderEnum.DOCLING: DoclingStrategy,
         ProviderEnum.PLATERECOGNIZER: PlateRecognizerStrategy,
         ProviderEnum.NVIDIA: NvidiaVisionStrategy,
     }
 
     @classmethod
-    def register_strategy(cls, provider: ProviderEnum, strategy_cls: Type[BasePlateRecognizer]):
+    def register_strategy(cls, provider: ProviderEnum, strategy_cls: type[BasePlateRecognizer]) -> None:
         """
         Allows registering custom recognition strategies at runtime.
         """
@@ -30,11 +30,11 @@ class PlateRecognizerFactory:
         cls._strategies[provider] = strategy_cls
 
     @classmethod
-    def list_providers(cls) -> List[ProviderEnum]:
+    def list_providers(cls) -> list[ProviderEnum]:
         return list(cls._strategies.keys())
 
     @classmethod
-    def get_recognizer(cls, provider: Optional[Union[ProviderEnum, str]] = None) -> BasePlateRecognizer:
+    def get_recognizer(cls, provider: ProviderEnum | str | None = None) -> BasePlateRecognizer:
         """
         Factory method to return the appropriate strategy instance.
         If provider is omitted, uses DEFAULT_PROVIDER from settings.

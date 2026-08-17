@@ -1,6 +1,5 @@
 import io
 import os
-from typing import Optional, Tuple, Union
 
 import cv2
 import numpy as np
@@ -9,6 +8,10 @@ from PIL import Image, ImageDraw, ImageFile, ImageOps
 from app.core.config import settings
 from app.core.contracts import ensure, require
 from app.core.exceptions import InvalidImageError, PayloadTooLargeError
+
+# Python 3.12 Type Aliases
+type BoundingBox = tuple[int, int, int, int]
+type ImageInput = str | bytes | Image.Image | np.ndarray
 
 # Decompression-bomb guard (NASA rule 3/7). Pillow's default limit only emits a warning;
 # this makes an oversized image raise before allocation.
@@ -22,7 +25,7 @@ MIN_CROP_EDGE_PX = 8
 
 def decode_and_downscale(
     image_bytes: bytes,
-    max_edge: Optional[int] = None,
+    max_edge: int | None = None,
 ) -> bytes:
     """
     Validate an uploaded image and return normalised JPEG bytes.
@@ -131,7 +134,7 @@ def warp_perspective_crop(img_bytes: bytes) -> bytes:
 
                 success, encoded = cv2.imencode(".jpg", warped)
                 if success:
-                    return encoded.tobytes()
+                    return bytes(encoded.tobytes())
 
     # Rotation De-skewing fallback using minAreaRect
     contours, _ = cv2.findContours(edged.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
@@ -155,7 +158,7 @@ def warp_perspective_crop(img_bytes: bytes) -> bytes:
     return img_bytes
 
 
-def box_area(box: Optional[Tuple[int, int, int, int]]) -> int:
+def box_area(box: BoundingBox | None) -> int:
     """Area of an xyxy box, 0 for anything malformed."""
     if not box or len(box) != 4:
         return 0
@@ -164,10 +167,10 @@ def box_area(box: Optional[Tuple[int, int, int, int]]) -> int:
 
 
 def clamp_box(
-    box: Optional[Tuple[int, int, int, int]],
+    box: BoundingBox | None,
     width: int,
     height: int,
-) -> Optional[Tuple[int, int, int, int]]:
+) -> BoundingBox | None:
     """
     Clamp an xyxy box to real image bounds (NASA rule 7).
     Returns None when the box is malformed or degenerate after clamping.
@@ -199,10 +202,18 @@ def clamp_box(
     return (x1, y1, x2, y2)
 
 
-def load_rgb(image_input: Union[str, bytes]) -> Image.Image:
+def load_rgb(image_input: ImageInput) -> Image.Image:
     """
     Decode to an oriented RGB image, releasing the source handle immediately.
     """
+    if isinstance(image_input, Image.Image):
+        return image_input.convert("RGB")
+
+    if isinstance(image_input, np.ndarray):
+        if len(image_input.shape) == 2:
+            return Image.fromarray(cv2.cvtColor(image_input, cv2.COLOR_GRAY2RGB))
+        return Image.fromarray(cv2.cvtColor(image_input, cv2.COLOR_BGR2RGB) if image_input.shape[2] == 3 else image_input)
+
     if isinstance(image_input, bytes):
         with io.BytesIO(image_input) as buf, Image.open(buf) as img:
             img.load()
@@ -222,8 +233,8 @@ def _to_jpeg_bytes(img: Image.Image, quality: int = 90) -> bytes:
 
 
 def crop_image_roi(
-    image_input: Union[str, bytes],
-    vehicle_box: Optional[Tuple[int, int, int, int]] = None,
+    image_input: ImageInput,
+    vehicle_box: BoundingBox | None = None,
     bottom_crop_ratio: float = 0.50,
     bottom_roi_only: bool = True
 ) -> bytes:
@@ -260,7 +271,7 @@ def crop_image_roi(
 def save_debug_images(
     img_bytes: bytes,
     filename: str,
-    vehicle_boxes: list,
+    vehicle_boxes: list[BoundingBox],
     vehicle_type: str,
     output_dir: str = "eval_debug_crops",
 ) -> None:

@@ -1,10 +1,13 @@
+import re
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 from app.core.config import settings
 from app.core.contracts import bounded, require
 from app.services.constants import INDIAN_PLATE_REGEX, STATE_CODES
 from app.services.image_processing import (
+    BoundingBox,
+    ImageInput,
     box_area,
     crop_image_roi,
     warp_perspective_crop,
@@ -20,9 +23,9 @@ class BasePlateRecognizer(ABC):
     @abstractmethod
     def _recognize_single_image(
         self,
-        image_input: Union[str, bytes],
+        image_input: ImageInput,
         filename: str = "image.jpg"
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Subclasses implement OCR / VLM plate extraction on a single image buffer.
         Returns a list of dicts with keys: 'plate', 'state', 'raw_text'.
@@ -31,11 +34,11 @@ class BasePlateRecognizer(ABC):
 
     def recognize(
         self,
-        image_input: Union[str, bytes],
+        image_input: ImageInput,
         filename: str = "image.jpg",
-        vehicle_box: Optional[Tuple[int, int, int, int]] = None,
-        vehicle_boxes: Optional[List[Tuple[int, int, int, int]]] = None
-    ) -> List[Dict[str, Any]]:
+        vehicle_box: BoundingBox | None = None,
+        vehicle_boxes: list[BoundingBox] | None = None
+    ) -> list[dict[str, Any]]:
         """
         Hierarchical ANPR recognition:
           1. Vehicle Bounding Box Crop (with perspective de-skew fallback)
@@ -48,21 +51,23 @@ class BasePlateRecognizer(ABC):
             filename = filename or image_input
             with open(image_input, "rb") as f:
                 image_bytes = f.read()
+        elif isinstance(image_input, bytes):
+            image_bytes = image_input
         else:
             image_bytes = image_input
 
-        raw_text_fallbacks = []
+        raw_text_fallbacks: list[list[dict[str, Any]]] = []
 
         # Determine candidate vehicle bounding boxes (largest first)
         candidate_boxes = vehicle_boxes if vehicle_boxes else ([vehicle_box] if vehicle_box else [])
         ordered = sorted((b for b in candidate_boxes if b), key=box_area, reverse=True)
-        boxes_to_check: List[Optional[Tuple[int, int, int, int]]] = list(
+        boxes_to_check: list[BoundingBox | None] = list(
             bounded(ordered, settings.MAX_VEHICLE_BOXES, "vehicle boxes")
         )
         if not boxes_to_check:
             boxes_to_check = [None]
 
-        def _try_crop(crop_bytes: bytes) -> Optional[List[Dict[str, Any]]]:
+        def _try_crop(crop_bytes: bytes) -> list[dict[str, Any]] | None:
             res = self._recognize_single_image(crop_bytes, filename=filename)
             if any(r.get("plate") and r.get("plate") != "N/A" for r in res):
                 return res
@@ -79,7 +84,7 @@ class BasePlateRecognizer(ABC):
                     raw_text_fallbacks.append(res_warped)
             return None
 
-        detected_plates: List[Dict[str, Any]] = []
+        detected_plates: list[dict[str, Any]] = []
         seen_plate_nums = set()
 
         # Step 1 & 2: Vehicle Crop & Lower Bumper Crop across each detected vehicle
@@ -116,13 +121,11 @@ class BasePlateRecognizer(ABC):
 
         return raw_text_fallbacks[0] if raw_text_fallbacks else []
 
-    def parse_plate_info(self, raw_plate: str) -> Optional[Dict[str, Any]]:
+    def parse_plate_info(self, raw_plate: str) -> dict[str, Any] | None:
         """
         Validate candidate plate string against Indian plate regex and resolve State/UT.
         Strips whitespace and normalizes known state prefix confusions (e.g. W8 -> WB).
         """
-        import re
-
         if not raw_plate:
             return None
 

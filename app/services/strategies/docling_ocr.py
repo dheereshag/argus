@@ -1,7 +1,8 @@
 import logging
 import math
 import re
-from typing import Any, Dict, List, Optional, Tuple, Union
+from dataclasses import dataclass
+from typing import Any
 
 import cv2
 import numpy as np
@@ -16,7 +17,7 @@ from app.services.constants import (
     NON_PLATE_WORDS,
     normalize_candidate_strings,
 )
-from app.services.image_processing import load_rgb
+from app.services.image_processing import ImageInput, load_rgb
 
 from rapidocr import RapidOCR
 
@@ -40,7 +41,24 @@ def check_docling_engine() -> bool:
     return _DOCLING_ENGINE is not None
 
 
-def _get_box_centroid(box: Any) -> Tuple[Optional[float], Optional[float]]:
+@dataclass(slots=True, frozen=True)
+class OCRToken:
+    """High-performance slotted container for extracted OCR tokens."""
+    text: str
+    score: float
+    cx: float | None = None
+    cy: float | None = None
+
+
+@dataclass(slots=True)
+class PlateCandidate:
+    """Slotted candidate plate match with vertical spatial priority ranking."""
+    y_pos: float
+    rank: int
+    info: dict[str, Any]
+
+
+def _get_box_centroid(box: Any) -> tuple[float | None, float | None]:
     """Calculate (x_center, y_center) centroid of an OCR bounding box."""
     if box is None:
         return None, None
@@ -78,19 +96,19 @@ def _enhance_contrast(img: Image.Image) -> Image.Image:
 class DoclingStrategy(BasePlateRecognizer):
     """
     Concrete ANPR Strategy using RapidOCR ONNX Runtime engine
-    with 2D spatial layout parsing, bumper-position candidate ranking, and positional Indian plate normalisation.
+    with 2D spatial layout parsing, slotted dataclass token evaluation, and vertical bumper candidate ranking.
     """
 
     def __init__(self, **kwargs):
         pass
 
-    def _extract_plates_from_image_array(self, img_pil: Image.Image) -> List[Dict[str, Any]]:  # noqa: C901, PLR0912
+    def _extract_plates_from_image_array(self, img_pil: Image.Image) -> list[dict[str, Any]]:  # noqa: C901, PLR0912
         require(img_pil is not None, "_extract_plates_from_image_array received None")
 
         engine = get_docling_engine()
         np_img = np.array(img_pil)
 
-        raw_items: List[Tuple[str, float, Optional[float], Optional[float]]] = []  # (text, score, cx, cy)
+        raw_items: list[OCRToken] = []
 
         try:
             res = engine(np_img)
@@ -102,21 +120,21 @@ class DoclingStrategy(BasePlateRecognizer):
                 boxes = getattr(res, "boxes", None)
                 for idx, (t, s) in enumerate(zip(res.txts, res.scores)):
                     cx, cy = _get_box_centroid(boxes[idx]) if (boxes is not None and idx < len(boxes)) else (None, None)
-                    raw_items.append((str(t), float(s), cx, cy))
+                    raw_items.append(OCRToken(text=str(t), score=float(s), cx=cx, cy=cy))
 
             elif isinstance(res, (tuple, list)) and len(res) == 2 and isinstance(res[0], (list, tuple)):
                 for item in res[0]:
                     if len(item) >= 3:
                         box, text, score = item[0], item[1], item[2]
                         cx, cy = _get_box_centroid(box)
-                        raw_items.append((str(text), float(score), cx, cy))
+                        raw_items.append(OCRToken(text=str(text), score=float(score), cx=cx, cy=cy))
 
             elif isinstance(res, (tuple, list)):
                 for item in res:
                     if isinstance(item, (list, tuple)) and len(item) >= 3:
                         box, text, score = item[0], item[1], item[2]
                         cx, cy = _get_box_centroid(box)
-                        raw_items.append((str(text), float(score), cx, cy))
+                        raw_items.append(OCRToken(text=str(text), score=float(score), cx=cx, cy=cy))
         except Exception as e:
             logger.error(f"[docling/rapidocr] OCR execution failed: {e}")
             return []
@@ -125,47 +143,46 @@ class DoclingStrategy(BasePlateRecognizer):
             return []
 
         # Sort items spatially top-to-bottom if coordinates are available
-        if any(item[3] is not None for item in raw_items):
-            raw_items.sort(key=lambda x: (x[3] if x[3] is not None else 9999.0))
+        if any(item.cy is not None for item in raw_items):
+            raw_items.sort(key=lambda x: (x.cy if x.cy is not None else 9999.0))
 
         # Bounded OCR lines
         lines_data = list(bounded(raw_items, settings.MAX_OCR_LINES, "OCR text lines"))
 
-        clean_tokens: List[Tuple[str, Optional[float], Optional[float]]] = []  # (text, cx, cy)
-        raw_text_parts: List[str] = []
+        clean_tokens: list[OCRToken] = []
+        raw_text_parts: list[str] = []
         seen_tokens = set()
 
-        for text, score, cx, cy in lines_data:
-            if not text or score < 0.20:
+        for token in lines_data:
+            if not token.text or token.score < 0.20:
                 continue
-            raw_text_parts.append(text.strip())
+            raw_text_parts.append(token.text.strip())
 
             # Full line cleaned
-            cleaned = re.sub(r"[^A-Za-z0-9]", "", text).upper()
+            cleaned = re.sub(r"[^A-Za-z0-9]", "", token.text).upper()
             if cleaned and len(cleaned) >= 2 and not _is_decal_word(cleaned):
                 if cleaned not in seen_tokens:
                     seen_tokens.add(cleaned)
-                    clean_tokens.append((cleaned, cx, cy))
+                    clean_tokens.append(OCRToken(text=cleaned, score=token.score, cx=token.cx, cy=token.cy))
 
             # Sub-tokens (when a line contains multiple space-separated words)
-            for part in text.split():
+            for part in token.text.split():
                 part_cleaned = re.sub(r"[^A-Za-z0-9]", "", part).upper()
                 if part_cleaned and len(part_cleaned) >= 2 and not _is_decal_word(part_cleaned):
                     if part_cleaned not in seen_tokens:
                         seen_tokens.add(part_cleaned)
-                        clean_tokens.append((part_cleaned, cx, cy))
+                        clean_tokens.append(OCRToken(text=part_cleaned, score=token.score, cx=token.cx, cy=token.cy))
 
         raw_text_summary = " ".join(raw_text_parts) if raw_text_parts else "N/A"
 
         # Candidate collection with vertical position weighting
-        # List of (y_position, priority_rank, candidate_dict)
-        plate_candidates: List[Tuple[float, int, Dict[str, Any]]] = []
+        plate_candidates: list[PlateCandidate] = []
         seen_matched_plates = set()
 
         # 1. Collect individual recognized text tokens
-        for cand_raw, _, cy in clean_tokens:
-            y_pos = cy if cy is not None else 0.0
-            for rank, cand_norm in enumerate(normalize_candidate_strings(cand_raw)):
+        for tok in clean_tokens:
+            y_pos = tok.cy if tok.cy is not None else 0.0
+            for rank, cand_norm in enumerate(normalize_candidate_strings(tok.text)):
                 match = INDIAN_PLATE_REGEX.fullmatch(cand_norm)
                 if match:
                     info = self.parse_plate_info(match.group(0))
@@ -174,24 +191,24 @@ class DoclingStrategy(BasePlateRecognizer):
                         if plate_num and plate_num not in seen_matched_plates:
                             seen_matched_plates.add(plate_num)
                             info["raw_text"] = raw_text_summary
-                            plate_candidates.append((y_pos, rank, info))
+                            plate_candidates.append(PlateCandidate(y_pos=y_pos, rank=rank, info=info))
 
         # 2. Collect 2-line combinations sorted by 2D spatial proximity
-        candidate_pairs: List[Tuple[float, str, float]] = []  # (dist, text, y_pos)
+        candidate_pairs: list[tuple[float, str, float]] = []  # (dist, text, y_pos)
         n = len(clean_tokens)
         for i in range(n):
-            tok_a, cx_a, cy_a = clean_tokens[i]
+            tok_a = clean_tokens[i]
             for j in range(i + 1, min(i + 6, n)):
-                tok_b, cx_b, cy_b = clean_tokens[j]
-                if cx_a is not None and cy_a is not None and cx_b is not None and cy_b is not None:
-                    dist = math.hypot(cx_a - cx_b, cy_a - cy_b)
-                    y_mean = float((cy_a + cy_b) / 2.0)
+                tok_b = clean_tokens[j]
+                if tok_a.cx is not None and tok_a.cy is not None and tok_b.cx is not None and tok_b.cy is not None:
+                    dist = math.hypot(tok_a.cx - tok_b.cx, tok_a.cy - tok_b.cy)
+                    y_mean = float((tok_a.cy + tok_b.cy) / 2.0)
                 else:
                     dist = float(abs(i - j) * 100.0)
-                    y_mean = cy_a or cy_b or 0.0
+                    y_mean = tok_a.cy or tok_b.cy or 0.0
 
-                candidate_pairs.append((dist, tok_a + tok_b, y_mean))
-                candidate_pairs.append((dist + 0.1, tok_b + tok_a, y_mean))
+                candidate_pairs.append((dist, tok_a.text + tok_b.text, y_mean))
+                candidate_pairs.append((dist + 0.1, tok_b.text + tok_a.text, y_mean))
 
         # Sort candidate pairs by spatial proximity (closest first)
         candidate_pairs.sort(key=lambda p: p[0])
@@ -206,13 +223,13 @@ class DoclingStrategy(BasePlateRecognizer):
                         if plate_num and plate_num not in seen_matched_plates:
                             seen_matched_plates.add(plate_num)
                             info["raw_text"] = raw_text_summary
-                            plate_candidates.append((y_pos, rank, info))
+                            plate_candidates.append(PlateCandidate(y_pos=y_pos, rank=rank, info=info))
 
-        # 3. Select best candidate based on lower-bumper vertical priority (highest y)
+        # 3. Select best candidate: prioritize exact matches (rank 0) first,
+        # then rank by lower-bumper vertical position descending (highest y)
         if plate_candidates:
-            # Sort by vertical center descending (lower bumper mount first), then by normalization rank
-            plate_candidates.sort(key=lambda c: (c[0], -c[1]), reverse=True)
-            return [plate_candidates[0][2]]
+            plate_candidates.sort(key=lambda c: (-c.rank, c.y_pos), reverse=True)
+            return [plate_candidates[0].info]
 
         # 4. Fallback: If no valid plate matched
         return [{
@@ -223,9 +240,9 @@ class DoclingStrategy(BasePlateRecognizer):
 
     def _recognize_single_image(
         self,
-        image_input: Union[str, bytes],
+        image_input: ImageInput,
         filename: str = "image.jpg"
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Process an image input with Docling RapidOCR engine, with CLAHE enhancement fallback."""
         pil_img = load_rgb(image_input)
         res = self._extract_plates_from_image_array(pil_img)

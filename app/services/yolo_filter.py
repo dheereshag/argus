@@ -1,55 +1,40 @@
 import threading
-from typing import Any, Dict, List, Optional, Tuple, TypedDict, Union
+from typing import Any, TypedDict
 
+import numpy as np
 from PIL import Image
-
-# Import order matters: app.core.config sets the YOLO_CONFIG_DIR environment
-# variable, and ultralytics resolves its user config directory at import time.
-# If ultralytics is imported first (e.g. via scripts/check_human_gate.py, which
-# imports this module before anything else), it falls back to /tmp/Ultralytics
-# and logs a spurious warning. Import config first so the env var is set.
-from app.core.config import settings
 from ultralytics import YOLO
 
+from app.core.config import settings
 from app.core.contracts import bounded, ensure, require
 from app.core.logging import logger
-from app.schemas.plate import RecognitionStatusEnum
+from app.schemas.plate import BoundingBox, ImageInput, RecognitionStatusEnum
 from app.services.image_processing import clamp_box, load_rgb
+
 
 class YoloResult(TypedDict, total=True):
     """Typed return value of filter_vehicle_and_occupancy."""
     is_eligible: bool
-    status: Optional[Any]                            # RecognitionStatusEnum | None
+    status: RecognitionStatusEnum | None
     status_message: str
     vehicle_detected: bool
-    vehicle_type: Optional[str]
+    vehicle_type: str | None
     human_detected: bool
-    vehicle_box: Optional[Tuple[int, int, int, int]]
+    vehicle_box: BoundingBox | None
+    vehicle_boxes: list[BoundingBox]
     vehicle_count: int
 
 
-# Global lazy-loaded YOLO model instance, guarded by a lock.
-#
-# NASA rule 6 (smallest possible scope). This is module-global mutable state
-# initialised lazily, and the check-then-set was unsynchronised. That was
-# latent while the request handler was async and single-threaded, but the
-# handler is now a sync `def` running in FastAPI's threadpool, so two
-# concurrent first-requests could both observe None and both construct a YOLO
-# model — doubling peak memory at exactly the worst moment, on a Raspberry Pi,
-# during startup.
-#
-# Double-checked locking: the fast path stays lock-free once loaded, and only
-# the first callers contend. `main.py` also warms this during lifespan, before
-# any request is served, so in practice the lock is belt and braces.
-_YOLO_MODEL: Optional[YOLO] = None
+# Global lazy-loaded YOLO model instance, guarded by a thread lock.
+_YOLO_MODEL: YOLO | None = None
 _YOLO_LOCK = threading.Lock()
 
 
 def get_yolo_model() -> YOLO:
-    global _YOLO_MODEL  
+    global _YOLO_MODEL
     if _YOLO_MODEL is None:
         with _YOLO_LOCK:
-            if _YOLO_MODEL is None:  # re-check: another thread may have won the race
+            if _YOLO_MODEL is None:
                 target_model = (
                     settings.YOLO_MODEL_NAME
                     if settings.YOLO_MODEL_NAME and "11" in settings.YOLO_MODEL_NAME
@@ -60,6 +45,7 @@ def get_yolo_model() -> YOLO:
     ensure(_YOLO_MODEL is not None, "YOLO model failed to initialise")
     return _YOLO_MODEL
 
+
 # COCO Class Names for 4-wheelers
 PERSON_CLASS_ID = 0
 FOUR_WHEELER_CLASS_NAMES = {
@@ -68,27 +54,18 @@ FOUR_WHEELER_CLASS_NAMES = {
     7: "truck"
 }
 
-# Upper bound on detections examined per frame (rule 2). YOLO's own NMS caps at
-# 300 by default; a weighbridge frame with more than 100 relevant detections is
-# a frame something is wrong with, not one worth iterating fully.
+# Upper bound on detections examined per frame (NASA rule 2).
 MAX_DETECTIONS = 100
+
 
 def _run_detection(
     pil_img: Image.Image,
     human_conf_thresh: float,
     vehicle_conf_thresh: float,
-) -> Tuple[bool, List[Tuple[str, Tuple[int, int, int, int]]]]:
+) -> tuple[bool, list[tuple[str, BoundingBox]]]:
     """
     Run YOLO and extract (human_present, area-sorted vehicles).
-
-    Split out of filter_vehicle_and_occupancy per rule 4 — that function was
-    ~100 lines mixing inference, coordinate handling and policy. Separating
-    them means the policy branches can be tested without running a model.
-
-    Every coordinate is clamped to the real frame before leaving this function
-    (rule 7). YOLO emits floats that can sit fractionally outside the image, and
-    PIL pads out-of-range crops with black rather than raising, so an unclamped
-    box silently produces a crop containing invented pixels.
+    Every coordinate is clamped to the real frame before leaving this function (NASA rule 7).
     """
     require(pil_img is not None, "_run_detection called with no image")
 
@@ -96,23 +73,28 @@ def _run_detection(
     results = get_yolo_model()(pil_img, verbose=False)[0]
 
     human_detected = False
-    vehicles: List[Tuple[int, str, Tuple[int, int, int, int]]] = []
+    vehicles: list[tuple[int, str, BoundingBox]] = []
 
     boxes = getattr(results, "boxes", None)
     if boxes is None or len(boxes) == 0:
         return False, []
 
-    cls_ids = boxes.cls.cpu().numpy()
-    confs = boxes.conf.cpu().numpy()
-    xyxy = boxes.xyxy.cpu().numpy() if getattr(boxes, "xyxy", None) is not None else None
+    if hasattr(boxes, "cls") and hasattr(boxes.cls, "cpu"):
+        cls_ids = boxes.cls.cpu().numpy()
+        confs = boxes.conf.cpu().numpy()
+        xyxy = boxes.xyxy.cpu().numpy() if getattr(boxes, "xyxy", None) is not None else None
+    elif hasattr(boxes, "cls"):
+        cls_ids = np.array(boxes.cls)
+        confs = np.array(boxes.conf)
+        xyxy = np.array(boxes.xyxy) if getattr(boxes, "xyxy", None) is not None else None
+    else:
+        return False, []
 
-    # Bounded: a frame with hundreds of detections is a frame we decline to
-    # fully process rather than one we spend unbounded time on (rule 2).
+    # Bounded: a frame with hundreds of detections is a frame we decline to fully process
     detections = bounded(list(zip(cls_ids, confs, strict=False)), MAX_DETECTIONS, "YOLO detections")
 
     for idx, (raw_cls, conf) in enumerate(detections):
         cls_id = int(raw_cls)
-
         if cls_id == PERSON_CLASS_ID and conf >= human_conf_thresh:
             human_detected = True
             continue
@@ -121,7 +103,7 @@ def _run_detection(
             continue
 
         raw_box = None
-        if xyxy is not None and idx < len(xyxy) and len(xyxy[idx]) >= 4:  
+        if xyxy is not None and idx < len(xyxy) and len(xyxy[idx]) >= 4:
             xb = xyxy[idx]
             raw_box = (int(xb[0]), int(xb[1]), int(xb[2]), int(xb[3]))
         box = clamp_box(raw_box, width, height)
@@ -135,34 +117,33 @@ def _run_detection(
         area = (box[2] - box[0]) * (box[3] - box[1])
         vehicles.append((area, FOUR_WHEELER_CLASS_NAMES[cls_id], box))
 
-    # Largest first: at a weighbridge the vehicle on the platform dominates the
-    # frame, and downstream caps keep only the leading few.
+    # Largest first: at a weighbridge the vehicle on the platform dominates the frame
     vehicles.sort(key=lambda item: item[0], reverse=True)
     return human_detected, [(v_type, box) for _, v_type, box in vehicles]
 
 
 def filter_vehicle_and_occupancy(
-    image_input: Union[str, bytes],
-    human_conf_thresh: Optional[float] = None,
-    vehicle_conf_thresh: Optional[float] = None,
-    reject_on_human: Optional[bool] = None,
-    reject_on_multiple_vehicles: Optional[bool] = None,
+    image_input: ImageInput,
+    human_conf_thresh: float | None = None,
+    vehicle_conf_thresh: float | None = None,
+    reject_on_human: bool | None = None,
+    reject_on_multiple_vehicles: bool | None = None,
 ) -> YoloResult:
     """
-    Pre-screen a frame: is there a 4-wheeler and valid occupancy condition?
-
-    Returns a dict the endpoint maps onto RecognitionResponse. `vehicle_box` is
-    guaranteed to be either None or a box already clamped to the frame, so
-    callers do not need to re-validate it.
+    Pre-screening gate combining vehicle detection and occupancy filtering.
     """
-    if human_conf_thresh is None:
-        human_conf_thresh = settings.HUMAN_CONF_THRESH
-    if vehicle_conf_thresh is None:
-        vehicle_conf_thresh = settings.VEHICLE_CONF_THRESH
-    if reject_on_human is None:
-        reject_on_human = settings.REJECT_ON_HUMAN_DETECTED
-    if reject_on_multiple_vehicles is None:
-        reject_on_multiple_vehicles = settings.REJECT_ON_MULTIPLE_VEHICLES
+    human_conf_thresh = human_conf_thresh or settings.HUMAN_CONF_THRESH
+    vehicle_conf_thresh = vehicle_conf_thresh or settings.VEHICLE_CONF_THRESH
+    reject_on_human = (
+        reject_on_human
+        if reject_on_human is not None
+        else settings.REJECT_ON_HUMAN_DETECTED
+    )
+    reject_on_multiple_vehicles = (
+        reject_on_multiple_vehicles
+        if reject_on_multiple_vehicles is not None
+        else settings.REJECT_ON_MULTIPLE_VEHICLES
+    )
 
     require(
         0.0 <= human_conf_thresh <= 1.0,
@@ -174,7 +155,9 @@ def filter_vehicle_and_occupancy(
     )
 
     pil_img = load_rgb(image_input)
-    human_detected, vehicles = _run_detection(pil_img, human_conf_thresh, vehicle_conf_thresh)
+    human_detected, vehicles = _run_detection(
+        pil_img, human_conf_thresh, vehicle_conf_thresh
+    )
 
     detected_vehicle_types = [v_type for v_type, _ in vehicles]
     vehicle_boxes = [box for _, box in vehicles]
