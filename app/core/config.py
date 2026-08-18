@@ -24,7 +24,6 @@ class Settings(BaseSettings):
     PLATE_RECOGNIZER_TOKEN: str = ""
     LLAMA_API_KEY: str = ""
     NEMOTRON_API_KEY: str = ""
-    NVIDIA_API_KEY: str = ""
     NVIDIA_INVOKE_URL: str = "https://integrate.api.nvidia.com/v1/chat/completions"
     DEFAULT_PROVIDER: ProviderEnum = ProviderEnum.DOCLING
 
@@ -55,6 +54,16 @@ class Settings(BaseSettings):
 
     # OCR line processing upper bound
     MAX_OCR_LINES: int = 500
+
+    # Server & CORS Settings
+    SERVER_HOST: str = "0.0.0.0"
+    SERVER_PORT: int = 8000
+    CORS_ORIGINS: list[str] = ["*"]
+    CORS_ALLOW_CREDENTIALS: bool = True
+    CORS_ALLOW_METHODS: list[str] = ["*"]
+    CORS_ALLOW_HEADERS: list[str] = ["*"]
+    DOCS_URL: str | None = "/docs"
+    REDOC_URL: str | None = "/redoc"
 
     model_config = SettingsConfigDict(
         env_file=".env",

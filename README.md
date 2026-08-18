@@ -12,7 +12,8 @@ Set the following environment variables in your local `.env` file:
 
 ```env
 PLATE_RECOGNIZER_TOKEN=your_plate_recognizer_api_token
-NVIDIA_API_KEY=your_nvidia_api_key
+LLAMA_API_KEY=your_llama_api_key
+NEMOTRON_API_KEY=your_nemotron_api_key
 NVIDIA_INVOKE_URL=https://integrate.api.nvidia.com/v1/chat/completions
 DEFAULT_PROVIDER=docling
 DOCLING_OCR_ENGINE=rapidocr
@@ -31,12 +32,37 @@ VEHICLE_CONF_THRESH=0.35
 uv sync
 ```
 
-### 2. Run License Plate Recognition via CLI
+### 2. Start FastAPI REST API Server
+```bash
+uv run uvicorn app.server:app --reload --host 0.0.0.0 --port 8000
+```
+- **Interactive Swagger Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
+- **ReDoc UI**: [http://localhost:8000/redoc](http://localhost:8000/redoc)
+
+#### Example API Requests:
+
+- **Health Check**:
+  ```bash
+  curl http://localhost:8000/health
+  ```
+
+- **List Recognition Providers**:
+  ```bash
+  curl http://localhost:8000/providers
+  ```
+
+- **Recognize License Plate from Image**:
+  ```bash
+  curl -X POST "http://localhost:8000/recognize" \
+    -F "file=@path/to/vehicle.jpg"
+  ```
+
+### 3. Run License Plate Recognition via CLI
 ```bash
 uv run python -m app.main path/to/image.jpg
 ```
 
-### 3. Use as a Python Library
+### 4. Use as a Python Library
 ```python
 from app.services.pipeline import recognize_plate_image
 

@@ -19,3 +19,14 @@ def sample_png_bytes():
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     return buf.getvalue()
+
+
+@pytest.fixture
+def client():
+    """Provides a TestClient instance for testing FastAPI endpoints."""
+    from fastapi.testclient import TestClient
+    from app.server import app
+
+    with TestClient(app) as test_client:
+        yield test_client
+

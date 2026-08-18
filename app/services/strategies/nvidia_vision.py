@@ -71,8 +71,6 @@ class NvidiaVisionStrategy(BasePlateRecognizer):
             keys.append(settings.NEMOTRON_API_KEY)
         if settings.LLAMA_API_KEY and settings.LLAMA_API_KEY not in keys:
             keys.append(settings.LLAMA_API_KEY)
-        if settings.NVIDIA_API_KEY and settings.NVIDIA_API_KEY not in keys:
-            keys.append(settings.NVIDIA_API_KEY)
         return keys
 
     def _get_base64_and_mime(self, image_input: Union[str, bytes], filename: str) -> Tuple[str, str]:
