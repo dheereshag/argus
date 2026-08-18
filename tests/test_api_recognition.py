@@ -52,6 +52,7 @@ def test_recognize_sample_image(client, sample_image_bytes):
     # Plain red box has no 4-wheeler vehicle
     assert validated.vehicle_detected is False
     assert validated.status == RecognitionStatusEnum.REJECTED_NO_FOUR_WHEELER
+    assert validated.rejected is True
 
 
 def test_recognize_real_image_if_present(client):
@@ -70,4 +71,5 @@ def test_recognize_real_image_if_present(client):
     data = response.json()
     validated = RecognitionResponse.model_validate(data)
     assert validated.filename == "1.jpg"
+    assert isinstance(validated.rejected, bool)
     assert validated.execution_time_ms is not None

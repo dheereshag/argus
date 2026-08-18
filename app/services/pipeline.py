@@ -155,6 +155,7 @@ def recognize_plate_image(
         logger.info(f"Image '{filename}' ineligible: {yolo_result['status_message']} ({execution_time_ms} ms)")
         return RecognitionResponse(
             success=False,
+            rejected=True,
             status=yolo_result["status"],
             status_message=yolo_result["status_message"],
             vehicle_detected=yolo_result["vehicle_detected"],
@@ -192,6 +193,7 @@ def recognize_plate_image(
 
     return RecognitionResponse(
         success=has_valid_plate,
+        rejected=False,
         status=final_status,
         status_message=status_msg,
         vehicle_detected=yolo_result["vehicle_detected"],

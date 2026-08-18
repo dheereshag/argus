@@ -28,6 +28,7 @@ class PlateResult(BaseModel):
 
 class RecognitionResponse(BaseModel):
     success: bool = Field(..., description="Status of the recognition request")
+    rejected: bool = Field(False, description="Whether the image was rejected during pre-screening (e.g. human detected, no vehicle, multiple vehicles)")
     status: RecognitionStatusEnum = Field(..., description="Detailed status enum for pre-screening and recognition outcome")
     status_message: str = Field(..., description="Human readable description of the status outcome")
     vehicle_detected: bool = Field(..., description="Whether a 4-wheeler vehicle was detected in the frame")
