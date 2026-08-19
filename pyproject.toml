@@ -23,10 +23,45 @@ dependencies = [
 # Dev-only tools. Install with: uv sync --group dev
 dev = [
     "httpx>=0.28.1",
+    "mypy>=1.14.0",
     "pytest>=8.0.0",
+    "ruff>=0.9.0",
     "tabulate>=0.10.0",   # used by eval.py for formatted reports
 ]
+
+[tool.uv]
+# opencv-python and opencv-python-headless both install into the same `cv2`
+# namespace; having both present breaks the import. docling[rapidocr] and
+# ultralytics pull in plain opencv-python transitively even though the
+# project depends on -headless directly, so this override keeps the
+# unsatisfiable variant out of the resolution entirely.
+override-dependencies = ["opencv-python; sys_platform == 'unsupported_platform'"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+# docs/NASA_RULES.md rule 10: pycodestyle, pyflakes, import sorting, bugbear,
+# mccabe complexity, pylint subset. Not the full default ruleset.
+select = ["E", "F", "I", "B", "C90", "PL"]
+ignore = ["PLR2004"]  # magic-value nag; this is a numeric CV pipeline, not a bug signal
+
+[tool.mypy]
+python_version = "3.12"
+# docs/NASA_RULES.md rule 10: not strict — these four flags catch real bugs
+# without demanding full annotations on every existing function.
+warn_unreachable = true
+warn_return_any = true
+no_implicit_optional = true
+check_untyped_defs = true
+
+# docs/NASA_RULES.md rule 10: untyped third-party packages listed individually
+# rather than a blanket ignore_missing_imports, so adding one is a visible decision.
+[[tool.mypy.overrides]]
+module = ["cv2.*"]
+ignore_missing_imports = true
