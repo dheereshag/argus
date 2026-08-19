@@ -38,17 +38,13 @@ def validate_plate_results(
     provider: ProviderEnum,
 ) -> list[PlateResult]:
     if not isinstance(raw_results, list):
-        logger.error(
-            f"Provider '{provider.value}' returned {type(raw_results).__name__}, expected list."
-        )
+        logger.error(f"Provider '{provider.value}' returned {type(raw_results).__name__}, expected list.")
         return []
 
     validated: list[PlateResult] = []
     for item in raw_results:
         if not isinstance(item, dict):
-            logger.warning(
-                f"Provider '{provider.value}' returned non-dict result ({type(item).__name__}); discarding."
-            )
+            logger.warning(f"Provider '{provider.value}' returned non-dict result ({type(item).__name__}); discarding.")
             continue
         try:
             validated.append(PlateResult.model_validate(item))
@@ -82,23 +78,18 @@ def run_waterfall(
         except ContractViolation:
             raise
         except Exception as exc:
-            logger.error(
-                f"Provider '{provider.value}' encountered an error: {exc}. "
-                f"Falling back to next provider..."
-            )
+            logger.error(f"Provider '{provider.value}' encountered an error: {exc}. Falling back to next provider...")
             continue
 
         plate_results = validate_plate_results(raw_results, provider)
         if plate_results:
             logger.info(
-                f"Successfully recognized {len(plate_results)} plate(s) in "
-                f"'{filename}' via '{provider.value}'."
+                f"Successfully recognized {len(plate_results)} plate(s) in '{filename}' via '{provider.value}'."
             )
             return plate_results, provider
 
         logger.warning(
-            f"Provider '{provider.value}' returned no usable license plate results. "
-            f"Falling back to next provider..."
+            f"Provider '{provider.value}' returned no usable license plate results. Falling back to next provider..."
         )
 
     return [], providers[0]
@@ -129,8 +120,7 @@ def recognize_plate_image(
 
     if len(raw_bytes) > settings.MAX_UPLOAD_BYTES:
         raise PayloadTooLargeError(
-            f"Image exceeds maximum permitted size of "
-            f"{settings.MAX_UPLOAD_BYTES // (1024 * 1024)} MB."
+            f"Image exceeds maximum permitted size of {settings.MAX_UPLOAD_BYTES // (1024 * 1024)} MB."
         )
     if not raw_bytes:
         raise InvalidImageError(f"Image '{filename}' is empty.")
@@ -142,10 +132,8 @@ def recognize_plate_image(
 
     target_provider: ProviderEnum | None = None
     if provider:
-        if isinstance(provider, str):
-            target_provider = ProviderEnum(provider.lower())
-        else:
-            target_provider = provider
+        # ProviderEnum subclasses str, so this also covers an already-ProviderEnum input.
+        target_provider = ProviderEnum(provider.lower())
 
     fallback_providers = get_fallback_providers()
     default_prov = target_provider or fallback_providers[0]
@@ -164,7 +152,7 @@ def recognize_plate_image(
             filename=filename,
             provider=default_prov,
             results=[],
-            execution_time_ms=execution_time_ms
+            execution_time_ms=execution_time_ms,
         )
 
     # Step 2: Recognition Waterfall across all detected vehicle boxes
@@ -202,5 +190,5 @@ def recognize_plate_image(
         filename=filename,
         provider=active_provider,
         results=plate_results,
-        execution_time_ms=execution_time_ms
+        execution_time_ms=execution_time_ms,
     )

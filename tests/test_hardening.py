@@ -24,6 +24,7 @@ def _jpeg(width: int, height: int) -> bytes:
 # Rule 5 — contracts, not assert
 # ---------------------------------------------------------------------------
 
+
 def test_require_and_ensure_raise_on_violation():
     with pytest.raises(ContractViolation, match="precondition"):
         require(False, "box must be non-empty")
@@ -41,20 +42,25 @@ def test_contracts_survive_optimised_mode():
     import sys
 
     result = subprocess.run(
-        [sys.executable, "-O", "-c",
-         "from app.core.contracts import require, ContractViolation\n"
-         "try: require(False, 'test'); print('LIVED')\n"
-         "except ContractViolation: print('RAISED')\n"],
-        capture_output=True, text=True, check=False,
+        [
+            sys.executable,
+            "-O",
+            "-c",
+            "from app.core.contracts import require, ContractViolation\n"
+            "try: require(False, 'test'); print('LIVED')\n"
+            "except ContractViolation: print('RAISED')\n",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
     )
-    assert "RAISED" in result.stdout, (
-        "contract check did not fire under -O; it has regressed to assert semantics"
-    )
+    assert "RAISED" in result.stdout, "contract check did not fire under -O; it has regressed to assert semantics"
 
 
 # ---------------------------------------------------------------------------
 # Rule 2 — every loop has a fixed upper bound
 # ---------------------------------------------------------------------------
+
 
 def test_bounded_truncates_and_preserves_order():
     assert bounded(list(range(100)), 3, "things") == [0, 1, 2]
@@ -113,6 +119,7 @@ def test_largest_boxes_are_the_ones_kept():
 # Rule 6 — smallest scope; the singleton race
 # ---------------------------------------------------------------------------
 
+
 def test_yolo_singleton_is_built_once_under_concurrency():
     import app.services.yolo_filter as yf
 
@@ -120,6 +127,7 @@ def test_yolo_singleton_is_built_once_under_concurrency():
 
     def slow_build(_name):
         import time
+
         time.sleep(0.05)
         builds.append(1)
         return MagicMock()
@@ -141,6 +149,7 @@ def test_yolo_singleton_is_built_once_under_concurrency():
 # ---------------------------------------------------------------------------
 # Rule 7 — validate parameters, check returns
 # ---------------------------------------------------------------------------
+
 
 def test_out_of_bounds_box_is_clamped():
     from app.services.image_processing import clamp_box
@@ -189,18 +198,22 @@ def test_non_list_provider_output_is_handled():
 # Rule 9 — no deep unchecked access chains
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("payload", [
-    {},
-    {"choices": []},
-    {"choices": [{}]},
-    {"choices": [{"message": {}}]},
-    {"choices": [{"message": {"content": None}}]},
-    {"choices": [{"message": {"content": "   "}}]},
-    {"error": {"message": "quota exceeded"}},
-    {"choices": "not-a-list"},
-    [],
-    None,
-])
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {},
+        {"choices": []},
+        {"choices": [{}]},
+        {"choices": [{"message": {}}]},
+        {"choices": [{"message": {"content": None}}]},
+        {"choices": [{"message": {"content": "   "}}]},
+        {"error": {"message": "quota exceeded"}},
+        {"choices": "not-a-list"},
+        [],
+        None,
+    ],
+)
 def test_malformed_nvidia_response_returns_none_not_an_exception(payload):
     from app.services.strategies.nvidia_vision import extract_message_content
 
@@ -217,6 +230,7 @@ def test_wellformed_nvidia_response_is_extracted():
 # ---------------------------------------------------------------------------
 # Rule 3 — bounded, promptly released resources
 # ---------------------------------------------------------------------------
+
 
 def test_image_loading_closes_its_source_handle():
     from app.services.image_processing import load_rgb

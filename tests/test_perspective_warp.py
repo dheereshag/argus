@@ -8,18 +8,13 @@ from app.services.image_processing import order_points, warp_perspective_crop
 
 
 def test_order_points():
-    pts = np.array([
-        [100, 200],
-        [10, 10],
-        [200, 10],
-        [10, 200]
-    ], dtype="float32")
+    pts = np.array([[100, 200], [10, 10], [200, 10], [10, 200]], dtype="float32")
 
     rect = order_points(pts)
-    assert np.allclose(rect[0], [10, 10])     # Top-Left
-    assert np.allclose(rect[1], [200, 10])    # Top-Right
-    assert np.allclose(rect[2], [100, 200])   # Bottom-Right
-    assert np.allclose(rect[3], [10, 200])    # Bottom-Left
+    assert np.allclose(rect[0], [10, 10])  # Top-Left
+    assert np.allclose(rect[1], [200, 10])  # Top-Right
+    assert np.allclose(rect[2], [100, 200])  # Bottom-Right
+    assert np.allclose(rect[3], [10, 200])  # Bottom-Left
 
 
 def test_warp_perspective_crop_returns_valid_jpeg():

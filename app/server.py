@@ -53,8 +53,7 @@ def create_app() -> FastAPI:
         title=settings.PROJECT_NAME,
         version=settings.VERSION,
         description=(
-            "Enterprise Automatic Number Plate Recognition (ANPR) Microservice "
-            "powered by YOLO v11 and RapidOCR."
+            "Enterprise Automatic Number Plate Recognition (ANPR) Microservice powered by YOLO v11 and RapidOCR."
         ),
         docs_url=settings.DOCS_URL,
         redoc_url=settings.REDOC_URL,

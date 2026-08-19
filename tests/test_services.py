@@ -8,12 +8,12 @@ from app.schemas.plate import ProviderEnum, RecognitionStatusEnum
 from app.services.base import BasePlateRecognizer
 from app.services.constants import INDIAN_PLATE_REGEX, STATE_CODES
 from app.services.factory import PlateRecognizerFactory
-from app.services.strategies.nvidia_vision import NvidiaVisionStrategy
-from app.services.strategies.plate_recognizer import PlateRecognizerStrategy
 from app.services.strategies.docling_ocr import (
     DoclingStrategy,
     normalize_candidate_strings,
 )
+from app.services.strategies.nvidia_vision import NvidiaVisionStrategy
+from app.services.strategies.plate_recognizer import PlateRecognizerStrategy
 from app.services.yolo_filter import filter_vehicle_and_occupancy
 
 
@@ -37,6 +37,7 @@ class DummyStrategy(BasePlateRecognizer):
     ) -> List[Dict[str, Any]]:
         return [{"plate": "MH12AB1234", "state": "Maharashtra"}]
 
+
 def test_indian_plate_regex_and_state_codes():
     # Valid Indian plate patterns
     plates_to_test = [
@@ -51,6 +52,7 @@ def test_indian_plate_regex_and_state_codes():
         assert match is not None
         state_code = match.group(1) or match.group(6)
         assert STATE_CODES.get(state_code) == expected_state
+
 
 def test_base_plate_recognizer_parse_plate_info():
     strategy = DummyStrategy()
@@ -67,6 +69,7 @@ def test_base_plate_recognizer_parse_plate_info():
 
     # Test invalid plate input returns None (no unvalidated fallback)
     assert strategy.parse_plate_info("XX999999") is None
+
 
 def test_factory_list_and_get():
     providers = PlateRecognizerFactory.list_providers()
@@ -86,12 +89,14 @@ def test_factory_list_and_get():
     with pytest.raises(ProviderNotFoundError):
         PlateRecognizerFactory.get_recognizer("unknown_provider")
 
+
 def test_factory_custom_registration():
     PlateRecognizerFactory.register_strategy(ProviderEnum.DOCLING, DummyStrategy)
     rec = PlateRecognizerFactory.get_recognizer(ProviderEnum.DOCLING)
     assert isinstance(rec, DummyStrategy)
     # Restore original strategy
     PlateRecognizerFactory.register_strategy(ProviderEnum.DOCLING, DoclingStrategy)
+
 
 @patch("app.services.yolo_filter.get_yolo_model")
 def test_yolo_filter_eligible_vehicle(mock_get_model, sample_image_bytes):
@@ -113,6 +118,7 @@ def test_yolo_filter_eligible_vehicle(mock_get_model, sample_image_bytes):
     assert res["vehicle_detected"] is True
     assert res["vehicle_type"] == "car"
     assert res["human_detected"] is False
+
 
 @patch("app.services.yolo_filter.get_yolo_model")
 def test_yolo_filter_human_detection_policy(mock_get_model, sample_image_bytes):
@@ -142,6 +148,7 @@ def test_yolo_filter_human_detection_policy(mock_get_model, sample_image_bytes):
     assert res_rejected["status"] == RecognitionStatusEnum.REJECTED_HUMAN_DETECTED
     assert res_rejected["human_detected"] is True
 
+
 @patch("app.services.yolo_filter.get_yolo_model")
 def test_yolo_filter_rejected_no_four_wheeler(mock_get_model, sample_image_bytes):
     mock_box_empty = MagicMock()
@@ -161,6 +168,7 @@ def test_yolo_filter_rejected_no_four_wheeler(mock_get_model, sample_image_bytes
     assert res["is_eligible"] is False
     assert res["status"] == RecognitionStatusEnum.REJECTED_NO_FOUR_WHEELER
     assert res["vehicle_detected"] is False
+
 
 @patch("app.services.yolo_filter.get_yolo_model")
 def test_yolo_filter_multiple_vehicles_policy(mock_get_model, sample_image_bytes):
@@ -191,15 +199,11 @@ def test_yolo_filter_multiple_vehicles_policy(mock_get_model, sample_image_bytes
     assert res_rejected["vehicle_detected"] is True
     assert res_rejected["vehicle_count"] == 2
 
-from app.services.strategies.docling_ocr import DoclingStrategy
 
 @patch("app.services.strategies.docling_ocr.get_docling_engine")
 def test_docling_ocr_strategy_mocked(mock_get_engine, sample_image_bytes):
     mock_engine = MagicMock()
-    mock_engine.return_value = (
-        [([0, 0, 100, 30], "RJ09GA0165", 0.98)],
-        [0.01, 0.01, 0.01]
-    )
+    mock_engine.return_value = ([([0, 0, 100, 30], "RJ09GA0165", 0.98)], [0.01, 0.01, 0.01])
     mock_get_engine.return_value = mock_engine
 
     strategy = DoclingStrategy()
@@ -213,11 +217,7 @@ def test_docling_ocr_strategy_mocked(mock_get_engine, sample_image_bytes):
 def test_nvidia_vision_strategy_mocked(mock_post, sample_image_bytes):
     mock_resp = MagicMock()
     mock_resp.status_code = 200
-    mock_resp.json.return_value = {
-        "choices": [
-            {"message": {"content": "The vehicle license plate is RJ09GA0165."}}
-        ]
-    }
+    mock_resp.json.return_value = {"choices": [{"message": {"content": "The vehicle license plate is RJ09GA0165."}}]}
     mock_post.return_value = mock_resp
 
     strategy = NvidiaVisionStrategy(api_key="test_key")
@@ -226,18 +226,12 @@ def test_nvidia_vision_strategy_mocked(mock_post, sample_image_bytes):
     assert results[0]["plate"] == "RJ09GA0165"
     assert results[0]["state"] == "Rajasthan"
 
+
 @patch("requests.post")
 def test_plate_recognizer_strategy_mocked(mock_post, sample_image_bytes):
     mock_resp = MagicMock()
     mock_resp.status_code = 200
-    mock_resp.json.return_value = {
-        "results": [
-            {
-                "plate": "rj09ga0165",
-                "candidates": [{"plate": "rj09ga0165"}]
-            }
-        ]
-    }
+    mock_resp.json.return_value = {"results": [{"plate": "rj09ga0165", "candidates": [{"plate": "rj09ga0165"}]}]}
     mock_post.return_value = mock_resp
 
     strategy = PlateRecognizerStrategy(token="test_token")
@@ -246,11 +240,13 @@ def test_plate_recognizer_strategy_mocked(mock_post, sample_image_bytes):
     assert results[0]["plate"] == "RJ09GA0165"
     assert results[0]["state"] == "Rajasthan"
 
+
 def test_plate_recognizer_skips_large_file():
     recognizer = PlateRecognizerStrategy(token="dummy_token")
     large_bytes = b"0" * int(3.6 * 1024 * 1024)
     res = recognizer._recognize_single_image(large_bytes)
     assert res == []
+
 
 def test_normalize_candidate_strings():
     # State prefix corrections
@@ -261,4 +257,3 @@ def test_normalize_candidate_strings():
     # Positional character confusions (O/0, I/1, G3/GJ)
     variants = normalize_candidate_strings("RT14G34976")
     assert "RJ14GJ4976" in variants
-

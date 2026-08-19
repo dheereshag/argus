@@ -24,6 +24,7 @@ def _jpeg(width: int, height: int) -> bytes:
 # Upload size & limits
 # --------------------------------------------------------------------------
 
+
 def test_oversized_upload_is_rejected():
     oversized = b"\xff\xd8\xff\xe0" + b"\x00" * (settings.MAX_UPLOAD_BYTES + 1024)
     with pytest.raises(PayloadTooLargeError):
@@ -38,6 +39,7 @@ def test_empty_upload_is_rejected():
 # --------------------------------------------------------------------------
 # Decode bombs and downscaling
 # --------------------------------------------------------------------------
+
 
 def test_pixel_budget_is_enforced(monkeypatch):
     """
@@ -72,16 +74,13 @@ def test_undecodable_bytes_raise_invalid_image():
 # Outbound HTTP timeouts
 # --------------------------------------------------------------------------
 
+
 @pytest.mark.parametrize("module_name", ["nvidia_vision", "plate_recognizer"])
 def test_provider_requests_specify_a_timeout(module_name):
-    module = __import__(
-        f"app.services.strategies.{module_name}", fromlist=[module_name]
-    )
+    module = __import__(f"app.services.strategies.{module_name}", fromlist=[module_name])
     source = inspect.getsource(module)
     assert "requests.post(" in source
-    assert "timeout=" in source, (
-        f"{module_name} calls requests.post without a timeout."
-    )
+    assert "timeout=" in source, f"{module_name} calls requests.post without a timeout."
 
 
 def test_timeout_settings_are_bounded():

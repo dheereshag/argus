@@ -1,4 +1,3 @@
-import os
 from typing import Any, Dict, List, Union
 
 import requests
@@ -8,7 +7,6 @@ from app.core.config import settings
 from app.core.logging import logger
 from app.services.base import BasePlateRecognizer
 from app.services.constants import INDIAN_PLATE_REGEX
-
 
 _MAX_FILE_SIZE_BYTES = int(3.5 * 1024 * 1024)  # 3.5 MB limit
 
@@ -24,10 +22,8 @@ class PlateRecognizerStrategy(BasePlateRecognizer):
         self.regions = regions or ["in"]
         self.api_url = "https://api.platerecognizer.com/v1/plate-reader/"
 
-    def _recognize_single_image(
-        self,
-        image_input: Union[str, bytes],
-        filename: str = "image.jpg"
+    def _recognize_single_image(  # noqa: C901, PLR0912 — candidate-scan with early-exit, not a bug signal
+        self, image_input: Union[str, bytes], filename: str = "image.jpg"
     ) -> List[Dict[str, Any]]:
         """Process a single image crop or full image with Plate Recognizer API."""
         if not self.api_token:

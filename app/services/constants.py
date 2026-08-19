@@ -53,18 +53,22 @@ STATE_PREFIX_PATTERN = "|".join(sorted([k for k in STATE_CODES.keys() if k != "B
 # BH series: Year(2 digits) + BH + Serial(4 digits) + Series(1-2L)
 # Examples: MH04BG649, DL1CX2744, RJ09GA0165, RJ14GJ4976, 22BH1234AA, BP2A4904, GJ7UU1804, KA1A1234
 INDIAN_PLATE_REGEX = re.compile(
-    r'(?:'
-    rf'({STATE_PREFIX_PATTERN})[\s.-]?(?:0[1-9]|[1-9]\d|[1-9])[\s.-]?([A-Za-z]{{1,3}})[\s.-]?(\d{{3,4}})'
-    r'|'
-    r'(\d{2})[\s.-]?(BH)[\s.-]?(\d{4})[\s.-]?([A-Za-z]{1,2})'
-    r')',
-    re.IGNORECASE
+    r"(?:"
+    rf"({STATE_PREFIX_PATTERN})[\s.-]?(?:0[1-9]|[1-9]\d|[1-9])[\s.-]?([A-Za-z]{{1,3}})[\s.-]?(\d{{3,4}})"
+    r"|"
+    r"(\d{2})[\s.-]?(BH)[\s.-]?(\d{4})[\s.-]?([A-Za-z]{1,2})"
+    r")",
+    re.IGNORECASE,
 )
 
 # Positional character confusions for Indian license plates
 CHAR_TO_DIGIT = {
-    "O": "0", "D": "0", "Q": "0",
-    "I": "1", "L": "1", "H": "1",
+    "O": "0",
+    "D": "0",
+    "Q": "0",
+    "I": "1",
+    "L": "1",
+    "H": "1",
     "Z": "2",
     "A": "4",
     "S": "5",
@@ -85,28 +89,72 @@ DIGIT_TO_CHAR = {
     "8": "B",
 }
 
-SERIES_CORRECTIONS = {
-    "G3": "GJ", "GT": "GJ", "GI": "GJ", "GB": "GB",
-    "D3": "DJ", "DT": "DJ", "DI": "DJ"
-}
+SERIES_CORRECTIONS = {"G3": "GJ", "GT": "GJ", "GI": "GJ", "GB": "GB", "D3": "DJ", "DT": "DJ", "DI": "DJ"}
 
 STATE_PREFIX_CORRECTIONS = {
-    "W8": "WB", "RT": "RJ", "R3": "RJ", "D1": "DL", "D7": "DL", "H8": "HR", "AS": "AS",
-    "0D": "OD", "0R": "OR", "00": "OD", "0L": "DL", "K1": "KL", "T1": "TN", "A1": "AP",
-    "VB": "WB", "NB": "WB", "2B": "WB", "MB": "WB", "38": "JH", "28": "JH"
+    "W8": "WB",
+    "RT": "RJ",
+    "R3": "RJ",
+    "D1": "DL",
+    "D7": "DL",
+    "H8": "HR",
+    "AS": "AS",
+    "0D": "OD",
+    "0R": "OR",
+    "00": "OD",
+    "0L": "DL",
+    "K1": "KL",
+    "T1": "TN",
+    "A1": "AP",
+    "VB": "WB",
+    "NB": "WB",
+    "2B": "WB",
+    "MB": "WB",
+    "38": "JH",
+    "28": "JH",
 }
 
 # Common non-plate commercial vehicle words/decals
 NON_PLATE_WORDS = {
-    "GOOD", "GOODS", "LUCK", "CARRIER", "SPEED", "TATA", "ASHOK", "LEYLAND",
-    "EICHER", "INDIAN", "NATIONAL", "PERMIT", "DIESEL", "STOP", "HORN",
-    "PLEASE", "FAST", "SUPER", "INDIA", "ROAD", "LINES", "TRANSPORT",
-    "MOTORS", "SUPREME", "CEMENT", "COACH", "AIR", "BRAKE", "ALL", "STATE",
-    "40KM", "PUBLIC", "AUTO", "SAFETY", "FIRST"
+    "GOOD",
+    "GOODS",
+    "LUCK",
+    "CARRIER",
+    "SPEED",
+    "TATA",
+    "ASHOK",
+    "LEYLAND",
+    "EICHER",
+    "INDIAN",
+    "NATIONAL",
+    "PERMIT",
+    "DIESEL",
+    "STOP",
+    "HORN",
+    "PLEASE",
+    "FAST",
+    "SUPER",
+    "INDIA",
+    "ROAD",
+    "LINES",
+    "TRANSPORT",
+    "MOTORS",
+    "SUPREME",
+    "CEMENT",
+    "COACH",
+    "AIR",
+    "BRAKE",
+    "ALL",
+    "STATE",
+    "40KM",
+    "PUBLIC",
+    "AUTO",
+    "SAFETY",
+    "FIRST",
 }
 
 
-def normalize_candidate_strings(raw_str: str) -> List[str]:
+def normalize_candidate_strings(raw_str: str) -> List[str]:  # noqa: C901, PLR0912, PLR0915 — plate-length dispatch table, not a bug signal
     """
     Generate normalized plate candidate variants using positional character rules for Indian plates.
     """
@@ -119,7 +167,7 @@ def normalize_candidate_strings(raw_str: str) -> List[str]:
     # State prefix corrections
     for prefix, repl in STATE_PREFIX_CORRECTIONS.items():
         if cleaned.startswith(prefix):
-            candidates.append(repl + cleaned[len(prefix):])
+            candidates.append(repl + cleaned[len(prefix) :])
 
     results = list(candidates)
     for cand in candidates:
@@ -190,9 +238,9 @@ def normalize_candidate_strings(raw_str: str) -> List[str]:
         if "BH" in cand:
             idx = cand.find("BH")
             if idx >= 2 and len(cand) >= idx + 6:
-                yr = "".join(CHAR_TO_DIGIT.get(c, c) for c in cand[idx-2:idx])
-                serial = "".join(CHAR_TO_DIGIT.get(c, c) for c in cand[idx+2:idx+6])
-                ser = "".join(DIGIT_TO_CHAR.get(c, c) for c in cand[idx+6:])
+                yr = "".join(CHAR_TO_DIGIT.get(c, c) for c in cand[idx - 2 : idx])
+                serial = "".join(CHAR_TO_DIGIT.get(c, c) for c in cand[idx + 2 : idx + 6])
+                ser = "".join(DIGIT_TO_CHAR.get(c, c) for c in cand[idx + 6 :])
                 bh_cand = yr + "BH" + serial + ser
                 if bh_cand not in results:
                     results.append(bh_cand)

@@ -25,23 +25,19 @@ async def health_check() -> HealthResponse:
 
     # 1. YOLO v11 Model Check
     try:
-        yolo_model = get_yolo_model()
-        if yolo_model is not None:
-            components["yolo"] = ComponentHealth(
-                status=HealthStatusEnum.HEALTHY,
-                details="YOLO v11 model is loaded and ready.",
-                metadata={
-                    "model_name": settings.YOLO_MODEL_NAME,
-                    "vehicle_conf_thresh": settings.VEHICLE_CONF_THRESH,
-                    "human_conf_thresh": settings.HUMAN_CONF_THRESH,
-                },
-            )
-        else:
-            components["yolo"] = ComponentHealth(
-                status=HealthStatusEnum.DEGRADED,
-                details="YOLO model is not initialized.",
-            )
-            overall_status = HealthStatusEnum.DEGRADED
+        # get_yolo_model() either returns a real model or raises (ensure()'d
+        # contract) — no None case to branch on; a load failure lands in the
+        # except below.
+        get_yolo_model()
+        components["yolo"] = ComponentHealth(
+            status=HealthStatusEnum.HEALTHY,
+            details="YOLO v11 model is loaded and ready.",
+            metadata={
+                "model_name": settings.YOLO_MODEL_NAME,
+                "vehicle_conf_thresh": settings.VEHICLE_CONF_THRESH,
+                "human_conf_thresh": settings.HUMAN_CONF_THRESH,
+            },
+        )
     except Exception as exc:
         logger.error(f"Health check failed for YOLO component: {exc}")
         components["yolo"] = ComponentHealth(

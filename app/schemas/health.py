@@ -14,9 +14,7 @@ class HealthStatusEnum(str, Enum):
 class ComponentHealth(BaseModel):
     status: HealthStatusEnum = Field(..., description="Component status")
     details: str | None = Field(None, description="Diagnostic details or error message")
-    metadata: dict[str, Any] = Field(
-        default_factory=dict, description="Additional component metadata"
-    )
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional component metadata")
 
 
 class HealthResponse(BaseModel):

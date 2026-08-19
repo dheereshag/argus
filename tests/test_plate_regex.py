@@ -36,17 +36,17 @@ def recognizer():
 # Strings that plausibly appear on or near an Indian commercial vehicle.
 # Every one of these was accepted as a licence plate before this fix.
 NON_PLATE_STRINGS = [
-    "GOODYEAR2024",                                 # tyre sidewall -> "ODYEAR2024"
-    "ASHOKLEYLAND2820",                             # cab badge     -> "LAND2820"
-    "CHASSIS445566",                                # stencilled ID -> "CHASSIS4455"
-    "SRTRANSPORT2011",                              # operator name -> "ANSPORT2011"
-    "INSURANCEUPTO2026",                            # sticker       -> "UPTO2026"
+    "GOODYEAR2024",  # tyre sidewall -> "ODYEAR2024"
+    "ASHOKLEYLAND2820",  # cab badge     -> "LAND2820"
+    "CHASSIS445566",  # stencilled ID -> "CHASSIS4455"
+    "SRTRANSPORT2011",  # operator name -> "ANSPORT2011"
+    "INSURANCEUPTO2026",  # sticker       -> "UPTO2026"
     "ALAMYDBP2A4904ALAMYIMAGEIDCRE1JFWWWALAMYCOM",  # raw unisolated watermark text
-    "SPEED40KMLUCK",                                # decal words
-    "TATA2518DIESEL",                               # model badge
-    "OD00S5554",                                    # 00 is not valid district
-    "MHABI1065",                                    # letter in district position
-    "ARSS2557",                                     # letter in district position
+    "SPEED40KMLUCK",  # decal words
+    "TATA2518DIESEL",  # model badge
+    "OD00S5554",  # 00 is not valid district
+    "MHABI1065",  # letter in district position
+    "ARSS2557",  # letter in district position
 ]
 
 # Strings that must still be accepted. Regressions here mean the fix was too strict.
@@ -58,11 +58,11 @@ REAL_PLATES = [
     "OR02BU3389",
     "KA25B3155",
     "DL1CX2744",
-    "GJ7UU1804",    # Single-digit district code
-    "BP2A4904",     # BP series single-digit district
-    "BP1A2453",     # BP series single-digit district
-    "TN5ASS3555",   # Single-digit district code
-    "22BH1234AA",   # Bharat series
+    "GJ7UU1804",  # Single-digit district code
+    "BP2A4904",  # BP series single-digit district
+    "BP1A2453",  # BP series single-digit district
+    "TN5ASS3555",  # Single-digit district code
+    "22BH1234AA",  # Bharat series
 ]
 
 

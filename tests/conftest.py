@@ -12,6 +12,7 @@ def sample_image_bytes():
     img.save(buf, format="JPEG")
     return buf.getvalue()
 
+
 @pytest.fixture
 def sample_png_bytes():
     """Generates a small valid PNG image in memory for testing."""
@@ -25,8 +26,8 @@ def sample_png_bytes():
 def client():
     """Provides a TestClient instance for testing FastAPI endpoints."""
     from fastapi.testclient import TestClient
+
     from app.server import app
 
     with TestClient(app) as test_client:
         yield test_client
-

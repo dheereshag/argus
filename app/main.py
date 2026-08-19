@@ -12,7 +12,9 @@ from app.services.yolo_filter import get_yolo_model
 def main():
     parser = argparse.ArgumentParser(description=f"{settings.PROJECT_NAME} CLI")
     parser.add_argument("image", help="Path to image file for plate recognition")
-    parser.add_argument("--provider", default=None, help="Recognition provider override (docling, nvidia, platerecognizer)")
+    parser.add_argument(
+        "--provider", default=None, help="Recognition provider override (docling, nvidia, platerecognizer)"
+    )
 
     args = parser.parse_args()
 

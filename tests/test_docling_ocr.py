@@ -5,6 +5,7 @@ shape. The engine actually installed (rapidocr's RapidOCROutput dataclass)
 returns .txts/.scores/.boxes attributes instead, which is the branch these
 tests exercise.
 """
+
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
