@@ -13,17 +13,20 @@ def test_settings_default_values():
     assert settings.HUMAN_CONF_THRESH == 0.30
     assert settings.VEHICLE_CONF_THRESH == 0.35
 
+
 def test_anpr_service_error():
     err = ANPRServiceError("Base error message", status_code=500)
     assert err.message == "Base error message"
     assert err.status_code == 500
     assert str(err) == "Base error message"
 
+
 def test_provider_not_found_error():
     err = ProviderNotFoundError("invalid_provider", ["docling", "nvidia"])
     assert err.status_code == 400
     assert "Unknown provider 'invalid_provider'" in err.message
     assert "docling, nvidia" in err.message
+
 
 def test_invalid_image_error():
     err = InvalidImageError("Unsupported image format")

@@ -20,12 +20,11 @@ router = APIRouter()
     tags=["Recognition"],
 )
 async def recognize_plate(
-    file: UploadFile = File(..., description="Image file (JPEG, PNG, WebP)"),
+    file: UploadFile = File(..., description="Image file (JPEG, PNG, WebP)"),  # noqa: B008 — FastAPI's documented DI pattern
 ) -> RecognitionResponse:
     if file.size is not None and file.size > settings.MAX_UPLOAD_BYTES:
         raise PayloadTooLargeError(
-            f"Image exceeds maximum permitted size of "
-            f"{settings.MAX_UPLOAD_BYTES // (1024 * 1024)} MB."
+            f"Image exceeds maximum permitted size of {settings.MAX_UPLOAD_BYTES // (1024 * 1024)} MB."
         )
 
     image_bytes = await file.read()
@@ -35,8 +34,7 @@ async def recognize_plate(
 
     if len(image_bytes) > settings.MAX_UPLOAD_BYTES:
         raise PayloadTooLargeError(
-            f"Image exceeds maximum permitted size of "
-            f"{settings.MAX_UPLOAD_BYTES // (1024 * 1024)} MB."
+            f"Image exceeds maximum permitted size of {settings.MAX_UPLOAD_BYTES // (1024 * 1024)} MB."
         )
 
     filename = file.filename or "uploaded_image.jpg"

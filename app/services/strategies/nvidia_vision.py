@@ -86,10 +86,8 @@ class NvidiaVisionStrategy(BasePlateRecognizer):
         mime_type = "image/jpeg" if ext in ("jpg", "jpeg", "") else f"image/{ext}"
         return base64_str, mime_type
 
-    def _recognize_single_image(
-        self,
-        image_input: Union[str, bytes],
-        filename: str = "image.jpg"
+    def _recognize_single_image(  # noqa: C901 — multi-key retry with per-response-shape handling, not a bug signal
+        self, image_input: Union[str, bytes], filename: str = "image.jpg"
     ) -> List[Dict[str, Any]]:
         """Process a single image crop or full image with NVIDIA Vision API."""
         keys_to_try = self._get_api_keys()
@@ -98,28 +96,23 @@ class NvidiaVisionStrategy(BasePlateRecognizer):
 
         base64_image, mime_type = self._get_base64_and_mime(image_input, filename)
 
-        payload = {
+        payload: dict[str, Any] = {
             "messages": [
                 {
                     "role": "user",
                     "content": [
                         {
                             "type": "text",
-                            "text": "Identify and extract the Indian vehicle license plate number from this image. Return ONLY the license plate alphanumeric string (e.g. RJ09GA0165 or MH01AB1234)."
+                            "text": "Identify and extract the Indian vehicle license plate number from this image. Return ONLY the license plate alphanumeric string (e.g. RJ09GA0165 or MH01AB1234).",
                         },
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:{mime_type};base64,{base64_image}"
-                            }
-                        }
-                    ]
+                        {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{base64_image}"}},
+                    ],
                 }
             ],
             "model": self.model_name,
             "max_tokens": 128,
             "temperature": 0.1,
-            "stream": False
+            "stream": False,
         }
 
         for key in keys_to_try:
@@ -134,7 +127,7 @@ class NvidiaVisionStrategy(BasePlateRecognizer):
                     json=payload,
                     timeout=(settings.HTTP_CONNECT_TIMEOUT, settings.HTTP_READ_TIMEOUT),
                 )
-                if response.status_code == 200:  
+                if response.status_code == 200:
                     try:
                         res_json = response.json()
                     except ValueError:
@@ -162,7 +155,9 @@ class NvidiaVisionStrategy(BasePlateRecognizer):
                     elif raw_text:
                         return [{"plate": "N/A", "state": "N/A", "raw_text": raw_text}]
                 else:
-                    logger.error(f"[NvidiaVisionStrategy] Error {response.status_code} with key '{key[:12]}...': {response.text}")
+                    logger.error(
+                        f"[NvidiaVisionStrategy] Error {response.status_code} with key '{key[:12]}...': {response.text}"
+                    )
             except Exception as e:
                 logger.error(f"[NvidiaVisionStrategy] Exception with key '{key[:12]}...': {e}")
 

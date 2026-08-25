@@ -47,15 +47,13 @@ class PlateRecognizerFactory:
             except ValueError:
                 logger.warning(f"Requested invalid provider name: '{target_provider}'")
                 raise ProviderNotFoundError(
-                    provider=target_provider,
-                    available_providers=[p.value for p in cls.list_providers()]
+                    provider=target_provider, available_providers=[p.value for p in cls.list_providers()]
                 ) from None
 
         if target_provider not in cls._strategies:
             logger.warning(f"Unregistered strategy requested: '{target_provider}'")
             raise ProviderNotFoundError(
-                provider=target_provider.value,
-                available_providers=[p.value for p in cls.list_providers()]
+                provider=target_provider.value, available_providers=[p.value for p in cls.list_providers()]
             )
 
         strategy_cls = cls._strategies[target_provider]

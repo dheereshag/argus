@@ -1,3 +1,4 @@
+import io
 import re
 from abc import ABC, abstractmethod
 from typing import Any
@@ -10,6 +11,7 @@ from app.services.image_processing import (
     ImageInput,
     box_area,
     crop_image_roi,
+    load_rgb,
     warp_perspective_crop,
 )
 
@@ -21,23 +23,19 @@ class BasePlateRecognizer(ABC):
     """
 
     @abstractmethod
-    def _recognize_single_image(
-        self,
-        image_input: ImageInput,
-        filename: str = "image.jpg"
-    ) -> list[dict[str, Any]]:
+    def _recognize_single_image(self, image_input: str | bytes, filename: str = "image.jpg") -> list[dict[str, Any]]:
         """
         Subclasses implement OCR / VLM plate extraction on a single image buffer.
         Returns a list of dicts with keys: 'plate', 'state', 'raw_text'.
         """
         pass
 
-    def recognize(
+    def recognize(  # noqa: C901, PLR0912, PLR0915 — hierarchical crop/deskew/fallback waterfall, not a bug signal
         self,
         image_input: ImageInput,
         filename: str = "image.jpg",
         vehicle_box: BoundingBox | None = None,
-        vehicle_boxes: list[BoundingBox] | None = None
+        vehicle_boxes: list[BoundingBox] | None = None,
     ) -> list[dict[str, Any]]:
         """
         Hierarchical ANPR recognition:
@@ -47,6 +45,7 @@ class BasePlateRecognizer(ABC):
         """
         require(image_input is not None, "recognize() called with no image")
 
+        image_bytes: bytes
         if isinstance(image_input, str):
             filename = filename or image_input
             with open(image_input, "rb") as f:
@@ -54,16 +53,18 @@ class BasePlateRecognizer(ABC):
         elif isinstance(image_input, bytes):
             image_bytes = image_input
         else:
-            image_bytes = image_input
+            # Image.Image / ndarray input: encode to JPEG bytes so downstream
+            # warp_perspective_crop (which needs a real byte buffer) works.
+            with io.BytesIO() as buf:
+                load_rgb(image_input).save(buf, format="JPEG")
+                image_bytes = buf.getvalue()
 
         raw_text_fallbacks: list[list[dict[str, Any]]] = []
 
         # Determine candidate vehicle bounding boxes (largest first)
         candidate_boxes = vehicle_boxes if vehicle_boxes else ([vehicle_box] if vehicle_box else [])
         ordered = sorted((b for b in candidate_boxes if b), key=box_area, reverse=True)
-        boxes_to_check: list[BoundingBox | None] = list(
-            bounded(ordered, settings.MAX_VEHICLE_BOXES, "vehicle boxes")
-        )
+        boxes_to_check: list[BoundingBox | None] = list(bounded(ordered, settings.MAX_VEHICLE_BOXES, "vehicle boxes"))
         if not boxes_to_check:
             boxes_to_check = [None]
 
@@ -146,19 +147,10 @@ class BasePlateRecognizer(ABC):
         if match.group(1):
             state_code = match.group(1).upper()
             state_name = STATE_CODES.get(state_code, "Unknown State")
-            return {
-                "plate": matched_plate,
-                "state": state_name
-            }
+            return {"plate": matched_plate, "state": state_name}
 
         # Bharat (BH) Series
         if match.group(5):  # "BH"
-            return {
-                "plate": matched_plate,
-                "state": STATE_CODES.get("BH", "Bharat Series (National)")
-            }
+            return {"plate": matched_plate, "state": STATE_CODES.get("BH", "Bharat Series (National)")}
 
-        return {
-            "plate": matched_plate,
-            "state": "Unknown State"
-        }
+        return {"plate": matched_plate, "state": "Unknown State"}

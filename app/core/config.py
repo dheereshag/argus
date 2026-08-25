@@ -1,6 +1,5 @@
 import os
 from importlib.metadata import PackageNotFoundError, version
-from typing import List
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -16,7 +15,6 @@ except PackageNotFoundError:
 
 
 class Settings(BaseSettings):
-
     PROJECT_NAME: str = "Argus ANPR Microservice"
     VERSION: str = _PKG_VERSION
 
@@ -40,9 +38,9 @@ class Settings(BaseSettings):
     HTTP_READ_TIMEOUT: float = 10.0
 
     # Upload limits
-    MAX_UPLOAD_BYTES: int = 8 * 1024 * 1024        # reject the request body above this
-    MAX_IMAGE_PIXELS: int = 50_000_000             # decompression-bomb guard (w * h)
-    MAX_IMAGE_EDGE_PX: int = 1920                  # downscale longest edge before inference
+    MAX_UPLOAD_BYTES: int = 8 * 1024 * 1024  # reject the request body above this
+    MAX_IMAGE_PIXELS: int = 50_000_000  # decompression-bomb guard (w * h)
+    MAX_IMAGE_EDGE_PX: int = 1920  # downscale longest edge before inference
 
     # Pre-screening Rejection Policies
     REJECT_ON_HUMAN_DETECTED: bool = False
@@ -65,11 +63,8 @@ class Settings(BaseSettings):
     DOCS_URL: str | None = "/docs"
     REDOC_URL: str | None = "/redoc"
 
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore"
-    )
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
 
 settings = Settings()
 
@@ -82,4 +77,3 @@ settings = Settings()
 _yolo_config_dir = os.path.abspath(settings.YOLO_CONFIG_DIR)
 os.makedirs(_yolo_config_dir, exist_ok=True)
 os.environ["YOLO_CONFIG_DIR"] = _yolo_config_dir
-

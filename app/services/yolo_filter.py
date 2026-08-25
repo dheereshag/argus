@@ -1,5 +1,5 @@
 import threading
-from typing import Any, TypedDict
+from typing import TypedDict
 
 import numpy as np
 from PIL import Image
@@ -14,6 +14,7 @@ from app.services.image_processing import clamp_box, load_rgb
 
 class YoloResult(TypedDict, total=True):
     """Typed return value of filter_vehicle_and_occupancy."""
+
     is_eligible: bool
     status: RecognitionStatusEnum | None
     status_message: str
@@ -31,7 +32,7 @@ _YOLO_LOCK = threading.Lock()
 
 
 def get_yolo_model() -> YOLO:
-    global _YOLO_MODEL
+    global _YOLO_MODEL  # noqa: PLW0603 — thread-locked lazy singleton, deliberate
     if _YOLO_MODEL is None:
         with _YOLO_LOCK:
             if _YOLO_MODEL is None:
@@ -48,11 +49,7 @@ def get_yolo_model() -> YOLO:
 
 # COCO Class Names for 4-wheelers
 PERSON_CLASS_ID = 0
-FOUR_WHEELER_CLASS_NAMES = {
-    2: "car",
-    5: "bus",
-    7: "truck"
-}
+FOUR_WHEELER_CLASS_NAMES = {2: "car", 5: "bus", 7: "truck"}
 
 # Upper bound on detections examined per frame (NASA rule 2).
 MAX_DETECTIONS = 100
@@ -70,7 +67,7 @@ def _run_detection(
     require(pil_img is not None, "_run_detection called with no image")
 
     width, height = pil_img.size
-    results = get_yolo_model()(pil_img, verbose=False)[0]
+    results = get_yolo_model()(pil_img, verbose=False)[0]  # type: ignore[index]  # ultralytics' stub is broader than a single-image call's real return type
 
     human_detected = False
     vehicles: list[tuple[int, str, BoundingBox]] = []
@@ -134,15 +131,9 @@ def filter_vehicle_and_occupancy(
     """
     human_conf_thresh = human_conf_thresh or settings.HUMAN_CONF_THRESH
     vehicle_conf_thresh = vehicle_conf_thresh or settings.VEHICLE_CONF_THRESH
-    reject_on_human = (
-        reject_on_human
-        if reject_on_human is not None
-        else settings.REJECT_ON_HUMAN_DETECTED
-    )
+    reject_on_human = reject_on_human if reject_on_human is not None else settings.REJECT_ON_HUMAN_DETECTED
     reject_on_multiple_vehicles = (
-        reject_on_multiple_vehicles
-        if reject_on_multiple_vehicles is not None
-        else settings.REJECT_ON_MULTIPLE_VEHICLES
+        reject_on_multiple_vehicles if reject_on_multiple_vehicles is not None else settings.REJECT_ON_MULTIPLE_VEHICLES
     )
 
     require(
@@ -155,9 +146,7 @@ def filter_vehicle_and_occupancy(
     )
 
     pil_img = load_rgb(image_input)
-    human_detected, vehicles = _run_detection(
-        pil_img, human_conf_thresh, vehicle_conf_thresh
-    )
+    human_detected, vehicles = _run_detection(pil_img, human_conf_thresh, vehicle_conf_thresh)
 
     detected_vehicle_types = [v_type for v_type, _ in vehicles]
     vehicle_boxes = [box for _, box in vehicles]
@@ -177,7 +166,7 @@ def filter_vehicle_and_occupancy(
             "human_detected": human_detected,
             "vehicle_box": primary_vehicle_box,
             "vehicle_boxes": vehicle_boxes,
-            "vehicle_count": vehicle_count
+            "vehicle_count": vehicle_count,
         }
 
     if vehicle_count > 1 and reject_on_multiple_vehicles:
@@ -192,7 +181,7 @@ def filter_vehicle_and_occupancy(
             "human_detected": human_detected,
             "vehicle_box": primary_vehicle_box,
             "vehicle_boxes": vehicle_boxes,
-            "vehicle_count": vehicle_count
+            "vehicle_count": vehicle_count,
         }
 
     if vehicle_count == 0:
@@ -205,7 +194,7 @@ def filter_vehicle_and_occupancy(
             "human_detected": human_detected,
             "vehicle_box": None,
             "vehicle_boxes": [],
-            "vehicle_count": 0
+            "vehicle_count": 0,
         }
 
     occupancy_note = "with human presence" if human_detected else "with no human occupancy"
@@ -219,5 +208,5 @@ def filter_vehicle_and_occupancy(
         "human_detected": human_detected,
         "vehicle_box": primary_vehicle_box,
         "vehicle_boxes": vehicle_boxes,
-        "vehicle_count": vehicle_count
+        "vehicle_count": vehicle_count,
     }

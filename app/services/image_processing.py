@@ -47,8 +47,7 @@ def decode_and_downscale(
 
     if width * height > settings.MAX_IMAGE_PIXELS:
         raise PayloadTooLargeError(
-            f"Image is {width}x{height} ({width * height} pixels); "
-            f"limit is {settings.MAX_IMAGE_PIXELS} pixels."
+            f"Image is {width}x{height} ({width * height} pixels); limit is {settings.MAX_IMAGE_PIXELS} pixels."
         )
 
     try:
@@ -59,7 +58,7 @@ def decode_and_downscale(
         raise InvalidImageError(f"Could not decode uploaded image: {exc}") from exc
 
     if max(pil_img.size) > max_edge:
-        pil_img.thumbnail((max_edge, max_edge), Image.LANCZOS)
+        pil_img.thumbnail((max_edge, max_edge), Image.Resampling.LANCZOS)
 
     ensure(min(pil_img.size) > 0, "downscaled image collapsed to zero size")
     ensure(max(pil_img.size) <= max_edge, f"downscale failed to bound edge to {max_edge}")
@@ -79,7 +78,7 @@ def order_points(pts: np.ndarray) -> np.ndarray:
     return rect
 
 
-def warp_perspective_crop(img_bytes: bytes) -> bytes:
+def warp_perspective_crop(img_bytes: bytes) -> bytes:  # noqa: C901 — quad-detect then rotation-deskew fallback, not a bug signal
     """
     Detects perspective distortion / quad angle in an image crop and returns
     a perspective-warped, de-skewed frontal rectangular view as JPEG bytes.
@@ -122,12 +121,9 @@ def warp_perspective_crop(img_bytes: bytes) -> bytes:
             max_height = max(int(height_a), int(height_b))
 
             if max_width > 20 and max_height > 10:
-                dst = np.array([
-                    [0, 0],
-                    [max_width - 1, 0],
-                    [max_width - 1, max_height - 1],
-                    [0, max_height - 1]
-                ], dtype="float32")
+                dst = np.array(
+                    [[0, 0], [max_width - 1, 0], [max_width - 1, max_height - 1], [0, max_height - 1]], dtype="float32"
+                )
 
                 M = cv2.getPerspectiveTransform(rect, dst)
                 warped = cv2.warpPerspective(img, M, (max_width, max_height))
@@ -212,7 +208,9 @@ def load_rgb(image_input: ImageInput) -> Image.Image:
     if isinstance(image_input, np.ndarray):
         if len(image_input.shape) == 2:
             return Image.fromarray(cv2.cvtColor(image_input, cv2.COLOR_GRAY2RGB))
-        return Image.fromarray(cv2.cvtColor(image_input, cv2.COLOR_BGR2RGB) if image_input.shape[2] == 3 else image_input)
+        return Image.fromarray(
+            cv2.cvtColor(image_input, cv2.COLOR_BGR2RGB) if image_input.shape[2] == 3 else image_input
+        )
 
     if isinstance(image_input, bytes):
         with io.BytesIO(image_input) as buf, Image.open(buf) as img:
@@ -236,7 +234,7 @@ def crop_image_roi(
     image_input: ImageInput,
     vehicle_box: BoundingBox | None = None,
     bottom_crop_ratio: float = 0.50,
-    bottom_roi_only: bool = True
+    bottom_roi_only: bool = True,
 ) -> bytes:
     """
     Extract cropped image bytes from an image input.
@@ -295,7 +293,7 @@ def save_debug_images(
             if clamped is not None:
                 x1, y1, x2, y2 = clamped
                 draw.rectangle([x1, y1, x2, y2], outline="red", width=3)
-                label = f"{vehicle_type}" if len(vehicle_boxes) == 1 else f"{vehicle_type} #{idx+1}"
+                label = f"{vehicle_type}" if len(vehicle_boxes) == 1 else f"{vehicle_type} #{idx + 1}"
                 draw.rectangle([x1, max(0, y1 - 20), x1 + len(label) * 9 + 6, max(0, y1)], fill="red")
                 draw.text((x1 + 3, max(0, y1 - 18)), label, fill="white")
     else:

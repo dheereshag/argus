@@ -2,12 +2,12 @@ import argparse
 import os
 import time
 
-from app.schemas.plate import ProviderEnum
 from app.services import PlateRecognizerFactory
 from app.services.image_processing import decode_and_downscale
 from app.services.yolo_filter import filter_vehicle_and_occupancy
 
 TESTS_DIR = "tests"
+
 
 def parse_args():
     available_providers = [p.value for p in PlateRecognizerFactory.list_providers()]
@@ -17,20 +17,19 @@ def parse_args():
         nargs="*",
         choices=available_providers,
         default=None,
-        help=f"Recognition strategies to test ({', '.join(available_providers)}). Defaults to all."
+        help=f"Recognition strategies to test ({', '.join(available_providers)}). Defaults to all.",
     )
     args = parser.parse_args()
     if not args.strategies:
         args.strategies = available_providers
     return args
 
+
 def test_models():
     args = parse_args()
 
     image_paths = [
-        os.path.join(TESTS_DIR, f)
-        for f in os.listdir(TESTS_DIR)
-        if f.lower().endswith(('.jpg', '.jpeg', '.png'))
+        os.path.join(TESTS_DIR, f) for f in os.listdir(TESTS_DIR) if f.lower().endswith((".jpg", ".jpeg", ".png"))
     ]
     image_paths.sort()
 
@@ -45,7 +44,7 @@ def test_models():
             print(f"Error instantiating strategy '{st_name}': {e}")
 
     for img_path in image_paths:
-        print(f"\n{'='*60}\nTesting image: {img_path}\n{'='*60}")
+        print(f"\n{'=' * 60}\nTesting image: {img_path}\n{'=' * 60}")
 
         with open(img_path, "rb") as f:
             raw_bytes = f.read()
@@ -60,13 +59,16 @@ def test_models():
         t_yolo = round((time.time() - t_yolo_start) * 1000, 2)
         vehicle_box = yolo_res.get("vehicle_box")
         vehicle_boxes = yolo_res.get("vehicle_boxes")
-        print(f"[YOLO v11 Prescreening] ({t_yolo:>7.2f} ms): vehicle={yolo_res['vehicle_type']}, box={vehicle_box}, count={yolo_res.get('vehicle_count', 1)}")
+        print(
+            f"[YOLO v11 Prescreening] ({t_yolo:>7.2f} ms): vehicle={yolo_res['vehicle_type']}, box={vehicle_box}, count={yolo_res.get('vehicle_count', 1)}"
+        )
 
         for st_name, engine in strategy_engines.items():
             t0 = time.time()
             result = engine.recognize(img_bytes, vehicle_box=vehicle_box, vehicle_boxes=vehicle_boxes)
             t_exec = round((time.time() - t0) * 1000, 2)
             print(f"[{st_name.upper():<20}] ({t_exec:>7.2f} ms): {result}")
+
 
 if __name__ == "__main__":
     test_models()

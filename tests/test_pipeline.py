@@ -12,7 +12,7 @@ def test_recognize_rejected_human(mock_yolo, sample_image_bytes):
         "status_message": "Image rejected: Human presence detected.",
         "vehicle_detected": True,
         "vehicle_type": "car",
-        "human_detected": True
+        "human_detected": True,
     }
     response = recognize_plate_image(sample_image_bytes, filename="car_human.jpg")
     assert response.success is False
@@ -29,7 +29,7 @@ def test_recognize_rejected_no_four_wheeler(mock_yolo, sample_image_bytes):
         "status_message": "Image rejected: No 4-wheeler vehicle detected.",
         "vehicle_detected": False,
         "vehicle_type": None,
-        "human_detected": False
+        "human_detected": False,
     }
     response = recognize_plate_image(sample_image_bytes, filename="scenery.jpg")
     assert response.success is False
@@ -45,7 +45,7 @@ def test_recognize_rejected_multiple_vehicles(mock_yolo, sample_image_bytes):
         "status_message": "Image rejected: Multiple 4-wheeler vehicles detected (2 vehicles).",
         "vehicle_detected": True,
         "vehicle_type": "car",
-        "human_detected": False
+        "human_detected": False,
     }
     response = recognize_plate_image(sample_image_bytes, filename="two_cars.jpg")
     assert response.success is False
@@ -63,13 +63,11 @@ def test_recognize_success_primary_provider(mock_yolo, mock_get_recognizer, samp
         "status_message": "Eligible vehicle.",
         "vehicle_detected": True,
         "vehicle_type": "car",
-        "human_detected": False
+        "human_detected": False,
     }
 
     mock_docling = MagicMock()
-    mock_docling.recognize.return_value = [
-        {"plate": "RJ09GA0165", "state": "Rajasthan"}
-    ]
+    mock_docling.recognize.return_value = [{"plate": "RJ09GA0165", "state": "Rajasthan"}]
     mock_get_recognizer.return_value = mock_docling
 
     response = recognize_plate_image(sample_image_bytes, filename="car.jpg")
@@ -90,16 +88,14 @@ def test_recognize_fallback_to_nvidia(mock_yolo, mock_get_recognizer, sample_ima
         "status_message": "Eligible vehicle.",
         "vehicle_detected": True,
         "vehicle_type": "car",
-        "human_detected": False
+        "human_detected": False,
     }
 
     mock_docling = MagicMock()
     mock_docling.recognize.return_value = []  # Docling finds no plate
 
     mock_nvidia = MagicMock()
-    mock_nvidia.recognize.return_value = [
-        {"plate": "MH12AB1234", "state": "Maharashtra"}
-    ]
+    mock_nvidia.recognize.return_value = [{"plate": "MH12AB1234", "state": "Maharashtra"}]
 
     mock_get_recognizer.side_effect = [mock_docling, mock_nvidia]
 

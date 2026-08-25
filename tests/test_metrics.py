@@ -36,14 +36,18 @@ from app.eval.metrics import (
 # normalisation
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("raw,expected", [
-    ("RJ 14-GT.4976", "RJ14GT4976"),
-    ("rj14gt4976", "RJ14GT4976"),
-    ("  MH12AB1234  ", "MH12AB1234"),
-    ("N/A", ""),
-    ("", ""),
-    (None, ""),
-])
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        ("RJ 14-GT.4976", "RJ14GT4976"),
+        ("rj14gt4976", "RJ14GT4976"),
+        ("  MH12AB1234  ", "MH12AB1234"),
+        ("N/A", ""),
+        ("", ""),
+        (None, ""),
+    ],
+)
 def test_normalise_plate(raw, expected):
     """Formatting must never masquerade as model error."""
     assert normalise_plate(raw) == expected
@@ -63,14 +67,18 @@ def test_na_sentinel_is_treated_as_no_plate():
 # edit distance and CER
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("a,b,expected", [
-    ("ABC", "ABC", 0),
-    ("ABC", "ABD", 1),
-    ("ABC", "AB", 1),
-    ("", "ABC", 3),
-    ("ABC", "", 3),
-    ("RJ14GT4976", "RJ14GT4975", 1),
-])
+
+@pytest.mark.parametrize(
+    "a,b,expected",
+    [
+        ("ABC", "ABC", 0),
+        ("ABC", "ABD", 1),
+        ("ABC", "AB", 1),
+        ("", "ABC", 3),
+        ("ABC", "", 3),
+        ("RJ14GT4976", "RJ14GT4975", 1),
+    ],
+)
 def test_levenshtein(a, b, expected):
     assert levenshtein(a, b) == expected
 
@@ -96,14 +104,18 @@ def test_cer_zero_when_both_empty():
 # outcome classification — the core of the module
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("truth,pred,expected", [
-    ("RJ14GT4976", "RJ14GT4976", EXACT),
-    ("RJ14GT4976", "RJ14GT4975", WRONG_READ),
-    ("RJ14GT4976", "", MISS),
-    ("RJ14GT4976", None, MISS),
-    ("", "BP2A4904", FALSE_POSITIVE),
-    ("", "", TRUE_NEGATIVE),
-])
+
+@pytest.mark.parametrize(
+    "truth,pred,expected",
+    [
+        ("RJ14GT4976", "RJ14GT4976", EXACT),
+        ("RJ14GT4976", "RJ14GT4975", WRONG_READ),
+        ("RJ14GT4976", "", MISS),
+        ("RJ14GT4976", None, MISS),
+        ("", "BP2A4904", FALSE_POSITIVE),
+        ("", "", TRUE_NEGATIVE),
+    ],
+)
 def test_classify(truth, pred, expected):
     assert classify(truth, pred) == expected
 
@@ -128,24 +140,57 @@ def test_watermark_case_is_a_false_positive():
 # aggregate scoring
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def scored():
-    labels = Labels(plates={
-        "01.jpg": "",            # no plate  -> pipeline returns one  -> FP
-        "02.jpg": "RJ43GA2012",  # correct                            -> EXACT
-        "03.jpg": "NL02K7556",   # correct                            -> EXACT
-        "04.jpg": "OR02BU3389",  # one char off                       -> WRONG_READ
-        "05.jpg": "KA25B3155",   # nothing returned                   -> MISS
-        "06.jpg": "",            # no plate, nothing returned         -> TN
-    })
+    labels = Labels(
+        plates={
+            "01.jpg": "",  # no plate  -> pipeline returns one  -> FP
+            "02.jpg": "RJ43GA2012",  # correct                            -> EXACT
+            "03.jpg": "NL02K7556",  # correct                            -> EXACT
+            "04.jpg": "OR02BU3389",  # one char off                       -> WRONG_READ
+            "05.jpg": "KA25B3155",  # nothing returned                   -> MISS
+            "06.jpg": "",  # no plate, nothing returned         -> TN
+        }
+    )
     rows = [
-        {"filename": "01.jpg", "plate": "BP2A4904", "status": "SUCCESS", "provider": "paddleocr", "exec_time_ms": 2970.0},
-        {"filename": "02.jpg", "plate": "RJ43GA2012", "status": "SUCCESS", "provider": "paddleocr", "exec_time_ms": 246.0},
-        {"filename": "03.jpg", "plate": "NL02K7556", "status": "SUCCESS", "provider": "paddleocr", "exec_time_ms": 211.0},
+        {
+            "filename": "01.jpg",
+            "plate": "BP2A4904",
+            "status": "SUCCESS",
+            "provider": "paddleocr",
+            "exec_time_ms": 2970.0,
+        },
+        {
+            "filename": "02.jpg",
+            "plate": "RJ43GA2012",
+            "status": "SUCCESS",
+            "provider": "paddleocr",
+            "exec_time_ms": 246.0,
+        },
+        {
+            "filename": "03.jpg",
+            "plate": "NL02K7556",
+            "status": "SUCCESS",
+            "provider": "paddleocr",
+            "exec_time_ms": 211.0,
+        },
         {"filename": "04.jpg", "plate": "OR02BU3388", "status": "SUCCESS", "provider": "nvidia", "exec_time_ms": 450.0},
-        {"filename": "05.jpg", "plate": "N/A", "status": "NO_PLATE_DETECTED", "provider": "N/A", "exec_time_ms": 5300.0},
+        {
+            "filename": "05.jpg",
+            "plate": "N/A",
+            "status": "NO_PLATE_DETECTED",
+            "provider": "N/A",
+            "exec_time_ms": 5300.0,
+        },
         {"filename": "06.jpg", "plate": "N/A", "status": "NO_PLATE_DETECTED", "provider": "N/A", "exec_time_ms": 300.0},
-        {"filename": "99.jpg", "plate": "MH12AB1234", "status": "SUCCESS", "provider": "paddleocr", "exec_time_ms": 400.0},
+        {
+            "filename": "99.jpg",
+            "plate": "MH12AB1234",
+            "status": "SUCCESS",
+            "provider": "paddleocr",
+            "exec_time_ms": 400.0,
+        },
     ]
     return evaluate(rows, labels)
 
@@ -200,6 +245,7 @@ def test_extraction_rate_would_have_flattered_this_run(scored):
 # labels file
 # ---------------------------------------------------------------------------
 
+
 def _write_labels(path, rows):
     with open(path, "w", newline="") as fh:
         writer = csv.writer(fh)
@@ -209,10 +255,13 @@ def _write_labels(path, rows):
 
 def test_load_labels(tmp_path):
     path = tmp_path / "labels.csv"
-    _write_labels(path, [
-        ["01.jpg", "", "no plate"],
-        ["02.jpg", "rj43 ga2012", ""],
-    ])
+    _write_labels(
+        path,
+        [
+            ["01.jpg", "", "no plate"],
+            ["02.jpg", "rj43 ga2012", ""],
+        ],
+    )
     labels = load_labels(str(path))
     assert labels.plates["02.jpg"] == "RJ43GA2012"
     assert labels.without_plate == ["01.jpg"]
@@ -225,16 +274,26 @@ def test_seeded_rows_are_tracked(tmp_path):
     counted, or the model ends up grading its own homework invisibly.
     """
     path = tmp_path / "labels.csv"
-    _write_labels(path, [
-        ["01.jpg", "RJ43GA2012", SEED_MARKER],
-        ["02.jpg", "NL02K7556", ""],
-    ])
+    _write_labels(
+        path,
+        [
+            ["01.jpg", "RJ43GA2012", SEED_MARKER],
+            ["02.jpg", "NL02K7556", ""],
+        ],
+    )
     labels = load_labels(str(path))
     assert labels.seeded == ["01.jpg"]
 
     metrics = evaluate(
-        [{"filename": "01.jpg", "plate": "RJ43GA2012", "status": "SUCCESS",
-          "provider": "paddleocr", "exec_time_ms": 100}],
+        [
+            {
+                "filename": "01.jpg",
+                "plate": "RJ43GA2012",
+                "status": "SUCCESS",
+                "provider": "paddleocr",
+                "exec_time_ms": 100,
+            }
+        ],
         labels,
     )
     assert metrics.seeded_unverified == 1
@@ -251,9 +310,15 @@ def test_missing_labels_file_raises_with_guidance(tmp_path):
 # regression gate
 # ---------------------------------------------------------------------------
 
+
 def test_accuracy_drop_fails(scored):
-    baseline = {"exact_match_rate": 0.90, "false_positive_rate": 0.0,
-                "precision": 0.90, "wrong_read_rate": 0.0, "mean_cer": 0.0}
+    baseline = {
+        "exact_match_rate": 0.90,
+        "false_positive_rate": 0.0,
+        "precision": 0.90,
+        "wrong_read_rate": 0.0,
+        "mean_cer": 0.0,
+    }
     verdict = compare_to_baseline(scored, baseline)
     assert not verdict.passed
     assert any("exact_match_rate" in f for f in verdict.failures)
@@ -262,8 +327,15 @@ def test_accuracy_drop_fails(scored):
 def test_false_positive_rise_fails():
     labels = Labels(plates={"01.jpg": ""})
     metrics = evaluate(
-        [{"filename": "01.jpg", "plate": "BP2A4904", "status": "SUCCESS",
-          "provider": "paddleocr", "exec_time_ms": 100}],
+        [
+            {
+                "filename": "01.jpg",
+                "plate": "BP2A4904",
+                "status": "SUCCESS",
+                "provider": "paddleocr",
+                "exec_time_ms": 100,
+            }
+        ],
         labels,
     )
     verdict = compare_to_baseline(metrics, {"false_positive_rate": 0.0})
@@ -271,8 +343,13 @@ def test_false_positive_rise_fails():
 
 
 def test_improvement_passes_and_is_reported(scored):
-    baseline = {"exact_match_rate": 0.10, "false_positive_rate": 0.90,
-                "precision": 0.10, "wrong_read_rate": 0.90, "mean_cer": 2.0}
+    baseline = {
+        "exact_match_rate": 0.10,
+        "false_positive_rate": 0.90,
+        "precision": 0.10,
+        "wrong_read_rate": 0.90,
+        "mean_cer": 2.0,
+    }
     verdict = compare_to_baseline(scored, baseline)
     assert verdict.passed
     assert verdict.improvements
@@ -297,6 +374,7 @@ def test_baseline_missing_fields_are_skipped(scored):
 # report rendering
 # ---------------------------------------------------------------------------
 
+
 def test_report_names_the_dangerous_outcomes(scored):
     report = format_report(scored)
     assert "false positive" in report.lower()
@@ -306,8 +384,15 @@ def test_report_names_the_dangerous_outcomes(scored):
 
 def test_report_is_honest_when_nothing_is_labelled():
     metrics = evaluate(
-        [{"filename": "x.jpg", "plate": "RJ14GT4976", "status": "SUCCESS",
-          "provider": "paddleocr", "exec_time_ms": 100}],
+        [
+            {
+                "filename": "x.jpg",
+                "plate": "RJ14GT4976",
+                "status": "SUCCESS",
+                "provider": "paddleocr",
+                "exec_time_ms": 100,
+            }
+        ],
         Labels(),
     )
     report = format_report(metrics)

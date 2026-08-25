@@ -7,6 +7,7 @@ from typing import Any
 import cv2
 import numpy as np
 from PIL import Image
+from rapidocr import RapidOCR
 
 from app.core.config import settings
 from app.core.contracts import bounded, require
@@ -18,8 +19,6 @@ from app.services.constants import (
     normalize_candidate_strings,
 )
 from app.services.image_processing import ImageInput, load_rgb
-
-from rapidocr import RapidOCR
 
 # Direct RapidOCR engine instance
 _DOCLING_ENGINE = RapidOCR()
@@ -44,6 +43,7 @@ def check_docling_engine() -> bool:
 @dataclass(slots=True, frozen=True)
 class OCRToken:
     """High-performance slotted container for extracted OCR tokens."""
+
     text: str
     score: float
     cx: float | None = None
@@ -53,6 +53,7 @@ class OCRToken:
 @dataclass(slots=True)
 class PlateCandidate:
     """Slotted candidate plate match with vertical spatial priority ranking."""
+
     y_pos: float
     rank: int
     info: dict[str, Any]
@@ -106,10 +107,7 @@ class DoclingStrategy(BasePlateRecognizer):
     with 2D spatial layout parsing, slotted dataclass token evaluation, and vertical bumper candidate ranking.
     """
 
-    def __init__(self, **kwargs):
-        pass
-
-    def _extract_plates_from_image_array(self, img_pil: Image.Image) -> list[dict[str, Any]]:  # noqa: C901, PLR0912
+    def _extract_plates_from_image_array(self, img_pil: Image.Image) -> list[dict[str, Any]]:  # noqa: C901, PLR0912, PLR0915
         require(img_pil is not None, "_extract_plates_from_image_array received None")
 
         engine = get_docling_engine()
@@ -120,12 +118,12 @@ class DoclingStrategy(BasePlateRecognizer):
         try:
             res = engine(np_img)
             if res is None:
-                return []
+                return []  # type: ignore[unreachable]  # RapidOCR's stub promises non-None; defend anyway
 
             # RapidOCR v3.9+ returns RapidOCROutput with .txts, .scores, .boxes
-            if hasattr(res, "txts") and hasattr(res, "scores") and res.txts:
+            if hasattr(res, "txts") and hasattr(res, "scores") and res.txts and res.scores:
                 boxes = getattr(res, "boxes", None)
-                for idx, (t, s) in enumerate(zip(res.txts, res.scores)):
+                for idx, (t, s) in enumerate(zip(res.txts, res.scores, strict=False)):
                     cx, cy = _get_box_centroid(boxes[idx]) if (boxes is not None and idx < len(boxes)) else (None, None)
                     raw_items.append(OCRToken(text=str(t), score=float(s), cx=cx, cy=cy))
 
@@ -151,7 +149,7 @@ class DoclingStrategy(BasePlateRecognizer):
 
         # Sort items spatially top-to-bottom if coordinates are available
         if any(item.cy is not None for item in raw_items):
-            raw_items.sort(key=lambda x: (x.cy if x.cy is not None else 9999.0))
+            raw_items.sort(key=lambda x: x.cy if x.cy is not None else 9999.0)
 
         # Bounded OCR lines
         lines_data = list(bounded(raw_items, settings.MAX_OCR_LINES, "OCR text lines"))
@@ -239,17 +237,9 @@ class DoclingStrategy(BasePlateRecognizer):
             return [plate_candidates[0].info]
 
         # 4. Fallback: If no valid plate matched
-        return [{
-            "plate": "N/A",
-            "state": "N/A",
-            "raw_text": raw_text_summary
-        }]
+        return [{"plate": "N/A", "state": "N/A", "raw_text": raw_text_summary}]
 
-    def _recognize_single_image(
-        self,
-        image_input: ImageInput,
-        filename: str = "image.jpg"
-    ) -> list[dict[str, Any]]:
+    def _recognize_single_image(self, image_input: ImageInput, filename: str = "image.jpg") -> list[dict[str, Any]]:
         """Process an image input with Docling RapidOCR engine, with CLAHE enhancement fallback."""
         pil_img = load_rgb(image_input)
         res = self._extract_plates_from_image_array(pil_img)

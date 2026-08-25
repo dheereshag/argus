@@ -56,6 +56,7 @@ _NON_ALNUM = re.compile(r"[^A-Za-z0-9]")
 # primitives
 # ---------------------------------------------------------------------------
 
+
 def normalise_plate(value: Optional[str]) -> str:
     """
     Uppercase, strip everything that is not alphanumeric.
@@ -83,11 +84,13 @@ def levenshtein(a: str, b: str) -> int:
     for i, ch_a in enumerate(a, start=1):
         current = [i]
         for j, ch_b in enumerate(b, start=1):
-            current.append(min(
-                previous[j] + 1,                              # deletion
-                current[j - 1] + 1,                           # insertion
-                previous[j - 1] + (ch_a != ch_b),             # substitution
-            ))
+            current.append(
+                min(
+                    previous[j] + 1,  # deletion
+                    current[j - 1] + 1,  # insertion
+                    previous[j - 1] + (ch_a != ch_b),  # substitution
+                )
+            )
         previous = current
     return previous[-1]
 
@@ -113,6 +116,7 @@ def character_error_rate(truth: str | None, prediction: str | None) -> float:
 # ---------------------------------------------------------------------------
 # labels
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class Labels:
@@ -169,6 +173,7 @@ def load_labels(path: str) -> Labels:
 # ---------------------------------------------------------------------------
 # scoring
 # ---------------------------------------------------------------------------
+
 
 def classify(true_plate: Optional[str], predicted: Optional[str], labelled: bool = True) -> str:
     if not labelled:
@@ -281,17 +286,20 @@ def evaluate(rows: Iterable[Dict[str, Any]], labels: Labels) -> Metrics:  # noqa
             if filename in labels.seeded:
                 m.seeded_unverified += 1
 
-        m.per_image.append({
-            "filename": filename,
-            "true_plate": labels.plates.get(filename, "") if is_labelled else None,
-            "predicted": normalise_plate(predicted),
-            "outcome": outcome,
-            "cer": round(character_error_rate(labels.plates.get(filename, ""), predicted), 3)
-                   if is_labelled and labels.plates.get(filename) else None,
-            "status": status,
-            "provider": provider,
-            "exec_time_ms": row.get("exec_time_ms"),
-        })
+        m.per_image.append(
+            {
+                "filename": filename,
+                "true_plate": labels.plates.get(filename, "") if is_labelled else None,
+                "predicted": normalise_plate(predicted),
+                "outcome": outcome,
+                "cer": round(character_error_rate(labels.plates.get(filename, ""), predicted), 3)
+                if is_labelled and labels.plates.get(filename)
+                else None,
+                "status": status,
+                "provider": provider,
+                "exec_time_ms": row.get("exec_time_ms"),
+            }
+        )
 
     if m.images_with_plate:
         m.exact_match_rate = m.exact / m.images_with_plate
@@ -319,6 +327,7 @@ def evaluate(rows: Iterable[Dict[str, Any]], labels: Labels) -> Metrics:  # noqa
 # regression gate (consumed by CI, issue #11)
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class RegressionVerdict:
     passed: bool
@@ -326,8 +335,7 @@ class RegressionVerdict:
     improvements: List[str] = field(default_factory=list)
 
 
-def compare_to_baseline(current: Metrics, baseline: Dict[str, Any],
-                        tolerance: float = 0.01) -> RegressionVerdict:
+def compare_to_baseline(current: Metrics, baseline: Dict[str, Any], tolerance: float = 0.01) -> RegressionVerdict:
     """
     Fail if accuracy dropped or false positives rose beyond `tolerance`.
 
@@ -346,13 +354,9 @@ def compare_to_baseline(current: Metrics, baseline: Dict[str, Any],
         worse = -delta if higher_is_better else delta
         if worse > tolerance:
             verdict.passed = False
-            verdict.failures.append(
-                f"{field_name}: {before:.3f} -> {after:.3f} ({delta:+.3f})"
-            )
+            verdict.failures.append(f"{field_name}: {before:.3f} -> {after:.3f} ({delta:+.3f})")
         elif -worse > tolerance:
-            verdict.improvements.append(
-                f"{field_name}: {before:.3f} -> {after:.3f} ({delta:+.3f})"
-            )
+            verdict.improvements.append(f"{field_name}: {before:.3f} -> {after:.3f} ({delta:+.3f})")
 
     check("exact_match_rate", higher_is_better=True)
     check("precision", higher_is_better=True)
@@ -366,6 +370,7 @@ def compare_to_baseline(current: Metrics, baseline: Dict[str, Any],
 # reporting
 # ---------------------------------------------------------------------------
 
+
 def format_report(m: Metrics) -> str:
     """Plain-text report. No tabulate dependency so CI can print it anywhere."""
     line = "=" * 68
@@ -377,13 +382,13 @@ def format_report(m: Metrics) -> str:
             "  No labelled images matched this run.",
             "  Every 'success rate' without ground truth is an extraction rate,",
             "  not accuracy. See LABELLING.md.",
-            "", line,
+            "",
+            line,
         ]
         return "\n".join(out)
 
     out += [
-        f"  corpus                    {m.total_images} images "
-        f"({m.labelled} labelled, {m.unlabelled} unlabelled)",
+        f"  corpus                    {m.total_images} images ({m.labelled} labelled, {m.unlabelled} unlabelled)",
         f"  with a legible plate      {m.images_with_plate}",
         f"  with no legible plate     {m.images_without_plate}   <- false-positive test set",
         "",
@@ -409,19 +414,28 @@ def format_report(m: Metrics) -> str:
     ]
 
     if m.unlabelled:
-        out += ["", f"  NOTE: {m.unlabelled} images had no label and are excluded from every",
-                "        rate above. Rates are computed only over labelled images."]
+        out += [
+            "",
+            f"  NOTE: {m.unlabelled} images had no label and are excluded from every",
+            "        rate above. Rates are computed only over labelled images.",
+        ]
 
     if m.seeded_unverified:
-        out += ["", f"  WARNING: {m.seeded_unverified} labels still carry the {SEED_MARKER}",
-                "           marker. Those were pre-filled from model predictions and",
-                "           never confirmed by a human. Any accuracy figure that",
-                "           depends on them is partly the model grading itself."]
+        out += [
+            "",
+            f"  WARNING: {m.seeded_unverified} labels still carry the {SEED_MARKER}",
+            "           marker. Those were pre-filled from model predictions and",
+            "           never confirmed by a human. Any accuracy figure that",
+            "           depends on them is partly the model grading itself.",
+        ]
 
     if m.wrong_read or m.false_positive:
-        out += ["", f"  {m.wrong_read + m.false_positive} images returned a plate that was wrong.",
-                "  At a weighbridge these are worse than a miss: the weight record",
-                "  gets a confident wrong plate and nothing downstream flags it."]
+        out += [
+            "",
+            f"  {m.wrong_read + m.false_positive} images returned a plate that was wrong.",
+            "  At a weighbridge these are worse than a miss: the weight record",
+            "  gets a confident wrong plate and nothing downstream flags it.",
+        ]
 
     out += [line]
     return "\n".join(out)
@@ -436,16 +450,17 @@ def format_worst_offenders(m: Metrics, limit: int = 15) -> str:
     bad.sort(key=lambda r: (priority[r["outcome"]], -(r["cer"] or 0)))
 
     line = "=" * 68
-    out = [line, f"WORST OFFENDERS (top {min(limit, len(bad))} of {len(bad)})", line,
-           f"  {'outcome':<15} {'file':<16} {'expected':<13} {'got':<13} {'cer':>5}"]
+    out = [
+        line,
+        f"WORST OFFENDERS (top {min(limit, len(bad))} of {len(bad)})",
+        line,
+        f"  {'outcome':<15} {'file':<16} {'expected':<13} {'got':<13} {'cer':>5}",
+    ]
     for r in bad[:limit]:
         cer = r["cer"]
         cer_text = f"{cer:.2f}" if cer is not None else "-"
         expected = r["true_plate"] or "-"
         got = r["predicted"] or "-"
-        out.append(
-            f"  {r['outcome']:<15} {str(r['filename'])[:15]:<16} "
-            f"{expected:<13} {got:<13} {cer_text:>5}"
-        )
+        out.append(f"  {r['outcome']:<15} {str(r['filename'])[:15]:<16} {expected:<13} {got:<13} {cer_text:>5}")
     out.append(line)
     return "\n".join(out)
