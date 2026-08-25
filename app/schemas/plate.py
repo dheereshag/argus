@@ -53,7 +53,3 @@ class RecognitionResponse(BaseModel):
     results: list[PlateResult] = Field(default_factory=list, description="Extracted license plate details")
     execution_time_ms: float | None = Field(None, description="Processing duration in milliseconds")
 
-
-class ProvidersResponse(BaseModel):
-    available_providers: list[ProviderEnum] = Field(..., description="List of supported recognition providers")
-    default_provider: ProviderEnum = Field(..., description="System default recognition provider")

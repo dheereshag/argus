@@ -22,14 +22,6 @@ class PlateRecognizerFactory:
     }
 
     @classmethod
-    def register_strategy(cls, provider: ProviderEnum, strategy_cls: type[BasePlateRecognizer]) -> None:
-        """
-        Allows registering custom recognition strategies at runtime.
-        """
-        logger.info(f"Registering strategy for provider '{provider}': {strategy_cls.__name__}")
-        cls._strategies[provider] = strategy_cls
-
-    @classmethod
     def list_providers(cls) -> list[ProviderEnum]:
         return list(cls._strategies.keys())
 

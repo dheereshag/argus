@@ -1,7 +1,6 @@
 from app.schemas.plate import (
     PlateResult,
     ProviderEnum,
-    ProvidersResponse,
     RecognitionResponse,
     RecognitionStatusEnum,
 )
@@ -44,11 +43,3 @@ def test_recognition_response_valid():
     assert resp.status == RecognitionStatusEnum.SUCCESS
     assert len(resp.results) == 1
     assert resp.results[0].plate == "RJ09GA0165"
-
-
-def test_providers_response():
-    resp = ProvidersResponse(
-        available_providers=[ProviderEnum.DOCLING, ProviderEnum.NVIDIA], default_provider=ProviderEnum.DOCLING
-    )
-    assert len(resp.available_providers) == 2
-    assert resp.default_provider == ProviderEnum.DOCLING

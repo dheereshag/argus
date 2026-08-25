@@ -95,14 +95,6 @@ def test_factory_list_and_get():
         PlateRecognizerFactory.get_recognizer("unknown_provider")
 
 
-def test_factory_custom_registration():
-    PlateRecognizerFactory.register_strategy(ProviderEnum.DOCLING, DummyStrategy)
-    rec = PlateRecognizerFactory.get_recognizer(ProviderEnum.DOCLING)
-    assert isinstance(rec, DummyStrategy)
-    # Restore original strategy
-    PlateRecognizerFactory.register_strategy(ProviderEnum.DOCLING, DoclingStrategy)
-
-
 @patch("app.services.yolo_filter.get_yolo_model")
 def test_yolo_filter_eligible_vehicle(mock_get_model, sample_image_bytes):
     mock_box_car = MagicMock()
