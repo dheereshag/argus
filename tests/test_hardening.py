@@ -1,5 +1,5 @@
 """
-Tests for the NASA Power of 10 hardening.
+Tests for runtime contracts, bounds, resource lifecycle, and error isolation.
 """
 
 import io
@@ -21,7 +21,7 @@ def _jpeg(width: int, height: int) -> bytes:
 
 
 # ---------------------------------------------------------------------------
-# Rule 5 — contracts, not assert
+# Runtime contracts (preconditions and postconditions)
 # ---------------------------------------------------------------------------
 
 
@@ -58,7 +58,7 @@ def test_contracts_survive_optimised_mode():
 
 
 # ---------------------------------------------------------------------------
-# Rule 2 — every loop has a fixed upper bound
+# Fixed loop and sequence bounds
 # ---------------------------------------------------------------------------
 
 
@@ -116,7 +116,7 @@ def test_largest_boxes_are_the_ones_kept():
 
 
 # ---------------------------------------------------------------------------
-# Rule 6 — smallest scope; the singleton race
+# Thread-safe model singleton initialization
 # ---------------------------------------------------------------------------
 
 
@@ -147,7 +147,7 @@ def test_yolo_singleton_is_built_once_under_concurrency():
 
 
 # ---------------------------------------------------------------------------
-# Rule 7 — validate parameters, check returns
+# Parameter validation and boundary clamping
 # ---------------------------------------------------------------------------
 
 
@@ -195,7 +195,7 @@ def test_non_list_provider_output_is_handled():
 
 
 # ---------------------------------------------------------------------------
-# Rule 9 — no deep unchecked access chains
+# Safe nested API response parsing
 # ---------------------------------------------------------------------------
 
 
@@ -228,7 +228,7 @@ def test_wellformed_nvidia_response_is_extracted():
 
 
 # ---------------------------------------------------------------------------
-# Rule 3 — bounded, promptly released resources
+# Bounded and promptly released resources
 # ---------------------------------------------------------------------------
 
 

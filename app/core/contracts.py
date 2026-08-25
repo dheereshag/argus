@@ -1,37 +1,21 @@
 """
-Explicit runtime contracts (NASA Power of 10, rule 5).
+Explicit runtime contracts.
 
-Rule 5 asks for assertion density on safety-critical paths. Python's `assert`
-is the wrong tool for that here, for two reasons:
+Standard Python `assert` statements are stripped when running under `python -O`.
+`require()` for preconditions and `ensure()` for postconditions always raise
+`ContractViolation` regardless of optimization flags. They carry component-specific
+diagnostic messages and are catchable at API boundaries.
 
-  1. `python -O` strips every assert statement. A safety check that vanishes
-     under an optimisation flag is not a safety check — it is a comment that
-     happens to run in development. Production containers are exactly where
-     someone eventually adds -O.
-  2. The rule's stated intent is that a violated assertion takes a defined
-     recovery action, not that the process dies with an unhandled exception.
-
-So: `require()` for preconditions, `ensure()` for postconditions, both raising
-ContractViolation. They cannot be stripped, they carry a message naming the
-component, and they are catchable at the boundary so the API can answer with
-something honest rather than a stack trace.
-
-Deliberately NOT applied at rule 5's literal "two per function" density. That
-number was chosen for C flight software where a wild pointer write is
-unrecoverable and silent. Python raises on the equivalent mistakes by itself,
-so blanket assertions would be noise that trains reviewers to skim. These are
-placed only where a violation would otherwise pass silently into a plate read:
-
+Contracts are placed where an unexpected value would otherwise pass silently
+into downstream processing:
   - boundaries between components (YOLO -> cropping -> OCR -> API)
-  - anything derived from model output or a third-party response
-  - anything that indexes, slices, or bounds a loop
-
-See docs/NASA_RULES.md for the full rule-by-rule mapping.
+  - values derived from model output or third-party responses
+  - index, slice, and loop bounds
 """
 
 from __future__ import annotations
 
-from typing import Any, NoReturn, Optional, Sequence
+from typing import Any, Optional, Sequence
 
 
 class ContractViolation(RuntimeError):
@@ -67,14 +51,9 @@ def ensure(condition: Any, message: str) -> None:
         raise ContractViolation(f"postcondition failed: {message}")
 
 
-def unreachable(message: str) -> NoReturn:
-    """For branches that should be impossible. Documents the assumption."""
-    raise ContractViolation(f"unreachable: {message}")
-
-
 def bounded(items: Optional[Sequence[Any]], limit: int, what: str) -> Sequence[Any]:
     """
-    Enforce rule 2 (every loop has a fixed upper bound) at the data source.
+    Enforce fixed upper bounds on item sequences at the data source.
 
     Returns at most `limit` items. Truncation is a warning-level event, not an
     error: the caller asked for work we are declining to do without bound, and
@@ -93,7 +72,7 @@ def bounded(items: Optional[Sequence[Any]], limit: int, what: str) -> Sequence[A
 
     # Imported here to keep this module importable by anything, including the
     # logging configuration itself.
-    from app.core.logging import logger  # noqa: PLC0415
+    from app.core.logging import logger
 
     logger.warning(
         f"[bounds] {what}: {len(items)} exceeds cap of {limit}; "

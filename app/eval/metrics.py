@@ -136,7 +136,7 @@ class Labels:
 
     @property
     def without_plate(self) -> List[str]:
-        """The false-positive test set. See LABELLING.md."""
+        """The false-positive test set: images known not to contain a readable plate."""
         return [f for f, p in self.plates.items() if not p]
 
 
@@ -150,10 +150,7 @@ def load_labels(path: str) -> Labels:
     """
     if not os.path.exists(path):
         raise FileNotFoundError(
-            f"No labels at '{path}'. Accuracy cannot be measured without ground "
-            f"truth. Generate a template with:\n"
-            f"    uv run python scripts/make_labels_template.py <image_dir> -o {path}\n"
-            f"See LABELLING.md."
+            f"No labels at '{path}'. Accuracy cannot be measured without ground truth."
         )
 
     labels = Labels()
@@ -381,7 +378,7 @@ def format_report(m: Metrics) -> str:
             "",
             "  No labelled images matched this run.",
             "  Every 'success rate' without ground truth is an extraction rate,",
-            "  not accuracy. See LABELLING.md.",
+            "  not accuracy.",
             "",
             line,
         ]

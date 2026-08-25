@@ -303,7 +303,7 @@ def test_seeded_rows_are_tracked(tmp_path):
 def test_missing_labels_file_raises_with_guidance(tmp_path):
     with pytest.raises(FileNotFoundError) as exc:
         load_labels(str(tmp_path / "nope.csv"))
-    assert "make_labels_template" in str(exc.value)
+    assert "No labels at" in str(exc.value)
 
 
 # ---------------------------------------------------------------------------

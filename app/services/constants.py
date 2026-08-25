@@ -98,7 +98,6 @@ STATE_PREFIX_CORRECTIONS = {
     "D1": "DL",
     "D7": "DL",
     "H8": "HR",
-    "AS": "AS",
     "0D": "OD",
     "0R": "OR",
     "00": "OD",

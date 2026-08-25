@@ -14,20 +14,9 @@ def extract_message_content(payload: Any) -> Optional[str]:
     """
     Pull the assistant text out of an OpenAI-shaped chat completion response.
 
-    NASA rule 9 limits pointer dereferencing to a single level. Python has no
-    pointers, but the direct analogue is a chain of unchecked subscripts, and
-    the original was four deep:
-
-        res_json['choices'][0]['message']['content']
-
-    Every link is a separate way to raise. A rate-limit body, an error object, a
-    content filter, or an empty `choices` list all produce KeyError, IndexError
-    or TypeError — from inside a `try` that catches Exception and logs the
-    provider as merely "failed", so a malformed response and a network outage
-    become indistinguishable in the logs.
-
-    Each level is checked here, and the reason is returned to the caller as None
-    rather than thrown.
+    Safely traverses the nested dictionary structure (choices -> message -> content)
+    with explicit type checks at each level to handle rate limits, content filters,
+    or malformed responses without raising unhandled KeyErrors/IndexErrors.
     """
     if not isinstance(payload, dict):
         return None

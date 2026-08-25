@@ -20,13 +20,9 @@ dependencies = [
 ]
 
 [dependency-groups]
-# Dev-only tools. Install with: uv sync --group dev
 dev = [
     "httpx>=0.28.1",
-    "mypy>=1.14.0",
     "pytest>=8.0.0",
-    "ruff>=0.9.0",
-    "tabulate>=0.10.0",   # used by eval.py for formatted reports
 ]
 
 [tool.uv]
@@ -40,35 +36,3 @@ override-dependencies = ["opencv-python; sys_platform == 'unsupported_platform'"
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
-
-[tool.ruff]
-line-length = 120
-target-version = "py312"
-# Don't reformat Python snippets embedded in prose — those are illustrations, not code.
-extend-exclude = ["docs"]
-
-[tool.ruff.lint]
-# docs/NASA_RULES.md rule 10: pycodestyle, pyflakes, import sorting, bugbear,
-# mccabe complexity, pylint subset. Not the full default ruleset.
-select = ["E", "F", "I", "B", "C90", "PL"]
-ignore = [
-    "PLR2004",  # magic-value nag; this is a numeric CV pipeline, not a bug signal
-    "E501",     # ruff format already wraps what it safely can; the rest is unsplittable strings
-    "PLC0415",  # deferred imports inside test functions are deliberate, not a bug signal
-]
-
-[tool.mypy]
-python_version = "3.12"
-plugins = ["pydantic.mypy"]
-# docs/NASA_RULES.md rule 10: not strict — these four flags catch real bugs
-# without demanding full annotations on every existing function.
-warn_unreachable = true
-warn_return_any = true
-no_implicit_optional = true
-check_untyped_defs = true
-
-# docs/NASA_RULES.md rule 10: untyped third-party packages listed individually
-# rather than a blanket ignore_missing_imports, so adding one is a visible decision.
-[[tool.mypy.overrides]]
-module = ["cv2.*"]
-ignore_missing_imports = true

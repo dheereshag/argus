@@ -46,7 +46,7 @@ class Settings(BaseSettings):
     REJECT_ON_HUMAN_DETECTED: bool = False
     REJECT_ON_MULTIPLE_VEHICLES: bool = False
 
-    # Work bounds (NASA rule 2 — every loop has a fixed upper bound).
+    # Work bounds (fixed upper bound on vehicle boxes evaluated).
     # Boxes are area-sorted, so the largest few are the only plausible candidates.
     MAX_VEHICLE_BOXES: int = 5
 

@@ -51,7 +51,7 @@ def get_yolo_model() -> YOLO:
 PERSON_CLASS_ID = 0
 FOUR_WHEELER_CLASS_NAMES = {2: "car", 5: "bus", 7: "truck"}
 
-# Upper bound on detections examined per frame (NASA rule 2).
+# Upper bound on detections examined per frame.
 MAX_DETECTIONS = 100
 
 
@@ -62,7 +62,7 @@ def _run_detection(
 ) -> tuple[bool, list[tuple[str, BoundingBox]]]:
     """
     Run YOLO and extract (human_present, area-sorted vehicles).
-    Every coordinate is clamped to the real frame before leaving this function (NASA rule 7).
+    Every coordinate is clamped to the real frame before leaving this function.
     """
     require(pil_img is not None, "_run_detection called with no image")
 

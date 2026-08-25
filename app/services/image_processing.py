@@ -3,7 +3,7 @@ import os
 
 import cv2
 import numpy as np
-from PIL import Image, ImageDraw, ImageFile, ImageOps
+from PIL import Image, ImageFile, ImageOps
 
 from app.core.config import settings
 from app.core.contracts import ensure, require
@@ -13,7 +13,7 @@ from app.core.exceptions import InvalidImageError, PayloadTooLargeError
 type BoundingBox = tuple[int, int, int, int]
 type ImageInput = str | bytes | Image.Image | np.ndarray
 
-# Decompression-bomb guard (NASA rule 3/7). Pillow's default limit only emits a warning;
+# Decompression-bomb guard. Pillow's default limit only emits a warning;
 # this makes an oversized image raise before allocation.
 Image.MAX_IMAGE_PIXELS = settings.MAX_IMAGE_PIXELS
 ImageFile.LOAD_TRUNCATED_IMAGES = True
@@ -168,7 +168,7 @@ def clamp_box(
     height: int,
 ) -> BoundingBox | None:
     """
-    Clamp an xyxy box to real image bounds (NASA rule 7).
+    Clamp an xyxy box to real image bounds.
     Returns None when the box is malformed or degenerate after clamping.
     """
     require(width > 0 and height > 0, f"image dimensions must be positive, got {width}x{height}")
@@ -264,40 +264,3 @@ def crop_image_roi(
     cropped = pil_img.crop((0, crop_top, w, h))
     ensure(min(cropped.size) > 0, "full-frame ROI crop collapsed to zero size")
     return _to_jpeg_bytes(cropped)
-
-
-def save_debug_images(
-    img_bytes: bytes,
-    filename: str,
-    vehicle_boxes: list[BoundingBox],
-    vehicle_type: str,
-    output_dir: str = "eval_debug_crops",
-) -> None:
-    """
-    Save annotated YOLO box image and cropped vehicle images for debugging.
-    """
-    os.makedirs(output_dir, exist_ok=True)
-    base_stem, _ = os.path.splitext(os.path.basename(filename or "image.jpg"))
-    base_stem = base_stem or "image"
-
-    pil_img = load_rgb(img_bytes)
-    w, h = pil_img.size
-
-    # Annotated image with YOLO bounding box
-    annotated = pil_img.copy()
-    draw = ImageDraw.Draw(annotated)
-
-    if vehicle_boxes:
-        for idx, box in enumerate(vehicle_boxes):
-            clamped = clamp_box(box, w, h)
-            if clamped is not None:
-                x1, y1, x2, y2 = clamped
-                draw.rectangle([x1, y1, x2, y2], outline="red", width=3)
-                label = f"{vehicle_type}" if len(vehicle_boxes) == 1 else f"{vehicle_type} #{idx + 1}"
-                draw.rectangle([x1, max(0, y1 - 20), x1 + len(label) * 9 + 6, max(0, y1)], fill="red")
-                draw.text((x1 + 3, max(0, y1 - 18)), label, fill="white")
-    else:
-        draw.rectangle([10, 10, 150, 35], fill="gray")
-        draw.text((15, 15), "No Vehicle Box", fill="white")
-
-    annotated.save(os.path.join(output_dir, f"{base_stem}_yolo_boxes.jpg"))

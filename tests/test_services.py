@@ -4,7 +4,12 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from app.core.exceptions import ProviderNotFoundError
-from app.schemas.plate import ProviderEnum, RecognitionStatusEnum
+from app.schemas.plate import (
+    BoundingBox,
+    ImageInput,
+    ProviderEnum,
+    RecognitionStatusEnum,
+)
 from app.services.base import BasePlateRecognizer
 from app.services.constants import INDIAN_PLATE_REGEX, STATE_CODES
 from app.services.factory import PlateRecognizerFactory
@@ -22,17 +27,17 @@ class DummyStrategy(BasePlateRecognizer):
 
     def _recognize_single_image(
         self,
-        image_input: Union[str, bytes],
+        image_input: ImageInput,
         filename: str = "image.jpg",
     ) -> List[Dict[str, Any]]:
         return [{"plate": "MH12AB1234", "state": "Maharashtra"}]
 
     def recognize(
         self,
-        image_input: Union[str, bytes],
+        image_input: ImageInput,
         filename: str = "image.jpg",
-        vehicle_box: Optional[Tuple[int, int, int, int]] = None,
-        vehicle_boxes: Optional[List[Tuple[int, int, int, int]]] = None,
+        vehicle_box: BoundingBox | None = None,
+        vehicle_boxes: list[BoundingBox] | None = None,
         **kwargs: Any,
     ) -> List[Dict[str, Any]]:
         return [{"plate": "MH12AB1234", "state": "Maharashtra"}]

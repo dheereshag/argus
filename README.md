@@ -16,7 +16,6 @@ LLAMA_API_KEY=your_llama_api_key
 NEMOTRON_API_KEY=your_nemotron_api_key
 NVIDIA_INVOKE_URL=https://integrate.api.nvidia.com/v1/chat/completions
 DEFAULT_PROVIDER=docling
-DOCLING_OCR_ENGINE=rapidocr
 YOLO_MODEL_NAME=yolo11n.pt
 YOLO_CONFIG_DIR=/tmp/Ultralytics
 HUMAN_CONF_THRESH=0.30
@@ -73,15 +72,10 @@ else:
 
 ---
 
-## 🧪 Evaluation & Direct Testing
+## 🧪 Direct Strategy Testing
 
 ### Run Direct Strategy Benchmark
 ```bash
 uv run python test_direct.py docling
-```
-
-### Run Evaluation Against Ground Truth
-```bash
-uv run python eval.py --docling
 ```
 
