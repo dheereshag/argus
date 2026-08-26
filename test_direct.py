@@ -40,7 +40,7 @@ def test_models():
     for st_name in selected_strategies:
         try:
             strategy_engines[st_name] = PlateRecognizerFactory.get_recognizer(st_name)
-        except Exception as e:
+        except (ValueError, KeyError, RuntimeError, ImportError) as e:
             print(f"Error instantiating strategy '{st_name}': {e}")
 
     for img_path in image_paths:

@@ -2,10 +2,15 @@ import time
 from typing import Any
 
 from pydantic import ValidationError
+from requests.exceptions import RequestException
 
 from app.core.config import settings
 from app.core.contracts import ContractViolation
-from app.core.exceptions import InvalidImageError, PayloadTooLargeError
+from app.core.exceptions import (
+    ANPRServiceError,
+    InvalidImageError,
+    PayloadTooLargeError,
+)
 from app.core.logging import logger
 from app.schemas.plate import (
     BoundingBox,
@@ -77,7 +82,7 @@ def run_waterfall(
             )
         except ContractViolation:
             raise
-        except Exception as exc:
+        except (ANPRServiceError, RequestException, ValueError, RuntimeError, OSError, KeyError, AttributeError) as exc:
             logger.error(f"Provider '{provider.value}' encountered an error: {exc}. Falling back to next provider...")
             continue
 

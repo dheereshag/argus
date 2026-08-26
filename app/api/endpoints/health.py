@@ -38,7 +38,7 @@ async def health_check() -> HealthResponse:
                 "human_conf_thresh": settings.HUMAN_CONF_THRESH,
             },
         )
-    except Exception as exc:
+    except (RuntimeError, ValueError, OSError, AttributeError) as exc:
         logger.error(f"Health check failed for YOLO component: {exc}")
         components["yolo"] = ComponentHealth(
             status=HealthStatusEnum.UNHEALTHY,
@@ -61,7 +61,7 @@ async def health_check() -> HealthResponse:
                 details="Docling RapidOCR engine failed verification.",
             )
             overall_status = HealthStatusEnum.DEGRADED
-    except Exception as exc:
+    except (RuntimeError, ValueError, OSError, AttributeError, ImportError) as exc:
         logger.error(f"Health check failed for Docling component: {exc}")
         components["docling"] = ComponentHealth(
             status=HealthStatusEnum.UNHEALTHY,
@@ -83,7 +83,7 @@ async def health_check() -> HealthResponse:
                 "has_nemotron_api_key": bool(settings.NEMOTRON_API_KEY),
             },
         )
-    except Exception as exc:
+    except (ValueError, KeyError, AttributeError) as exc:
         logger.error(f"Health check failed for providers component: {exc}")
         components["providers"] = ComponentHealth(
             status=HealthStatusEnum.DEGRADED,

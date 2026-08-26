@@ -147,7 +147,7 @@ class NvidiaVisionStrategy(BasePlateRecognizer):
                     logger.error(
                         f"[NvidiaVisionStrategy] Error {response.status_code} with key '{key[:12]}...': {response.text}"
                     )
-            except Exception as e:
+            except (requests.RequestException, ValueError, KeyError, TimeoutError) as e:
                 logger.error(f"[NvidiaVisionStrategy] Exception with key '{key[:12]}...': {e}")
 
         return []

@@ -30,13 +30,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     try:
         get_yolo_model()
         logger.info("YOLO v11 model loaded and warmed successfully.")
-    except Exception as exc:
+    except (RuntimeError, ValueError, OSError, AttributeError) as exc:
         logger.warning(f"Non-fatal warning warming YOLO model during startup: {exc}")
 
     try:
         check_docling_engine()
         logger.info("Docling OCR engine verified successfully.")
-    except Exception as exc:
+    except (RuntimeError, ValueError, OSError, AttributeError, ImportError) as exc:
         logger.warning(f"Non-fatal warning checking Docling engine during startup: {exc}")
 
     registered = [p.value for p in PlateRecognizerFactory.list_providers()]

@@ -43,11 +43,11 @@ class PlateRecognizerStrategy(BasePlateRecognizer):
             )
             return []
 
-        files = dict(upload=(filename, img_bytes, "image/jpeg"))
+        files = {"upload": (filename, img_bytes, "image/jpeg")}
         try:
             response = requests.post(
                 self.api_url,
-                data=dict(regions=self.regions),
+                data={"regions": self.regions},
                 files=files,
                 headers={"Authorization": f"Token {self.api_token}"},
                 timeout=(settings.HTTP_CONNECT_TIMEOUT, settings.HTTP_READ_TIMEOUT),

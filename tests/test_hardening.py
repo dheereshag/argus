@@ -46,9 +46,11 @@ def test_contracts_survive_optimised_mode():
             sys.executable,
             "-O",
             "-c",
-            "from app.core.contracts import require, ContractViolation\n"
-            "try: require(False, 'test'); print('LIVED')\n"
-            "except ContractViolation: print('RAISED')\n",
+            (
+                "from app.core.contracts import require, ContractViolation\n"
+                "try: require(False, 'test'); print('LIVED')\n"
+                "except ContractViolation: print('RAISED')\n"
+            ),
         ],
         capture_output=True,
         text=True,

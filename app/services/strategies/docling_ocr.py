@@ -71,7 +71,7 @@ def _get_box_centroid(box: Any) -> tuple[float | None, float | None]:
                 pts_x = [pt[0] for pt in box]
                 pts_y = [pt[1] for pt in box]
                 return float(np.mean(pts_x)), float(np.mean(pts_y))
-    except Exception:
+    except (TypeError, ValueError, IndexError, AttributeError):
         pass
     return None, None
 
@@ -140,7 +140,7 @@ class DoclingStrategy(BasePlateRecognizer):
                         box, text, score = item[0], item[1], item[2]
                         cx, cy = _get_box_centroid(box)
                         raw_items.append(OCRToken(text=str(text), score=float(score), cx=cx, cy=cy))
-        except Exception as e:
+        except (RuntimeError, ValueError, TypeError, IndexError, AttributeError, OSError) as e:
             logger.error(f"[docling/rapidocr] OCR execution failed: {e}")
             return []
 
@@ -165,18 +165,21 @@ class DoclingStrategy(BasePlateRecognizer):
 
             # Full line cleaned
             cleaned = re.sub(r"[^A-Za-z0-9]", "", token.text).upper()
-            if cleaned and len(cleaned) >= 2 and not _is_decal_word(cleaned):
-                if cleaned not in seen_tokens:
-                    seen_tokens.add(cleaned)
-                    clean_tokens.append(OCRToken(text=cleaned, score=token.score, cx=token.cx, cy=token.cy))
+            if cleaned and len(cleaned) >= 2 and not _is_decal_word(cleaned) and cleaned not in seen_tokens:
+                seen_tokens.add(cleaned)
+                clean_tokens.append(OCRToken(text=cleaned, score=token.score, cx=token.cx, cy=token.cy))
 
             # Sub-tokens (when a line contains multiple space-separated words)
             for part in token.text.split():
                 part_cleaned = re.sub(r"[^A-Za-z0-9]", "", part).upper()
-                if part_cleaned and len(part_cleaned) >= 2 and not _is_decal_word(part_cleaned):
-                    if part_cleaned not in seen_tokens:
-                        seen_tokens.add(part_cleaned)
-                        clean_tokens.append(OCRToken(text=part_cleaned, score=token.score, cx=token.cx, cy=token.cy))
+                if (
+                    part_cleaned
+                    and len(part_cleaned) >= 2
+                    and not _is_decal_word(part_cleaned)
+                    and part_cleaned not in seen_tokens
+                ):
+                    seen_tokens.add(part_cleaned)
+                    clean_tokens.append(OCRToken(text=part_cleaned, score=token.score, cx=token.cx, cy=token.cy))
 
         raw_text_summary = " ".join(raw_text_parts) if raw_text_parts else "N/A"
 
@@ -254,7 +257,7 @@ class DoclingStrategy(BasePlateRecognizer):
                 return res_enh
             if res_enh:
                 return res_enh
-        except Exception as e:
+        except (cv2.error, ValueError, RuntimeError, OSError, TypeError) as e:
             logger.debug(f"Contrast enhancement fallback skipped: {e}")
 
         return res
