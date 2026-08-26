@@ -48,10 +48,26 @@ def test_recognize_sample_image(client, sample_image_bytes):
     data = response.json()
     validated = RecognitionResponse.model_validate(data)
     assert validated.filename == "test.jpg"
-    # Plain red box has no 4-wheeler vehicle
+    # Plain red box has no 4-wheeler vehicle, default policy proceeds to OCR where no plate is found
     assert validated.vehicle_detected is False
-    assert validated.status == RecognitionStatusEnum.REJECTED_NO_FOUR_WHEELER
-    assert validated.rejected is True
+    assert validated.status == RecognitionStatusEnum.NO_PLATE_DETECTED
+    assert validated.rejected is False
+    assert validated.success is False
+
+
+def test_recognize_sample_image_rejected_when_policy_enabled(client, sample_image_bytes):
+    with patch("app.services.yolo_filter.settings.REJECT_ON_NO_VEHICLE", True):
+        response = client.post(
+            "/recognize",
+            files={"file": ("test.jpg", sample_image_bytes, "image/jpeg")},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        validated = RecognitionResponse.model_validate(data)
+        assert validated.filename == "test.jpg"
+        assert validated.vehicle_detected is False
+        assert validated.status == RecognitionStatusEnum.REJECTED_NO_FOUR_WHEELER
+        assert validated.rejected is True
 
 
 def test_recognize_real_image_if_present(client):

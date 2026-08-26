@@ -45,6 +45,7 @@ class Settings(BaseSettings):
     # Pre-screening Rejection Policies
     REJECT_ON_HUMAN_DETECTED: bool = False
     REJECT_ON_MULTIPLE_VEHICLES: bool = False
+    REJECT_ON_NO_VEHICLE: bool = False
 
     # Work bounds (fixed upper bound on vehicle boxes evaluated).
     # Boxes are area-sorted, so the largest few are the only plausible candidates.

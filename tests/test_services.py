@@ -146,7 +146,7 @@ def test_yolo_filter_human_detection_policy(mock_get_model, sample_image_bytes):
 
 
 @patch("app.services.yolo_filter.get_yolo_model")
-def test_yolo_filter_rejected_no_four_wheeler(mock_get_model, sample_image_bytes):
+def test_yolo_filter_no_vehicle_policy(mock_get_model, sample_image_bytes):
     mock_box_empty = MagicMock()
     mock_box_empty.__len__.return_value = 0
     mock_box_empty.cls.cpu().numpy.return_value = []
@@ -160,10 +160,19 @@ def test_yolo_filter_rejected_no_four_wheeler(mock_get_model, sample_image_bytes
     mock_model.return_value = [mock_results]
     mock_get_model.return_value = mock_model
 
-    res = filter_vehicle_and_occupancy(sample_image_bytes)
-    assert res["is_eligible"] is False
-    assert res["status"] == RecognitionStatusEnum.REJECTED_NO_FOUR_WHEELER
-    assert res["vehicle_detected"] is False
+    # Default policy: reject_on_no_vehicle is False -> eligible for direct plate OCR
+    res_default = filter_vehicle_and_occupancy(sample_image_bytes)
+    assert res_default["is_eligible"] is True
+    assert res_default["status"] is None
+    assert res_default["vehicle_detected"] is False
+    assert res_default["vehicle_count"] == 0
+
+    # Explicit policy: reject_on_no_vehicle is True -> rejected
+    res_rejected = filter_vehicle_and_occupancy(sample_image_bytes, reject_on_no_vehicle=True)
+    assert res_rejected["is_eligible"] is False
+    assert res_rejected["status"] == RecognitionStatusEnum.REJECTED_NO_FOUR_WHEELER
+    assert res_rejected["vehicle_detected"] is False
+    assert res_rejected["vehicle_count"] == 0
 
 
 @patch("app.services.yolo_filter.get_yolo_model")

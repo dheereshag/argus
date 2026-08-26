@@ -174,15 +174,22 @@ def recognize_plate_image(
     final_status = RecognitionStatusEnum.SUCCESS if has_valid_plate else RecognitionStatusEnum.NO_PLATE_DETECTED
 
     if has_valid_plate:
-        status_msg = (
-            f"License plate successfully detected and recognized on "
-            f"{yolo_result['vehicle_type'] or 'vehicle'} via {active_provider.value}."
-        )
+        target_name = yolo_result["vehicle_type"] or ("vehicle" if yolo_result["vehicle_detected"] else None)
+        if target_name:
+            status_msg = (
+                f"License plate successfully detected and recognized on "
+                f"{target_name} via {active_provider.value}."
+            )
+        else:
+            status_msg = f"License plate successfully detected and recognized via {active_provider.value}."
     else:
-        status_msg = (
-            f"4-wheeler ({yolo_result['vehicle_type'] or 'vehicle'}) detected, "
-            f"but no readable license plate characters could be recognized."
-        )
+        if yolo_result["vehicle_detected"]:
+            status_msg = (
+                f"4-wheeler ({yolo_result['vehicle_type'] or 'vehicle'}) detected, "
+                f"but no readable license plate characters could be recognized."
+            )
+        else:
+            status_msg = "No vehicle detected and no readable license plate characters could be recognized."
 
     return RecognitionResponse(
         success=has_valid_plate,

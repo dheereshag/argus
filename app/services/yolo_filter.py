@@ -125,6 +125,7 @@ def filter_vehicle_and_occupancy(
     vehicle_conf_thresh: float | None = None,
     reject_on_human: bool | None = None,
     reject_on_multiple_vehicles: bool | None = None,
+    reject_on_no_vehicle: bool | None = None,
 ) -> YoloResult:
     """
     Pre-screening gate combining vehicle detection and occupancy filtering.
@@ -134,6 +135,9 @@ def filter_vehicle_and_occupancy(
     reject_on_human = reject_on_human if reject_on_human is not None else settings.REJECT_ON_HUMAN_DETECTED
     reject_on_multiple_vehicles = (
         reject_on_multiple_vehicles if reject_on_multiple_vehicles is not None else settings.REJECT_ON_MULTIPLE_VEHICLES
+    )
+    reject_on_no_vehicle = (
+        reject_on_no_vehicle if reject_on_no_vehicle is not None else settings.REJECT_ON_NO_VEHICLE
     )
 
     require(
@@ -185,10 +189,23 @@ def filter_vehicle_and_occupancy(
         }
 
     if vehicle_count == 0:
+        if reject_on_no_vehicle:
+            return {
+                "is_eligible": False,
+                "status": RecognitionStatusEnum.REJECTED_NO_FOUR_WHEELER,
+                "status_message": "Image rejected: No 4-wheeler vehicle (car, bus, truck) detected.",
+                "vehicle_detected": False,
+                "vehicle_type": None,
+                "human_detected": human_detected,
+                "vehicle_box": None,
+                "vehicle_boxes": [],
+                "vehicle_count": 0,
+            }
+        occupancy_note = "with human presence" if human_detected else "with no human occupancy"
         return {
-            "is_eligible": False,
-            "status": RecognitionStatusEnum.REJECTED_NO_FOUR_WHEELER,
-            "status_message": "Image rejected: No 4-wheeler vehicle (car, bus, truck) detected.",
+            "is_eligible": True,
+            "status": None,
+            "status_message": f"No vehicle detected ({occupancy_note}). Eligible for direct plate recognition.",
             "vehicle_detected": False,
             "vehicle_type": None,
             "human_detected": human_detected,
