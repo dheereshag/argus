@@ -76,6 +76,6 @@ else:
 
 ### Run Direct Strategy Benchmark
 ```bash
-uv run python test_direct.py docling
+uv run python -m scripts.benchmark_strategies docling
 ```
 
