@@ -15,7 +15,7 @@ type ImageInput = str | bytes | Image.Image | np.ndarray
 # Decompression-bomb guard. Pillow's default limit only emits a warning;
 # this makes an oversized image raise before allocation.
 Image.MAX_IMAGE_PIXELS = settings.MAX_IMAGE_PIXELS
-ImageFile.LOAD_TRUNCATED_IMAGES = True
+object.__setattr__(ImageFile, "LOAD_TRUNCATED_IMAGES", True)
 
 # A crop narrower than this cannot contain a readable plate. Used to reject
 # degenerate boxes rather than feeding a 2-pixel sliver to downstream models.

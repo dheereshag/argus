@@ -121,7 +121,7 @@ class BasePlateRecognizer(ABC):
 
         return raw_text_fallbacks[0] if raw_text_fallbacks else []
 
-    def parse_plate_info(self, raw_plate: str) -> dict[str, Any] | None:
+    def parse_plate_info(self, raw_plate: str | None) -> dict[str, Any] | None:
         """
         Validate candidate plate string against Indian plate regex and resolve State/UT.
         Strips whitespace and normalizes known state prefix confusions (e.g. W8 -> WB).

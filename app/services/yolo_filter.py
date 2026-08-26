@@ -67,7 +67,7 @@ def _run_detection(
     require(pil_img is not None, "_run_detection called with no image")
 
     width, height = pil_img.size
-    results = get_yolo_model()(pil_img, verbose=False)[0]  # type: ignore[index]  # ultralytics' stub is broader than a single-image call's real return type
+    results = next(iter(get_yolo_model()(pil_img, verbose=False)))
 
     human_detected = False
     vehicles: list[tuple[int, str, BoundingBox]] = []

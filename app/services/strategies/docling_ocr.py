@@ -117,13 +117,15 @@ class DoclingStrategy(BasePlateRecognizer):
 
         try:
             res = engine(np_img)
-            if res is None:
-                return []  # type: ignore[unreachable]  # RapidOCR's stub promises non-None; defend anyway
+            if not res:
+                return []
 
             # RapidOCR v3.9+ returns RapidOCROutput with .txts, .scores, .boxes
-            if hasattr(res, "txts") and hasattr(res, "scores") and res.txts and res.scores:
+            txts = getattr(res, "txts", None)
+            scores = getattr(res, "scores", None)
+            if txts and scores:
                 boxes = getattr(res, "boxes", None)
-                for idx, (t, s) in enumerate(zip(res.txts, res.scores, strict=False)):
+                for idx, (t, s) in enumerate(zip(txts, scores, strict=False)):
                     cx, cy = _get_box_centroid(boxes[idx]) if (boxes is not None and idx < len(boxes)) else (None, None)
                     raw_items.append(OCRToken(text=str(t), score=float(s), cx=cx, cy=cy))
 

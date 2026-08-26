@@ -6,13 +6,13 @@ import pytest
 from app.core.exceptions import ProviderNotFoundError
 from app.schemas.plate import (
     BoundingBox,
-    ImageInput,
     ProviderEnum,
     RecognitionStatusEnum,
 )
 from app.services.base import BasePlateRecognizer
 from app.services.constants import INDIAN_PLATE_REGEX, STATE_CODES
 from app.services.factory import PlateRecognizerFactory
+from app.services.image_processing import ImageInput
 from app.services.strategies.docling_ocr import (
     DoclingStrategy,
     normalize_candidate_strings,
@@ -27,7 +27,7 @@ class DummyStrategy(BasePlateRecognizer):
 
     def _recognize_single_image(
         self,
-        image_input: ImageInput,
+        image_input: str | bytes,
         filename: str = "image.jpg",
     ) -> list[dict[str, Any]]:
         return [{"plate": "MH12AB1234", "state": "Maharashtra"}]
@@ -38,7 +38,6 @@ class DummyStrategy(BasePlateRecognizer):
         filename: str = "image.jpg",
         vehicle_box: BoundingBox | None = None,
         vehicle_boxes: list[BoundingBox] | None = None,
-        **kwargs: Any,
     ) -> list[dict[str, Any]]:
         return [{"plate": "MH12AB1234", "state": "Maharashtra"}]
 
@@ -70,7 +69,7 @@ def test_base_plate_recognizer_parse_plate_info():
 
     # Test none / empty input
     assert strategy.parse_plate_info("") is None
-    assert strategy.parse_plate_info(None) is None  # type: ignore
+    assert strategy.parse_plate_info(None) is None
 
     # Test invalid plate input returns None (no unvalidated fallback)
     assert strategy.parse_plate_info("XX999999") is None
