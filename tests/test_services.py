@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -29,7 +29,7 @@ class DummyStrategy(BasePlateRecognizer):
         self,
         image_input: ImageInput,
         filename: str = "image.jpg",
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         return [{"plate": "MH12AB1234", "state": "Maharashtra"}]
 
     def recognize(
@@ -39,7 +39,7 @@ class DummyStrategy(BasePlateRecognizer):
         vehicle_box: BoundingBox | None = None,
         vehicle_boxes: list[BoundingBox] | None = None,
         **kwargs: Any,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         return [{"plate": "MH12AB1234", "state": "Maharashtra"}]
 
 

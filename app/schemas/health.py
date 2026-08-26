@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
@@ -22,7 +22,7 @@ class HealthResponse(BaseModel):
     project_name: str = Field(..., description="Name of the service")
     version: str = Field(..., description="Current running application version")
     timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         description="Timestamp in UTC when health check was performed",
     )
     components: dict[str, ComponentHealth] = Field(

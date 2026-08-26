@@ -1,7 +1,7 @@
 import time
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
-from typing import AsyncGenerator
+from datetime import UTC, datetime
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -87,7 +87,7 @@ def create_app() -> FastAPI:
             status_code=exc.status_code,
             message=exc.message,
             error_type=exc.__class__.__name__,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         return JSONResponse(
             status_code=exc.status_code,
@@ -103,7 +103,7 @@ def create_app() -> FastAPI:
             message="Internal system assertion contract failed.",
             error_type="ContractViolation",
             details=str(exc),
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         return JSONResponse(
             status_code=500,
@@ -119,7 +119,7 @@ def create_app() -> FastAPI:
             message="Request validation error.",
             error_type="RequestValidationError",
             details=exc.errors(),
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         return JSONResponse(
             status_code=422,
@@ -134,7 +134,7 @@ def create_app() -> FastAPI:
             status_code=500,
             message="An internal server error occurred.",
             error_type="InternalServerError",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         return JSONResponse(
             status_code=500,

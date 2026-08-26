@@ -32,7 +32,7 @@ _YOLO_LOCK = threading.Lock()
 
 
 def get_yolo_model() -> YOLO:
-    global _YOLO_MODEL  # noqa: PLW0603 — thread-locked lazy singleton, deliberate
+    global _YOLO_MODEL
     if _YOLO_MODEL is None:
         with _YOLO_LOCK:
             if _YOLO_MODEL is None:

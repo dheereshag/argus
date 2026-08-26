@@ -15,7 +15,8 @@ into downstream processing:
 
 from __future__ import annotations
 
-from typing import Any, Optional, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 
 class ContractViolation(RuntimeError):
@@ -51,7 +52,7 @@ def ensure(condition: Any, message: str) -> None:
         raise ContractViolation(f"postcondition failed: {message}")
 
 
-def bounded(items: Optional[Sequence[Any]], limit: int, what: str) -> Sequence[Any]:
+def bounded(items: Sequence[Any] | None, limit: int, what: str) -> Sequence[Any]:
     """
     Enforce fixed upper bounds on item sequences at the data source.
 

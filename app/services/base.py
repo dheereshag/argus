@@ -28,9 +28,8 @@ class BasePlateRecognizer(ABC):
         Subclasses implement OCR / VLM plate extraction on a single image buffer.
         Returns a list of dicts with keys: 'plate', 'state', 'raw_text'.
         """
-        pass
 
-    def recognize(  # noqa: C901, PLR0912, PLR0915 — hierarchical crop/deskew/fallback waterfall, not a bug signal
+    def recognize(
         self,
         image_input: ImageInput,
         filename: str = "image.jpg",

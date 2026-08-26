@@ -107,7 +107,7 @@ class DoclingStrategy(BasePlateRecognizer):
     with 2D spatial layout parsing, slotted dataclass token evaluation, and vertical bumper candidate ranking.
     """
 
-    def _extract_plates_from_image_array(self, img_pil: Image.Image) -> list[dict[str, Any]]:  # noqa: C901, PLR0912, PLR0915
+    def _extract_plates_from_image_array(self, img_pil: Image.Image) -> list[dict[str, Any]]:
         require(img_pil is not None, "_extract_plates_from_image_array received None")
 
         engine = get_docling_engine()

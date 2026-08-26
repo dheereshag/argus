@@ -37,8 +37,9 @@ from __future__ import annotations
 import csv
 import os
 import re
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass, field
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any
 
 SEED_MARKER = "SEEDED-VERIFY"
 
@@ -57,7 +58,7 @@ _NON_ALNUM = re.compile(r"[^A-Za-z0-9]")
 # ---------------------------------------------------------------------------
 
 
-def normalise_plate(value: Optional[str]) -> str:
+def normalise_plate(value: str | None) -> str:
     """
     Uppercase, strip everything that is not alphanumeric.
 
@@ -120,9 +121,9 @@ def character_error_rate(truth: str | None, prediction: str | None) -> float:
 
 @dataclass
 class Labels:
-    plates: Dict[str, str] = field(default_factory=dict)
-    notes: Dict[str, str] = field(default_factory=dict)
-    seeded: List[str] = field(default_factory=list)
+    plates: dict[str, str] = field(default_factory=dict)
+    notes: dict[str, str] = field(default_factory=dict)
+    seeded: list[str] = field(default_factory=list)
 
     def __contains__(self, filename: str) -> bool:
         return filename in self.plates
@@ -131,11 +132,11 @@ class Labels:
         return len(self.plates)
 
     @property
-    def with_plate(self) -> List[str]:
+    def with_plate(self) -> list[str]:
         return [f for f, p in self.plates.items() if p]
 
     @property
-    def without_plate(self) -> List[str]:
+    def without_plate(self) -> list[str]:
         """The false-positive test set: images known not to contain a readable plate."""
         return [f for f, p in self.plates.items() if not p]
 
@@ -172,7 +173,7 @@ def load_labels(path: str) -> Labels:
 # ---------------------------------------------------------------------------
 
 
-def classify(true_plate: Optional[str], predicted: Optional[str], labelled: bool = True) -> str:
+def classify(true_plate: str | None, predicted: str | None, labelled: bool = True) -> str:
     if not labelled:
         return UNLABELLED
     truth, pred = normalise_plate(true_plate), normalise_plate(predicted)
@@ -185,7 +186,7 @@ def classify(true_plate: Optional[str], predicted: Optional[str], labelled: bool
     return TRUE_NEGATIVE
 
 
-def _percentile(values: List[float], pct: float) -> float:
+def _percentile(values: list[float], pct: float) -> float:
     """Nearest-rank percentile. No numpy dependency, and exact for small sets."""
     if not values:
         return 0.0
@@ -217,20 +218,20 @@ class Metrics:
     mean_cer: float = 0.0
     precision: float = 0.0
 
-    status_breakdown: Dict[str, int] = field(default_factory=dict)
-    provider_breakdown: Dict[str, int] = field(default_factory=dict)
+    status_breakdown: dict[str, int] = field(default_factory=dict)
+    provider_breakdown: dict[str, int] = field(default_factory=dict)
 
     latency_p50_ms: float = 0.0
     latency_p95_ms: float = 0.0
     latency_max_ms: float = 0.0
 
-    per_image: List[Dict[str, Any]] = field(default_factory=list)
+    per_image: list[dict[str, Any]] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
-def evaluate(rows: Iterable[Dict[str, Any]], labels: Labels) -> Metrics:  # noqa: C901, PLR0912, PLR0915 - evaluation aggregates metrics, latency, classification & records in one loop
+def evaluate(rows: Iterable[dict[str, Any]], labels: Labels) -> Metrics:
     """
     Score eval rows against ground truth.
 
@@ -238,8 +239,8 @@ def evaluate(rows: Iterable[Dict[str, Any]], labels: Labels) -> Metrics:  # noqa
     exec_time_ms.
     """
     m = Metrics()
-    cers: List[float] = []
-    latencies: List[float] = []
+    cers: list[float] = []
+    latencies: list[float] = []
 
     for row in rows:
         filename = row.get("filename", "")
@@ -328,11 +329,11 @@ def evaluate(rows: Iterable[Dict[str, Any]], labels: Labels) -> Metrics:  # noqa
 @dataclass
 class RegressionVerdict:
     passed: bool
-    failures: List[str] = field(default_factory=list)
-    improvements: List[str] = field(default_factory=list)
+    failures: list[str] = field(default_factory=list)
+    improvements: list[str] = field(default_factory=list)
 
 
-def compare_to_baseline(current: Metrics, baseline: Dict[str, Any], tolerance: float = 0.01) -> RegressionVerdict:
+def compare_to_baseline(current: Metrics, baseline: dict[str, Any], tolerance: float = 0.01) -> RegressionVerdict:
     """
     Fail if accuracy dropped or false positives rose beyond `tolerance`.
 

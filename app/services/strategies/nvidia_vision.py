@@ -1,6 +1,6 @@
 import base64
 import os
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 import requests
 
@@ -10,7 +10,7 @@ from app.services.base import BasePlateRecognizer
 from app.services.constants import INDIAN_PLATE_REGEX
 
 
-def extract_message_content(payload: Any) -> Optional[str]:
+def extract_message_content(payload: Any) -> str | None:
     """
     Pull the assistant text out of an OpenAI-shaped chat completion response.
 
@@ -52,7 +52,7 @@ class NvidiaVisionStrategy(BasePlateRecognizer):
         self.invoke_url = invoke_url or settings.NVIDIA_INVOKE_URL
         self.model_name = model_name or "meta/llama-3.2-11b-vision-instruct"
 
-    def _get_api_keys(self) -> List[str]:
+    def _get_api_keys(self) -> list[str]:
         keys = []
         if self.api_key:
             keys.append(self.api_key)
@@ -62,7 +62,7 @@ class NvidiaVisionStrategy(BasePlateRecognizer):
             keys.append(settings.LLAMA_API_KEY)
         return keys
 
-    def _get_base64_and_mime(self, image_input: Union[str, bytes], filename: str) -> Tuple[str, str]:
+    def _get_base64_and_mime(self, image_input: str | bytes, filename: str) -> tuple[str, str]:
         if isinstance(image_input, bytes):
             raw_data = image_input
             ext = os.path.splitext(filename)[1].lower().replace(".", "")
@@ -75,9 +75,9 @@ class NvidiaVisionStrategy(BasePlateRecognizer):
         mime_type = "image/jpeg" if ext in ("jpg", "jpeg", "") else f"image/{ext}"
         return base64_str, mime_type
 
-    def _recognize_single_image(  # noqa: C901 — multi-key retry with per-response-shape handling, not a bug signal
-        self, image_input: Union[str, bytes], filename: str = "image.jpg"
-    ) -> List[Dict[str, Any]]:
+    def _recognize_single_image(
+        self, image_input: str | bytes, filename: str = "image.jpg"
+    ) -> list[dict[str, Any]]:
         """Process a single image crop or full image with NVIDIA Vision API."""
         keys_to_try = self._get_api_keys()
         if not keys_to_try:

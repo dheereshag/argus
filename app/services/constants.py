@@ -1,5 +1,4 @@
 import re
-from typing import List
 
 # Indian State & Union Territory Codes Mapping
 STATE_CODES = {
@@ -46,7 +45,7 @@ STATE_CODES = {
     "BH": "Bharat Series (National)",
 }
 
-STATE_PREFIX_PATTERN = "|".join(sorted([k for k in STATE_CODES.keys() if k != "BH"], key=len, reverse=True))
+STATE_PREFIX_PATTERN = "|".join(sorted([k for k in STATE_CODES if k != "BH"], key=len, reverse=True))
 
 # Regex matching Indian License Plates.
 # Standard format: State(2L) + District(1-2 digits: 01-99 or 1-9) + Series(1-3L) + Serial(3-4 digits)
@@ -153,7 +152,7 @@ NON_PLATE_WORDS = {
 }
 
 
-def normalize_candidate_strings(raw_str: str) -> List[str]:  # noqa: C901, PLR0912, PLR0915 — plate-length dispatch table, not a bug signal
+def normalize_candidate_strings(raw_str: str) -> list[str]:
     """
     Generate normalized plate candidate variants using positional character rules for Indian plates.
     """

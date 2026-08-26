@@ -11,9 +11,9 @@ from app.schemas.plate import (
 from app.services.pipeline import recognize_plate_image
 
 __all__ = [
-    "recognize_plate_image",
     "PlateResult",
+    "ProviderEnum",
     "RecognitionResponse",
     "RecognitionStatusEnum",
-    "ProviderEnum",
+    "recognize_plate_image",
 ]

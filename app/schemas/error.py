@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -11,6 +11,6 @@ class APIErrorResponse(BaseModel):
     error_type: str = Field(..., description="Exception class or category")
     details: Any = Field(None, description="Detailed validation or contextual error info")
     timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         description="UTC timestamp of the error",
     )

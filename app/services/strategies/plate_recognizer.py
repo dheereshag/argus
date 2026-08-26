@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Union
+from typing import Any
 
 import requests
 from requests.exceptions import RequestException
@@ -17,14 +17,14 @@ class PlateRecognizerStrategy(BasePlateRecognizer):
     Inherits 3-tier vehicle crop & bottom ROI fallback pipeline from BasePlateRecognizer.
     """
 
-    def __init__(self, token: str | None = None, regions: List[str] | None = None):
+    def __init__(self, token: str | None = None, regions: list[str] | None = None):
         self.api_token = token or settings.PLATE_RECOGNIZER_TOKEN
         self.regions = regions or ["in"]
         self.api_url = "https://api.platerecognizer.com/v1/plate-reader/"
 
-    def _recognize_single_image(  # noqa: C901, PLR0912 — candidate-scan with early-exit, not a bug signal
-        self, image_input: Union[str, bytes], filename: str = "image.jpg"
-    ) -> List[Dict[str, Any]]:
+    def _recognize_single_image(
+        self, image_input: str | bytes, filename: str = "image.jpg"
+    ) -> list[dict[str, Any]]:
         """Process a single image crop or full image with Plate Recognizer API."""
         if not self.api_token:
             raise ValueError("PLATE_RECOGNIZER_TOKEN is missing in settings/env.")

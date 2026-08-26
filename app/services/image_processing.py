@@ -1,5 +1,4 @@
 import io
-import os
 
 import cv2
 import numpy as np
@@ -78,7 +77,7 @@ def order_points(pts: np.ndarray) -> np.ndarray:
     return rect
 
 
-def warp_perspective_crop(img_bytes: bytes) -> bytes:  # noqa: C901 — quad-detect then rotation-deskew fallback, not a bug signal
+def warp_perspective_crop(img_bytes: bytes) -> bytes:
     """
     Detects perspective distortion / quad angle in an image crop and returns
     a perspective-warped, de-skewed frontal rectangular view as JPEG bytes.
