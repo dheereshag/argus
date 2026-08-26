@@ -60,6 +60,21 @@ For multi-step tasks, state a brief plan:
 
 Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
 
+## 5. Python Quality & Verification Gates
+
+**Always enforce the 3-step verification loop. All three must pass.**
+
+For any Python modifications:
+1. **Lint & Code Style**: Run `uv run ruff check --fix`. If manual errors remain, create an implementation plan and fix them cleanly without using `# noqa` suppressions.
+2. **Type Checking**: Run `uv run ty check`. If type diagnostics are found, create an implementation plan and fix the underlying typing without using `# type: ignore`.
+3. **Test Suite**: Run `uv run pytest` to confirm all unit and integration tests pass without regression.
+4. **Iterative Verification**: Keep looping through `uv run ruff check --fix`, `uv run ty check`, and `uv run pytest` until all three yield **0 errors, 0 warnings, and all tests pass**.
+
+**The 3 mandatory commands that must always work:**
+- `uv run ruff check --fix` (0 errors, 0 warnings)
+- `uv run ty check` (0 errors, 0 warnings)
+- `uv run pytest` (all tests pass)
+
 ---
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
