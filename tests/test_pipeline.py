@@ -54,9 +54,9 @@ def test_recognize_rejected_multiple_vehicles(mock_yolo, sample_image_bytes):
     assert response.results == []
 
 
-@patch("app.services.pipeline.PlateRecognizerFactory.get_recognizer")
+@patch("app.services.pipeline.DoclingStrategy")
 @patch("app.services.pipeline.filter_vehicle_and_occupancy")
-def test_recognize_success_primary_provider(mock_yolo, mock_get_recognizer, sample_image_bytes):
+def test_recognize_success(mock_yolo, mock_docling_cls, sample_image_bytes):
     mock_yolo.return_value = {
         "is_eligible": True,
         "status": None,
@@ -68,49 +68,19 @@ def test_recognize_success_primary_provider(mock_yolo, mock_get_recognizer, samp
 
     mock_docling = MagicMock()
     mock_docling.recognize.return_value = [{"plate": "RJ09GA0165", "state": "Rajasthan"}]
-    mock_get_recognizer.return_value = mock_docling
+    mock_docling_cls.return_value = mock_docling
 
     response = recognize_plate_image(sample_image_bytes, filename="car.jpg")
     assert response.success is True
     assert response.status == RecognitionStatusEnum.SUCCESS
-    assert response.provider.value == "docling"
     assert len(response.results) == 1
     assert response.results[0].plate == "RJ09GA0165"
     assert response.results[0].state == "Rajasthan"
 
 
-@patch("app.services.pipeline.PlateRecognizerFactory.get_recognizer")
+@patch("app.services.pipeline.DoclingStrategy")
 @patch("app.services.pipeline.filter_vehicle_and_occupancy")
-def test_recognize_fallback_to_nvidia(mock_yolo, mock_get_recognizer, sample_image_bytes):
-    mock_yolo.return_value = {
-        "is_eligible": True,
-        "status": None,
-        "status_message": "Eligible vehicle.",
-        "vehicle_detected": True,
-        "vehicle_type": "car",
-        "human_detected": False,
-    }
-
-    mock_docling = MagicMock()
-    mock_docling.recognize.return_value = []  # Docling finds no plate
-
-    mock_nvidia = MagicMock()
-    mock_nvidia.recognize.return_value = [{"plate": "MH12AB1234", "state": "Maharashtra"}]
-
-    mock_get_recognizer.side_effect = [mock_docling, mock_nvidia]
-
-    response = recognize_plate_image(sample_image_bytes, filename="car.jpg")
-    assert response.success is True
-    assert response.status == RecognitionStatusEnum.SUCCESS
-    assert response.provider.value == "nvidia"
-    assert len(response.results) == 1
-    assert response.results[0].plate == "MH12AB1234"
-    assert response.results[0].state == "Maharashtra"
-
-
-@patch("app.services.pipeline.PlateRecognizerFactory.get_recognizer")
-@patch("app.services.pipeline.filter_vehicle_and_occupancy")
-def test_recognize_success_no_vehicle_detected(mock_yolo, mock_get_recognizer, sample_image_bytes):
+def test_recognize_no_vehicle_detected(mock_yolo, mock_docling_cls, sample_image_bytes):
     mock_yolo.return_value = {
         "is_eligible": True,
         "status": None,
@@ -124,13 +94,12 @@ def test_recognize_success_no_vehicle_detected(mock_yolo, mock_get_recognizer, s
 
     mock_docling = MagicMock()
     mock_docling.recognize.return_value = [{"plate": "DL01AB1234", "state": "Delhi"}]
-    mock_get_recognizer.return_value = mock_docling
+    mock_docling_cls.return_value = mock_docling
 
     response = recognize_plate_image(sample_image_bytes, filename="plate_crop.jpg")
     assert response.success is True
     assert response.status == RecognitionStatusEnum.SUCCESS
     assert response.vehicle_detected is False
-    assert response.provider.value == "docling"
     assert len(response.results) == 1
     assert response.results[0].plate == "DL01AB1234"
     assert "License plate successfully detected and recognized via docling." in response.status_message

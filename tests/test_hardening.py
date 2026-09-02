@@ -10,7 +10,6 @@ import pytest
 from PIL import Image
 
 from app.core.contracts import ContractViolation, bounded, ensure, require
-from app.schemas.plate import ProviderEnum
 from app.services.pipeline import validate_plate_results
 
 
@@ -77,44 +76,6 @@ def test_bounded_passes_short_sequences_through():
 def test_bounded_rejects_a_nonsense_limit():
     with pytest.raises(ContractViolation):
         bounded([1, 2, 3], 0, "things")
-
-
-def test_vehicle_boxes_are_capped_in_the_waterfall():
-    from app.core.config import settings
-    from app.services.base import BasePlateRecognizer
-
-    attempts = []
-
-    class _Counting(BasePlateRecognizer):
-        def _recognize_single_image(self, image_input, filename="image.jpg"):
-            attempts.append(filename)
-            return []
-
-    many_boxes = [(0, 0, 100 - i, 100 - i) for i in range(20)]
-    _Counting().recognize(_jpeg(400, 400), filename="x.jpg", vehicle_boxes=many_boxes)
-
-    ceiling = settings.MAX_VEHICLE_BOXES * 5 * 2 + 2
-    assert len(attempts) <= ceiling
-
-
-def test_largest_boxes_are_the_ones_kept():
-    from app.services.base import BasePlateRecognizer
-    from app.services.image_processing import box_area
-
-    seen_sizes = []
-
-    class _Recorder(BasePlateRecognizer):
-        def _recognize_single_image(self, image_input, filename="image.jpg"):
-            with io.BytesIO(image_input) as buf, Image.open(buf) as img:
-                seen_sizes.append(img.size)
-            return []
-
-    small = (0, 0, 20, 20)
-    large = (0, 0, 300, 300)
-    _Recorder().recognize(_jpeg(400, 400), vehicle_boxes=[small, large])
-
-    assert box_area(large) > box_area(small)
-    assert max(s[0] for s in seen_sizes) > 100
 
 
 # ---------------------------------------------------------------------------
@@ -186,47 +147,14 @@ def test_malformed_provider_output_does_not_error():
         "not a dict",
         {"plate": "MH12AB1234"},
     ]
-    results = validate_plate_results(mixed, ProviderEnum.DOCLING)
+    results = validate_plate_results(mixed)
 
     assert [r.plate for r in results] == ["RJ09GA0165", "MH12AB1234"]
 
 
 def test_non_list_provider_output_is_handled():
-    assert validate_plate_results({"plate": "X"}, ProviderEnum.NVIDIA) == []
-    assert validate_plate_results(None, ProviderEnum.NVIDIA) == []
-
-
-# ---------------------------------------------------------------------------
-# Safe nested API response parsing
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize(
-    "payload",
-    [
-        {},
-        {"choices": []},
-        {"choices": [{}]},
-        {"choices": [{"message": {}}]},
-        {"choices": [{"message": {"content": None}}]},
-        {"choices": [{"message": {"content": "   "}}]},
-        {"error": {"message": "quota exceeded"}},
-        {"choices": "not-a-list"},
-        [],
-        None,
-    ],
-)
-def test_malformed_nvidia_response_returns_none_not_an_exception(payload):
-    from app.services.strategies.nvidia_vision import extract_message_content
-
-    assert extract_message_content(payload) is None
-
-
-def test_wellformed_nvidia_response_is_extracted():
-    from app.services.strategies.nvidia_vision import extract_message_content
-
-    payload = {"choices": [{"message": {"content": "  RJ09GA0165 \n"}}]}
-    assert extract_message_content(payload) == "RJ09GA0165"
+    assert validate_plate_results({"plate": "X"}) == []
+    assert validate_plate_results(None) == []
 
 
 # ---------------------------------------------------------------------------

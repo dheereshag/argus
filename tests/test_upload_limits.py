@@ -2,7 +2,6 @@
 Tests for payload budgets, downscaling, pixel caps, and HTTP timeouts.
 """
 
-import inspect
 import io
 
 import pytest
@@ -70,19 +69,3 @@ def test_undecodable_bytes_raise_invalid_image():
         decode_and_downscale(b"this is not an image")
 
 
-# --------------------------------------------------------------------------
-# Outbound HTTP timeouts
-# --------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize("module_name", ["nvidia_vision", "plate_recognizer"])
-def test_provider_requests_specify_a_timeout(module_name):
-    module = __import__(f"app.services.strategies.{module_name}", fromlist=[module_name])
-    source = inspect.getsource(module)
-    assert "requests.post(" in source
-    assert "timeout=" in source, f"{module_name} calls requests.post without a timeout."
-
-
-def test_timeout_settings_are_bounded():
-    assert 0 < settings.HTTP_CONNECT_TIMEOUT <= 10
-    assert 0 < settings.HTTP_READ_TIMEOUT <= 30

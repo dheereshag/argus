@@ -14,7 +14,6 @@ from app.core.contracts import ContractViolation
 from app.core.exceptions import ANPRServiceError
 from app.core.logging import logger
 from app.schemas.error import APIErrorResponse
-from app.services.factory import PlateRecognizerFactory
 from app.services.strategies.docling_ocr import check_docling_engine
 from app.services.yolo_filter import get_yolo_model
 
@@ -38,9 +37,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.info("Docling OCR engine verified successfully.")
     except (RuntimeError, ValueError, OSError, AttributeError, ImportError) as exc:
         logger.warning(f"Non-fatal warning checking Docling engine during startup: {exc}")
-
-    registered = [p.value for p in PlateRecognizerFactory.list_providers()]
-    logger.info(f"Active recognition providers: {registered} (Default: '{settings.DEFAULT_PROVIDER.value}')")
 
     yield
 

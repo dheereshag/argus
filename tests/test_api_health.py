@@ -25,7 +25,6 @@ def test_health_endpoint_success(client):
     assert validated.version == settings.VERSION
     assert "yolo" in validated.components
     assert "docling" in validated.components
-    assert "providers" in validated.components
     assert validated.components["yolo"].status in ["healthy", "degraded"]
     assert validated.components["docling"].status == "healthy"
 

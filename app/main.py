@@ -14,9 +14,6 @@ from app.services.yolo_filter import get_yolo_model
 def main():
     parser = argparse.ArgumentParser(description=f"{settings.PROJECT_NAME} CLI")
     parser.add_argument("image", help="Path to image file for plate recognition")
-    parser.add_argument(
-        "--provider", default=None, help="Recognition provider override (docling, nvidia, platerecognizer)"
-    )
 
     args = parser.parse_args()
 
@@ -30,7 +27,7 @@ def main():
     check_docling_engine()
 
     try:
-        response = recognize_plate_image(args.image, provider=args.provider)
+        response = recognize_plate_image(args.image)
         print(json.dumps(response.model_dump(), indent=2))
     except (ANPRServiceError, ContractViolation, ValueError, OSError, RuntimeError) as e:
         logger.error(f"Error processing image '{args.image}': {e}")

@@ -3,8 +3,6 @@ from importlib.metadata import PackageNotFoundError, version
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from app.schemas.plate import ProviderEnum
-
 # Resolve the version from the installed package metadata so it stays in sync
 # with pyproject.toml automatically. Falls back to "dev" when running from an
 # editable install that hasn't been built (e.g. `uv run` without a prior build).
@@ -18,24 +16,11 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Argus ANPR Microservice"
     VERSION: str = _PKG_VERSION
 
-    # API Keys & Endpoints
-    PLATE_RECOGNIZER_TOKEN: str = ""
-    LLAMA_API_KEY: str = ""
-    NEMOTRON_API_KEY: str = ""
-    NVIDIA_INVOKE_URL: str = "https://integrate.api.nvidia.com/v1/chat/completions"
-    DEFAULT_PROVIDER: ProviderEnum = ProviderEnum.DOCLING
-
     # YOLO Model Settings
     YOLO_MODEL_NAME: str = "yolo11n.pt"
     YOLO_CONFIG_DIR: str = ".cache/ultralytics"
     HUMAN_CONF_THRESH: float = 0.30
     VEHICLE_CONF_THRESH: float = 0.35
-
-    # Outbound HTTP timeouts (seconds). Never leave these unset: a provider that
-    # accepts the connection and then stalls will otherwise hang the worker
-    # thread indefinitely.
-    HTTP_CONNECT_TIMEOUT: float = 3.0
-    HTTP_READ_TIMEOUT: float = 10.0
 
     # Upload limits
     MAX_UPLOAD_BYTES: int = 8 * 1024 * 1024  # reject the request body above this

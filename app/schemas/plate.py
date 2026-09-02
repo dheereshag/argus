@@ -7,12 +7,6 @@ type BoundingBox = tuple[int, int, int, int]
 type ImageInput = str | bytes
 
 
-class ProviderEnum(str, Enum):
-    PLATERECOGNIZER = "platerecognizer"
-    NVIDIA = "nvidia"
-    DOCLING = "docling"
-
-
 class RecognitionStatusEnum(str, Enum):
     SUCCESS = "success"
     REJECTED_NO_FOUR_WHEELER = "rejected_no_four_wheeler"
@@ -49,7 +43,6 @@ class RecognitionResponse(BaseModel):
     )
     human_detected: bool = Field(..., description="Whether a human presence was detected in the frame")
     filename: str = Field(..., description="Name of the processed image file")
-    provider: ProviderEnum = Field(..., description="AI recognition provider engine used")
     results: list[PlateResult] = Field(default_factory=list, description="Extracted license plate details")
     execution_time_ms: float | None = Field(None, description="Processing duration in milliseconds")
 

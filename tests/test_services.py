@@ -1,29 +1,19 @@
 from typing import Any
 from unittest.mock import MagicMock, patch
 
-import pytest
-
-from app.core.exceptions import ProviderNotFoundError
-from app.schemas.plate import (
-    BoundingBox,
-    ProviderEnum,
-    RecognitionStatusEnum,
-)
+from app.schemas.plate import RecognitionStatusEnum
 from app.services.base import BasePlateRecognizer
 from app.services.constants import INDIAN_PLATE_REGEX, STATE_CODES
-from app.services.factory import PlateRecognizerFactory
 from app.services.image_processing import ImageInput
 from app.services.strategies.docling_ocr import (
     DoclingStrategy,
     normalize_candidate_strings,
 )
-from app.services.strategies.nvidia_vision import NvidiaVisionStrategy
-from app.services.strategies.plate_recognizer import PlateRecognizerStrategy
 from app.services.yolo_filter import filter_vehicle_and_occupancy
 
 
 class DummyStrategy(BasePlateRecognizer):
-    """Minimal concrete subclass for factory and parse tests."""
+    """Minimal concrete subclass for base class tests."""
 
     def _recognize_single_image(
         self,
@@ -36,8 +26,6 @@ class DummyStrategy(BasePlateRecognizer):
         self,
         image_input: ImageInput,
         filename: str = "image.jpg",
-        vehicle_box: BoundingBox | None = None,
-        vehicle_boxes: list[BoundingBox] | None = None,
     ) -> list[dict[str, Any]]:
         return [{"plate": "MH12AB1234", "state": "Maharashtra"}]
 
@@ -73,25 +61,6 @@ def test_base_plate_recognizer_parse_plate_info():
 
     # Test invalid plate input returns None (no unvalidated fallback)
     assert strategy.parse_plate_info("XX999999") is None
-
-
-def test_factory_list_and_get():
-    providers = PlateRecognizerFactory.list_providers()
-    assert ProviderEnum.DOCLING in providers
-    assert ProviderEnum.NVIDIA in providers
-    assert ProviderEnum.PLATERECOGNIZER in providers
-
-    # Valid get
-    recognizer = PlateRecognizerFactory.get_recognizer(ProviderEnum.DOCLING)
-    assert isinstance(recognizer, DoclingStrategy)
-
-    # String input get
-    recognizer_str = PlateRecognizerFactory.get_recognizer("nvidia")
-    assert isinstance(recognizer_str, NvidiaVisionStrategy)
-
-    # Unknown provider string throws ProviderNotFoundError
-    with pytest.raises(ProviderNotFoundError):
-        PlateRecognizerFactory.get_recognizer("unknown_provider")
 
 
 @patch("app.services.yolo_filter.get_yolo_model")
@@ -216,41 +185,6 @@ def test_docling_ocr_strategy_mocked(mock_get_engine, sample_image_bytes):
     assert len(results) == 1
     assert results[0]["plate"] == "RJ09GA0165"
     assert results[0]["state"] == "Rajasthan"
-
-
-@patch("requests.post")
-def test_nvidia_vision_strategy_mocked(mock_post, sample_image_bytes):
-    mock_resp = MagicMock()
-    mock_resp.status_code = 200
-    mock_resp.json.return_value = {"choices": [{"message": {"content": "The vehicle license plate is RJ09GA0165."}}]}
-    mock_post.return_value = mock_resp
-
-    strategy = NvidiaVisionStrategy(api_key="test_key")
-    results = strategy.recognize(sample_image_bytes)
-    assert len(results) == 1
-    assert results[0]["plate"] == "RJ09GA0165"
-    assert results[0]["state"] == "Rajasthan"
-
-
-@patch("requests.post")
-def test_plate_recognizer_strategy_mocked(mock_post, sample_image_bytes):
-    mock_resp = MagicMock()
-    mock_resp.status_code = 200
-    mock_resp.json.return_value = {"results": [{"plate": "rj09ga0165", "candidates": [{"plate": "rj09ga0165"}]}]}
-    mock_post.return_value = mock_resp
-
-    strategy = PlateRecognizerStrategy(token="test_token")
-    results = strategy.recognize(sample_image_bytes)
-    assert len(results) == 1
-    assert results[0]["plate"] == "RJ09GA0165"
-    assert results[0]["state"] == "Rajasthan"
-
-
-def test_plate_recognizer_skips_large_file():
-    recognizer = PlateRecognizerStrategy(token="dummy_token")
-    large_bytes = b"0" * int(3.6 * 1024 * 1024)
-    res = recognizer._recognize_single_image(large_bytes)
-    assert res == []
 
 
 def test_normalize_candidate_strings():

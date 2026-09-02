@@ -1,15 +1,8 @@
 from app.schemas.plate import (
     PlateResult,
-    ProviderEnum,
     RecognitionResponse,
     RecognitionStatusEnum,
 )
-
-
-def test_provider_enum_values():
-    assert ProviderEnum.PLATERECOGNIZER.value == "platerecognizer"
-    assert ProviderEnum.NVIDIA.value == "nvidia"
-    assert ProviderEnum.DOCLING.value == "docling"
 
 
 def test_recognition_status_enum():
@@ -35,7 +28,6 @@ def test_recognition_response_valid():
         vehicle_type="car",
         human_detected=False,
         filename="test.jpg",
-        provider=ProviderEnum.DOCLING,
         results=[PlateResult(plate="RJ09GA0165", state="Rajasthan")],
         execution_time_ms=123.45,
     )
