@@ -88,8 +88,6 @@ def test_recognize_no_vehicle_detected(mock_yolo, mock_docling_cls, sample_image
         "vehicle_detected": False,
         "vehicle_type": None,
         "human_detected": False,
-        "vehicle_box": None,
-        "vehicle_boxes": [],
     }
 
     mock_docling = MagicMock()
