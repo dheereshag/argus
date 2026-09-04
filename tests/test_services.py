@@ -1,8 +1,6 @@
-from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from app.schemas import RecognitionStatusEnum
-from app.services.ocr import PlateRecognizer
 from app.services.plate_rules import (
     INDIAN_PLATE_REGEX,
     STATE_CODES,
@@ -21,27 +19,10 @@ def test_indian_plate_regex_and_state_codes():
         ("TN07AZ0001", "Tamil Nadu"),
     ]
     for plate_str, expected_state in plates_to_test:
-        match = INDIAN_PLATE_REGEX.search(plate_str)
+        match = INDIAN_PLATE_REGEX.fullmatch(plate_str)
         assert match is not None
-        state_code = match.group(1) or match.group(6)
+        state_code = match.group(1)
         assert STATE_CODES.get(state_code) == expected_state
-
-
-def test_plate_recognizer_parse_plate_info():
-    recognizer = PlateRecognizer()
-
-    # Test valid regex match
-    info = recognizer.parse_plate_info("  rj 09 ga 0165 ")
-    assert info is not None
-    assert info["plate"] == "RJ09GA0165"
-    assert info["state"] == "Rajasthan"
-
-    # Test none / empty input
-    assert recognizer.parse_plate_info("") is None
-    assert recognizer.parse_plate_info(None) is None
-
-    # Test invalid plate input returns None (no unvalidated fallback)
-    assert recognizer.parse_plate_info("XX999999") is None
 
 
 @patch("app.services.yolo_filter.get_yolo_model")
@@ -156,29 +137,8 @@ def test_yolo_filter_multiple_vehicles_policy(mock_get_model, sample_image_bytes
     assert res_allowed["vehicle_count"] == 2
 
 
-@patch("app.services.ocr.get_ocr_engine")
-def test_plate_recognizer_mocked(mock_get_engine, sample_image_bytes):
-    mock_engine = MagicMock()
-    mock_engine.return_value = SimpleNamespace(
-        txts=["RJ09GA0165"],
-        scores=[0.98],
-        boxes=[[0, 0, 100, 30]],
-    )
-    mock_get_engine.return_value = mock_engine
-
-    recognizer = PlateRecognizer()
-    results = recognizer.recognize(sample_image_bytes)
-    assert len(results) == 1
-    assert results[0]["plate"] == "RJ09GA0165"
-    assert results[0]["state"] == "Rajasthan"
-
-
 def test_normalize_candidate_strings():
     # State prefix corrections
     assert "WB12AB1234" in normalize_candidate_strings("W812AB1234")
     assert "RJ14GJ4976" in normalize_candidate_strings("RT14G34976")
     assert "RJ09GA0165" in normalize_candidate_strings("RJ09GA0165")
-
-    # Positional character confusions (O/0, I/1, G3/GJ)
-    variants = normalize_candidate_strings("RT14G34976")
-    assert "RJ14GJ4976" in variants

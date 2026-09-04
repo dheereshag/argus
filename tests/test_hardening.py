@@ -172,3 +172,68 @@ def test_no_bare_image_open_outside_the_helper():
     for line in ip_source.splitlines():
         if "Image.open(" in line:
             assert "with " in line, f"unmanaged Image.open: {line.strip()}"
+
+
+# ---------------------------------------------------------------------------
+# Dead code, obsolete module, and orphan file prevention
+# ---------------------------------------------------------------------------
+
+
+def test_no_dead_or_orphaned_modules():
+    """Ensure obsolete modules and directories remain deleted and no orphan files exist in app/."""
+    import pathlib
+
+    app_root = pathlib.Path("app")
+
+    # 1. Obsolete paths that must NEVER be reintroduced
+    forbidden_paths = [
+        app_root / "api",
+        app_root / "eval",
+        app_root / "schemas" / "error.py",
+        app_root / "schemas" / "plate.py",
+        app_root / "services" / "constants.py",
+        app_root / "services" / "strategies",
+        app_root / "services" / "base.py",
+    ]
+    for path in forbidden_paths:
+        assert not path.exists(), f"Dead/obsolete code path was reintroduced: {path}"
+
+    # 2. Strict whitelist of active source files in app/
+    expected_active_files = {
+        "__init__.py",
+        "constants.py",
+        "main.py",
+        "schemas.py",
+        "server.py",
+        "core/__init__.py",
+        "core/config.py",
+        "core/contracts.py",
+        "core/exceptions.py",
+        "core/logging.py",
+        "services/__init__.py",
+        "services/image_processing.py",
+        "services/ocr.py",
+        "services/pipeline.py",
+        "services/plate_rules.py",
+        "services/yolo_filter.py",
+    }
+
+    actual_files = {
+        str(p.relative_to(app_root))
+        for p in app_root.rglob("*.py")
+        if "__pycache__" not in p.parts
+    }
+
+    unexpected = actual_files - expected_active_files
+    assert not unexpected, f"Unexpected or dead files found in app/: {unexpected}"
+
+
+def test_public_package_exports_are_live():
+    """Ensure app/__init__.py exports are all live, resolvable, and not dead imports."""
+    import app
+
+    assert hasattr(app, "__all__")
+    for name in app.__all__:
+        assert hasattr(app, name), f"Export {name} is dead or missing from app"
+        assert getattr(app, name) is not None
+
