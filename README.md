@@ -56,11 +56,6 @@ uv run uvicorn app.server:app --reload --host 0.0.0.0 --port 8000
   curl http://localhost:8000/
   ```
 
-- **Health Check**:
-  ```bash
-  curl http://localhost:8000/health
-  ```
-
 - **Recognize License Plate from Image**:
   ```bash
   curl -X POST "http://localhost:8000/recognize" \

@@ -150,7 +150,6 @@ def create_app() -> FastAPI:
             "version": settings.VERSION,
             "status": "running",
             "docs": "/docs",
-            "health": "/health",
         }
 
     # Mount API routers
