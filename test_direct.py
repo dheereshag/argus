@@ -38,7 +38,7 @@ def test_models():
         t0 = time.time()
         result = engine.recognize(img_bytes)
         t_exec = round((time.time() - t0) * 1000, 2)
-        print(f"[DOCLING              ] ({t_exec:>7.2f} ms): {result}")
+        print(f"[RapidOCR             ] ({t_exec:>7.2f} ms): {result}")
 
 
 if __name__ == "__main__":

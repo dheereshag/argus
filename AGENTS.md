@@ -82,6 +82,15 @@ For any Python modifications:
 - Explicitly update `README.md` whenever adding, modifying, or removing features, API endpoints, environment variables, dependencies, or workflows.
 - Ensure all setup instructions, configuration options, and usage examples remain accurate and up-to-date.
 
+## 7. Dependency Management via `uv`
+
+**Always use `uv` commands to add or remove dependencies. Never directly edit `pyproject.toml` dependencies.**
+
+- Use `uv add <package>` to install and record new dependencies.
+- Use `uv remove <package>` to uninstall and remove dependencies.
+- Never manually edit the `dependencies` or `dependency-groups` arrays in `pyproject.toml` directly; let `uv` manage dependency specification, lockfile synchronization (`uv.lock`), and virtual environment state.
+
 ---
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
+
