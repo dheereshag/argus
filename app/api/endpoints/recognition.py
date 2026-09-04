@@ -1,9 +1,12 @@
+from typing import Annotated
+
 from fastapi import APIRouter, File, UploadFile
 from fastapi.concurrency import run_in_threadpool
 
 from app.core.config import settings
 from app.core.exceptions import InvalidImageError, PayloadTooLargeError
 from app.schemas.plate import RecognitionResponse
+from app.services.image_processing import validate_image_upload
 from app.services.pipeline import recognize_plate_image
 
 router = APIRouter()
@@ -14,13 +17,13 @@ router = APIRouter()
     response_model=RecognitionResponse,
     summary="Recognize Vehicle License Plate",
     description=(
-        "Upload a vehicle image (JPEG, PNG, WebP) to execute YOLO v11 pre-screening "
-        "and automated license plate recognition waterfall."
+        "Upload a vehicle image (JPEG, PNG, WebP, BMP) to execute YOLO v11 pre-screening "
+        "and automated license plate recognition."
     ),
     tags=["Recognition"],
 )
 async def recognize_plate(
-    file: UploadFile = File(..., description="Image file (JPEG, PNG, WebP)"),  # noqa: B008 — FastAPI's documented DI pattern
+    file: Annotated[UploadFile, File(description="Image file (JPEG, PNG, WebP, BMP)")],
 ) -> RecognitionResponse:
     if file.size is not None and file.size > settings.MAX_UPLOAD_BYTES:
         raise PayloadTooLargeError(
@@ -36,6 +39,9 @@ async def recognize_plate(
         raise PayloadTooLargeError(
             f"Image exceeds maximum permitted size of {settings.MAX_UPLOAD_BYTES // (1024 * 1024)} MB."
         )
+
+    # Early image validation: verify MIME type and image header signatures before offloading to worker pool
+    validate_image_upload(image_bytes, content_type=file.content_type)
 
     filename = file.filename or "uploaded_image.jpg"
 

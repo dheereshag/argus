@@ -88,3 +88,56 @@ def test_recognize_real_image_if_present(client):
     assert validated.filename == "1.jpg"
     assert isinstance(validated.rejected, bool)
     assert validated.execution_time_ms is not None
+
+
+def test_recognize_rejects_unsupported_content_type(client):
+    response = client.post(
+        "/recognize",
+        files={"file": ("notes.txt", b"just some text", "text/plain")},
+    )
+    assert response.status_code == 400
+    data = response.json()
+    assert data["success"] is False
+    assert "unsupported content type" in data["message"].lower()
+
+
+def test_recognize_rejects_spoofed_mime_type(client):
+    # Spoof content type as image/jpeg but send text bytes
+    response = client.post(
+        "/recognize",
+        files={"file": ("fake.jpg", b"not-a-real-jpeg", "image/jpeg")},
+    )
+    assert response.status_code == 400
+    data = response.json()
+    assert data["success"] is False
+
+
+def test_recognize_rejects_unsupported_image_format(client):
+    import io
+
+    from PIL import Image
+
+    img = Image.new("RGB", (50, 50), color=(255, 255, 0))
+    buf = io.BytesIO()
+    img.save(buf, format="GIF")
+    gif_bytes = buf.getvalue()
+
+    response = client.post(
+        "/recognize",
+        files={"file": ("animated.gif", gif_bytes, "image/gif")},
+    )
+    assert response.status_code == 400
+    data = response.json()
+    assert data["success"] is False
+    assert "unsupported" in data["message"].lower()
+
+
+def test_recognize_accepts_valid_png(client, sample_png_bytes):
+    response = client.post(
+        "/recognize",
+        files={"file": ("test.png", sample_png_bytes, "image/png")},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    validated = RecognitionResponse.model_validate(data)
+    assert validated.filename == "test.png"

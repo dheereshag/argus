@@ -1,25 +1,36 @@
 # Argus ANPR Engine
 
-An Enterprise Automatic Number Plate Recognition (ANPR) Python engine built with **YOLO v11**, **Docling OCR (RapidOCR ONNX Runtime)**, and **Strategy & Factory Design Patterns**.
+An Enterprise Automatic Number Plate Recognition (ANPR) Python engine built with **YOLO v11** and **Docling OCR (RapidOCR ONNX Runtime)**.
 
-It features an intelligent **YOLO v11 Pre-screening Pipeline** to verify 4-wheeler vehicle presence (`car`, `bus`, `truck`) before routing to downstream OCR / Vision AI models (**Docling Strategy**, **NVIDIA Llama-3.2-11b-Vision**, or **Plate Recognizer**).
+It features an intelligent **YOLO v11 Pre-screening Pipeline** to verify 4-wheeler vehicle presence (`car`, `bus`, `truck`) and occupancy before executing downstream **Docling OCR** plate extraction and Indian license plate regex validation.
 
 ---
 
 ## ⚙️ Environment Variables (`.env`)
 
-Set the following environment variables in your local `.env` file:
+Set the following environment variables in your local `.env` file (see [`.env.example`](file:///.env.example)):
 
 ```env
-PLATE_RECOGNIZER_TOKEN=your_plate_recognizer_api_token
-LLAMA_API_KEY=your_llama_api_key
-NEMOTRON_API_KEY=your_nemotron_api_key
-NVIDIA_INVOKE_URL=https://integrate.api.nvidia.com/v1/chat/completions
-DEFAULT_PROVIDER=docling
+# YOLO Model Settings
 YOLO_MODEL_NAME=yolo11n.pt
 YOLO_CONFIG_DIR=/tmp/Ultralytics
 HUMAN_CONF_THRESH=0.30
 VEHICLE_CONF_THRESH=0.35
+
+# Pre-screening Rejection Policies
+REJECT_ON_HUMAN_DETECTED=false
+REJECT_ON_MULTIPLE_VEHICLES=false
+REJECT_ON_NO_VEHICLE=false
+
+# Processing & Upload Limits
+MAX_OCR_LINES=500
+MAX_UPLOAD_BYTES=8388608
+MAX_IMAGE_PIXELS=50000000
+MAX_IMAGE_EDGE_PX=1920
+
+# Server Settings
+SERVER_HOST=0.0.0.0
+SERVER_PORT=8000
 ```
 
 ---
@@ -40,6 +51,11 @@ uv run uvicorn app.server:app --reload --host 0.0.0.0 --port 8000
 
 #### Example API Requests:
 
+- **Root Info**:
+  ```bash
+  curl http://localhost:8000/
+  ```
+
 - **Health Check**:
   ```bash
   curl http://localhost:8000/health
@@ -55,12 +71,16 @@ uv run uvicorn app.server:app --reload --host 0.0.0.0 --port 8000
 ```bash
 uv run python -m app.main path/to/image.jpg
 ```
+or:
+```bash
+uv run python main.py path/to/image.jpg
+```
 
 ### 4. Use as a Python Library
 ```python
 from app.services.pipeline import recognize_plate_image
 
-# Process image file or raw bytes
+# Process image file path or raw bytes
 response = recognize_plate_image("path/to/image.jpg")
 
 if response.success:
@@ -72,10 +92,26 @@ else:
 
 ---
 
-## 🧪 Direct Strategy Testing
+## 🧪 Direct Testing
 
-### Run Direct Strategy Benchmark
+### Run Direct Pipeline Benchmark
 ```bash
-uv run python test_direct.py docling
+uv run python test_direct.py
 ```
 
+---
+
+## 🛡️ Quality & Verification Gates
+
+Per [AGENTS.md](file:///AGENTS.md), all modifications must pass the 3 mandatory gates:
+
+```bash
+# 1. Lint & Code Style
+uv run ruff check --fix
+
+# 2. Type Checking
+uv run ty check
+
+# 3. Test Suite
+uv run pytest
+```

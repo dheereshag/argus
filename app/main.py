@@ -28,7 +28,7 @@ def main():
 
     try:
         response = recognize_plate_image(args.image)
-        print(json.dumps(response.model_dump(), indent=2))
+        logger.info(json.dumps(response.model_dump(), indent=2))
     except (ANPRServiceError, ContractViolation, ValueError, OSError, RuntimeError) as e:
         logger.error(f"Error processing image '{args.image}': {e}")
         sys.exit(1)

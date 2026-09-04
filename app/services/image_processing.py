@@ -21,6 +21,57 @@ object.__setattr__(ImageFile, "LOAD_TRUNCATED_IMAGES", True)
 # degenerate boxes rather than feeding a 2-pixel sliver to downstream models.
 MIN_CROP_EDGE_PX = 8
 
+# Permitted image formats and MIME types
+ALLOWED_IMAGE_FORMATS: frozenset[str] = frozenset({"JPEG", "PNG", "WEBP", "BMP"})
+ALLOWED_IMAGE_MIME_TYPES: frozenset[str] = frozenset(
+    {
+        "image/jpeg",
+        "image/jpg",
+        "image/pjpeg",
+        "image/png",
+        "image/x-png",
+        "image/webp",
+        "image/bmp",
+        "image/x-ms-bmp",
+    }
+)
+
+
+def validate_image_upload(
+    image_bytes: bytes,
+    content_type: str | None = None,
+) -> str:
+    """
+    Validate that uploaded file bytes constitute a supported image.
+
+    Checks declared MIME type (if provided and non-generic) and inspects image
+    header without allocating pixel buffers. Returns the detected image format (e.g., 'JPEG').
+    """
+    if not image_bytes:
+        raise InvalidImageError("Uploaded image file is empty.")
+
+    if content_type:
+        clean_type = content_type.split(";")[0].strip().lower()
+        if clean_type != "application/octet-stream" and clean_type not in ALLOWED_IMAGE_MIME_TYPES:
+            raise InvalidImageError(
+                f"Unsupported content type '{content_type}'. Allowed types: image/jpeg, image/png, image/webp, image/bmp."
+            )
+
+    try:
+        with io.BytesIO(image_bytes) as buf, Image.open(buf) as probe:
+            fmt = probe.format
+            if not fmt or fmt.upper() not in ALLOWED_IMAGE_FORMATS:
+                raise InvalidImageError(
+                    f"Unsupported image format '{fmt}'. Allowed formats: {', '.join(sorted(ALLOWED_IMAGE_FORMATS))}."
+                )
+            return fmt.upper()
+    except Image.DecompressionBombError as exc:
+        raise PayloadTooLargeError(f"Image dimensions exceed permitted budget: {exc}") from exc
+    except InvalidImageError:
+        raise
+    except Exception as exc:
+        raise InvalidImageError(f"Uploaded file is not a valid image: {exc}") from exc
+
 
 def decode_and_downscale(
     image_bytes: bytes,
@@ -38,9 +89,16 @@ def decode_and_downscale(
     # Header probe without full pixel buffer allocation
     try:
         with io.BytesIO(image_bytes) as buf, Image.open(buf) as probe:
+            fmt = probe.format
+            if not fmt or fmt.upper() not in ALLOWED_IMAGE_FORMATS:
+                raise InvalidImageError(
+                    f"Unsupported image format '{fmt}'. Allowed formats: {', '.join(sorted(ALLOWED_IMAGE_FORMATS))}."
+                )
             width, height = probe.size
     except Image.DecompressionBombError as exc:
         raise PayloadTooLargeError(f"Image dimensions exceed permitted budget: {exc}") from exc
+    except InvalidImageError:
+        raise
     except Exception as exc:
         raise InvalidImageError(f"Could not decode uploaded image: {exc}") from exc
 
