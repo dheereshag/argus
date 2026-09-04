@@ -1,7 +1,10 @@
 import io
+import os
 
 import pytest
 from PIL import Image
+
+os.environ.setdefault("OMP_NUM_THREADS", "1")
 
 
 def create_test_jpeg(width: int, height: int, color: tuple[int, int, int] = (100, 100, 100)) -> bytes:
