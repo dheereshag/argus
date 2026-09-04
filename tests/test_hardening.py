@@ -163,10 +163,9 @@ def test_image_loading_closes_its_source_handle():
 def test_no_bare_image_open_outside_the_helper():
     import inspect
 
-    from app.services import image_processing
-    from app.services.strategies import docling_ocr
+    from app.services import image_processing, ocr
 
-    source = inspect.getsource(docling_ocr)
+    source = inspect.getsource(ocr)
     assert "Image.open(" not in source
 
     ip_source = inspect.getsource(image_processing)

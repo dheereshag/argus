@@ -1,7 +1,5 @@
-from app.services.base import BasePlateRecognizer
-from app.services.strategies.docling_ocr import DoclingStrategy
+from app.services.ocr import PlateRecognizer
 
 __all__ = [
-    "BasePlateRecognizer",
-    "DoclingStrategy",
+    "PlateRecognizer",
 ]

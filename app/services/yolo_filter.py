@@ -21,6 +21,7 @@ class YoloResult(TypedDict, total=True):
     vehicle_type: str | None
     human_detected: bool
     vehicle_count: int
+    vehicle_box: BoundingBox | None
 
 
 # Global lazy-loaded YOLO model instance.
@@ -146,6 +147,7 @@ def filter_vehicle_and_occupancy(
     vehicle_count = len(vehicles)
 
     primary_vehicle_type = detected_vehicle_types[0] if detected_vehicle_types else None
+    primary_vehicle_box = vehicles[0][1] if vehicles else None
 
     if human_detected and reject_on_human:
         logger.warning("Rejected frame: Human presence detected.")
@@ -157,6 +159,7 @@ def filter_vehicle_and_occupancy(
             "vehicle_type": primary_vehicle_type,
             "human_detected": human_detected,
             "vehicle_count": vehicle_count,
+            "vehicle_box": primary_vehicle_box,
         }
 
     if vehicle_count > 1 and reject_on_multiple_vehicles:
@@ -170,6 +173,7 @@ def filter_vehicle_and_occupancy(
             "vehicle_type": primary_vehicle_type,
             "human_detected": human_detected,
             "vehicle_count": vehicle_count,
+            "vehicle_box": primary_vehicle_box,
         }
 
     occupancy_note = "with human presence" if human_detected else "with no human occupancy"
@@ -184,6 +188,7 @@ def filter_vehicle_and_occupancy(
                 "vehicle_type": None,
                 "human_detected": human_detected,
                 "vehicle_count": 0,
+                "vehicle_box": None,
             }
         return {
             "is_eligible": True,
@@ -193,6 +198,7 @@ def filter_vehicle_and_occupancy(
             "vehicle_type": None,
             "human_detected": human_detected,
             "vehicle_count": 0,
+            "vehicle_box": None,
         }
 
     multi_note = f" ({vehicle_count} vehicles detected)" if vehicle_count > 1 else ""
@@ -204,4 +210,5 @@ def filter_vehicle_and_occupancy(
         "vehicle_type": primary_vehicle_type,
         "human_detected": human_detected,
         "vehicle_count": vehicle_count,
+        "vehicle_box": primary_vehicle_box,
     }

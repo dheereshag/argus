@@ -28,9 +28,9 @@ class Settings(BaseSettings):
     MAX_IMAGE_EDGE_PX: int = 1920  # downscale longest edge before inference
 
     # Pre-screening Rejection Policies
-    REJECT_ON_HUMAN_DETECTED: bool = False
-    REJECT_ON_MULTIPLE_VEHICLES: bool = False
-    REJECT_ON_NO_VEHICLE: bool = False
+    REJECT_ON_HUMAN_DETECTED: bool = True
+    REJECT_ON_MULTIPLE_VEHICLES: bool = True
+    REJECT_ON_NO_VEHICLE: bool = True
 
     # Server & CORS Settings
     SERVER_HOST: str = "0.0.0.0"

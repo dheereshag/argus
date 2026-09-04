@@ -14,7 +14,7 @@ from app.core.contracts import ContractViolation
 from app.core.exceptions import ANPRServiceError
 from app.core.logging import logger
 from app.schemas.error import APIErrorResponse
-from app.services.strategies.docling_ocr import check_docling_engine
+from app.services.ocr import check_ocr_engine
 from app.services.yolo_filter import get_yolo_model
 
 
@@ -33,10 +33,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.warning(f"Non-fatal warning warming YOLO model during startup: {exc}")
 
     try:
-        check_docling_engine()
-        logger.info("Docling OCR engine verified successfully.")
+        check_ocr_engine()
+        logger.info("RapidOCR engine verified successfully.")
     except (RuntimeError, ValueError, OSError, AttributeError, ImportError) as exc:
-        logger.warning(f"Non-fatal warning checking Docling engine during startup: {exc}")
+        logger.warning(f"Non-fatal warning checking OCR engine during startup: {exc}")
 
     yield
 

@@ -13,26 +13,26 @@ from app.schemas.plate import (
     RecognitionResponse,
     RecognitionStatusEnum,
 )
-from app.services.image_processing import decode_and_downscale
-from app.services.strategies.docling_ocr import DoclingStrategy
+from app.services.image_processing import decode_and_downscale, load_rgb
+from app.services.ocr import PlateRecognizer
 from app.services.yolo_filter import filter_vehicle_and_occupancy
 
 
 def validate_plate_results(raw_results: Any) -> list[PlateResult]:
     if not isinstance(raw_results, list):
-        logger.error(f"DoclingStrategy returned {type(raw_results).__name__}, expected list.")
+        logger.error(f"PlateRecognizer returned {type(raw_results).__name__}, expected list.")
         return []
 
     validated: list[PlateResult] = []
     for item in raw_results:
         if not isinstance(item, dict):
-            logger.warning(f"DoclingStrategy returned non-dict result ({type(item).__name__}); discarding.")
+            logger.warning(f"PlateRecognizer returned non-dict result ({type(item).__name__}); discarding.")
             continue
         try:
             validated.append(PlateResult.model_validate(item))
         except ValidationError as exc:
             logger.warning(
-                f"DoclingStrategy returned unusable result "
+                f"PlateRecognizer returned unusable result "
                 f"{ {k: item.get(k) for k in list(item)[:4]} }: {exc.error_count()} error(s); discarding."
             )
     return validated
@@ -43,7 +43,7 @@ def recognize_plate_image(
     filename: str = "image.jpg",
 ) -> RecognitionResponse:
     """
-    Main ANPR entry point. Performs YOLO v11 pre-screening then Docling OCR.
+    Main ANPR entry point. Performs YOLO v11 pre-screening, vehicle cropping, then RapidOCR plate extraction.
     """
     start_time = time.time()
 
@@ -80,13 +80,21 @@ def recognize_plate_image(
             execution_time_ms=execution_time_ms,
         )
 
-    # Step 2: Docling OCR
-    logger.info(f"Running Docling OCR on '{filename}'")
+    # Step 2: Vehicle Cropping & OCR
+    logger.info(f"Running OCR on '{filename}'")
     try:
-        recognizer = DoclingStrategy()
-        raw_results = recognizer.recognize(image_bytes, filename=filename)
+        recognizer = PlateRecognizer()
+        if yolo_result["vehicle_box"] is not None:
+            pil_img = load_rgb(image_bytes)
+            vehicle_crop = pil_img.crop(yolo_result["vehicle_box"])
+            raw_results = recognizer.recognize(vehicle_crop, filename=filename)
+            # Fall back to full frame if vehicle crop yielded no plate match
+            if not any(r.get("plate") and r.get("plate") != "N/A" for r in raw_results):
+                raw_results = recognizer.recognize(image_bytes, filename=filename)
+        else:
+            raw_results = recognizer.recognize(image_bytes, filename=filename)
     except (ANPRServiceError, ValueError, RuntimeError, OSError, KeyError, AttributeError) as exc:
-        logger.error(f"Docling OCR failed on '{filename}': {exc}")
+        logger.error(f"OCR failed on '{filename}': {exc}")
         raw_results = []
 
     plate_results = validate_plate_results(raw_results)
@@ -98,9 +106,9 @@ def recognize_plate_image(
     if has_valid_plate:
         target_name = yolo_result["vehicle_type"] or ("vehicle" if yolo_result["vehicle_detected"] else None)
         if target_name:
-            status_msg = f"License plate successfully detected and recognized on {target_name} via docling."
+            status_msg = f"License plate successfully detected and recognized on {target_name}."
         else:
-            status_msg = "License plate successfully detected and recognized via docling."
+            status_msg = "License plate successfully detected and recognized."
     else:
         if yolo_result["vehicle_detected"]:
             status_msg = (

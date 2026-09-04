@@ -17,20 +17,13 @@ tests fail.
 
 import pytest
 
-from app.services.base import BasePlateRecognizer
 from app.services.constants import INDIAN_PLATE_REGEX, STATE_CODES
-
-
-class _Recognizer(BasePlateRecognizer):
-    """Concrete subclass so parse_plate_info can be exercised directly."""
-
-    def _recognize_single_image(self, image_input, filename="image.jpg"):
-        return []
+from app.services.ocr import PlateRecognizer
 
 
 @pytest.fixture
 def recognizer():
-    return _Recognizer()
+    return PlateRecognizer()
 
 
 # Strings that plausibly appear on or near an Indian commercial vehicle.
@@ -119,12 +112,10 @@ def test_validation_path_uses_fullmatch_not_search():
     """
     import inspect
 
-    from app.services import base
-    from app.services.strategies import docling_ocr
+    from app.services import ocr
 
-    for module in (base, docling_ocr):
-        source = inspect.getsource(module)
-        assert "INDIAN_PLATE_REGEX.search(" not in source, (
-            f"{module.__name__} uses INDIAN_PLATE_REGEX.search(). Use .fullmatch() — "
-            "substring matching is how brand names become licence plates."
-        )
+    source = inspect.getsource(ocr)
+    assert "INDIAN_PLATE_REGEX.search(" not in source, (
+        f"{ocr.__name__} uses INDIAN_PLATE_REGEX.search(). Use .fullmatch() — "
+        "substring matching is how brand names become licence plates."
+    )

@@ -3,14 +3,14 @@ import os
 import time
 
 from app.services.image_processing import decode_and_downscale
-from app.services.strategies.docling_ocr import DoclingStrategy
+from app.services.ocr import PlateRecognizer
 from app.services.yolo_filter import filter_vehicle_and_occupancy
 
 TESTS_DIR = "tests"
 
 
 def test_models():
-    parser = argparse.ArgumentParser(description="ANPR Docling Direct Testing CLI")
+    parser = argparse.ArgumentParser(description="ANPR Direct Testing CLI")
     parser.parse_args()
 
     image_paths = [
@@ -18,7 +18,7 @@ def test_models():
     ]
     image_paths.sort()
 
-    engine = DoclingStrategy()
+    engine = PlateRecognizer()
 
     for img_path in image_paths:
         print(f"\n{'=' * 60}\nTesting image: {img_path}\n{'=' * 60}")

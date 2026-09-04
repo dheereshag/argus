@@ -1,8 +1,8 @@
 # Argus ANPR Engine
 
-An Enterprise Automatic Number Plate Recognition (ANPR) Python engine built with **YOLO v11** and **Docling OCR (RapidOCR ONNX Runtime)**.
+An Enterprise Automatic Number Plate Recognition (ANPR) Python engine built with **YOLO v11** and **RapidOCR (ONNX Runtime)**.
 
-It features an intelligent **YOLO v11 Pre-screening Pipeline** to verify 4-wheeler vehicle presence (`car`, `bus`, `truck`) and occupancy before executing downstream **Docling OCR** plate extraction and Indian license plate regex validation.
+It features an intelligent **YOLO v11 Pre-screening & Vehicle Cropping Pipeline** to verify 4-wheeler vehicle presence (`car`, `bus`, `truck`), enforce weighbridge occupancy policies, and isolate the primary vehicle crop before executing downstream **RapidOCR** plate extraction and Indian license plate regex validation.
 
 ---
 
@@ -18,9 +18,9 @@ HUMAN_CONF_THRESH=0.30
 VEHICLE_CONF_THRESH=0.35
 
 # Pre-screening Rejection Policies
-REJECT_ON_HUMAN_DETECTED=false
-REJECT_ON_MULTIPLE_VEHICLES=false
-REJECT_ON_NO_VEHICLE=false
+REJECT_ON_HUMAN_DETECTED=true
+REJECT_ON_MULTIPLE_VEHICLES=true
+REJECT_ON_NO_VEHICLE=true
 
 # Processing & Upload Limits
 MAX_UPLOAD_BYTES=8388608
