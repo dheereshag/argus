@@ -8,7 +8,7 @@ from app.core.exceptions import (
     InvalidImageError,
 )
 from app.core.logging import logger
-from app.schemas.plate import (
+from app.schemas import (
     PlateResult,
     RecognitionResponse,
     RecognitionStatusEnum,

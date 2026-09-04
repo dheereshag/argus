@@ -7,7 +7,7 @@ from ultralytics import YOLO
 from app.core.config import settings
 from app.core.contracts import bounded, ensure, require
 from app.core.logging import logger
-from app.schemas.plate import RecognitionStatusEnum
+from app.schemas import RecognitionStatusEnum
 from app.services.image_processing import ImageInput, load_rgb
 
 # Bounding box geometry: (x1, y1, x2, y2)

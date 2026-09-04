@@ -4,7 +4,15 @@ import os
 import pytest
 from PIL import Image
 
-os.environ.setdefault("OMP_NUM_THREADS", "1")
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+
+try:
+    import torch
+
+    torch.set_num_threads(1)
+except ImportError:
+    pass
 
 
 def create_test_jpeg(width: int, height: int, color: tuple[int, int, int] = (100, 100, 100)) -> bytes:
@@ -39,3 +47,19 @@ def client():
 
     with TestClient(app) as test_client:
         yield test_client
+
+
+_session_exitstatus = 0
+
+
+def pytest_sessionfinish(session: pytest.Session, exitstatus: int | pytest.ExitCode) -> None:
+    global _session_exitstatus
+    _session_exitstatus = int(exitstatus)
+
+
+def pytest_unconfigure(config: pytest.Config) -> None:
+    import sys
+
+    if sys.platform == "darwin":
+        os._exit(_session_exitstatus)
+

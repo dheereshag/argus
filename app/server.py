@@ -2,20 +2,21 @@ import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, File, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.router import api_router
 from app.core.config import settings
 from app.core.contracts import ContractViolation
 from app.core.exceptions import ANPRServiceError
 from app.core.logging import logger
-from app.schemas.plate import APIErrorResponse
+from app.schemas import APIErrorResponse, RecognitionResponse
+from app.services.image_processing import validate_image_upload
 from app.services.ocr import check_ocr_engine
+from app.services.pipeline import recognize_plate_image
 from app.services.yolo_filter import get_yolo_model
 
 
@@ -100,7 +101,37 @@ def create_app() -> FastAPI:
         logger.exception(f"Unhandled server error on {request.url.path}: {exc}")
         return _error_response(500, "An internal server error occurred.", "InternalServerError")
 
-    app.include_router(api_router)
+    @app.get(
+        "/",
+        summary="Service Information",
+        description="Root metadata information for the Argus ANPR API.",
+        tags=["Info"],
+    )
+    async def root() -> dict[str, str]:
+        return {
+            "name": settings.PROJECT_NAME,
+            "version": settings.VERSION,
+            "status": "running",
+            "docs": "/docs",
+        }
+
+    @app.post(
+        "/recognize",
+        response_model=RecognitionResponse,
+        summary="Recognize Vehicle License Plate",
+        description=(
+            "Upload a vehicle image (JPEG, PNG, WebP, BMP) to execute YOLO v11 pre-screening "
+            "and automated license plate recognition."
+        ),
+        tags=["Recognition"],
+    )
+    async def recognize_plate(
+        file: Annotated[UploadFile, File(description="Image file (JPEG, PNG, WebP, BMP)")],
+    ) -> RecognitionResponse:
+        image_bytes = await file.read()
+        validate_image_upload(image_bytes, content_type=file.content_type)
+        return recognize_plate_image(image_bytes, filename=file.filename or "image.jpg")
+
     return app
 
 

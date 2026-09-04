@@ -1,4 +1,4 @@
-from app.schemas.plate import (
+from app.schemas import (
     PlateResult,
     RecognitionResponse,
     RecognitionStatusEnum,

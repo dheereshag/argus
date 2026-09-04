@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, patch
 
 from PIL import Image
 
-from app.schemas.plate import RecognitionStatusEnum
+from app.schemas import RecognitionStatusEnum
 from app.services.pipeline import recognize_plate_image
 
 

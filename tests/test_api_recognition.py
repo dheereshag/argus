@@ -1,7 +1,7 @@
 import os
 from unittest.mock import patch
 
-from app.schemas.plate import RecognitionResponse, RecognitionStatusEnum
+from app.schemas import RecognitionResponse, RecognitionStatusEnum
 
 
 def test_recognize_empty_file(client):

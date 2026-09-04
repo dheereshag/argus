@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-from app.schemas.plate import RecognitionStatusEnum
+from app.schemas import RecognitionStatusEnum
 from app.services.ocr import PlateRecognizer
 from app.services.plate_rules import (
     INDIAN_PLATE_REGEX,

@@ -2,7 +2,7 @@
 Argus: Production Indian Automatic Number Plate Recognition (ANPR) Python Library & CLI.
 """
 
-from app.schemas.plate import (
+from app.schemas import (
     PlateResult,
     RecognitionResponse,
     RecognitionStatusEnum,
