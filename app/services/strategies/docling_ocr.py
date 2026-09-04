@@ -129,15 +129,9 @@ class DoclingStrategy(BasePlateRecognizer):
                     cx, cy = _get_box_centroid(boxes[idx]) if (boxes is not None and idx < len(boxes)) else (None, None)
                     raw_items.append(OCRToken(text=str(t), score=float(s), cx=cx, cy=cy))
 
-            elif isinstance(res, (tuple, list)) and len(res) == 2 and isinstance(res[0], (list, tuple)):
-                for item in res[0]:
-                    if len(item) >= 3:
-                        box, text, score = item[0], item[1], item[2]
-                        cx, cy = _get_box_centroid(box)
-                        raw_items.append(OCRToken(text=str(text), score=float(score), cx=cx, cy=cy))
-
             elif isinstance(res, (tuple, list)):
-                for item in res:
+                items = res[0] if len(res) == 2 and isinstance(res[0], (list, tuple)) else res
+                for item in items:
                     if isinstance(item, (list, tuple)) and len(item) >= 3:
                         box, text, score = item[0], item[1], item[2]
                         cx, cy = _get_box_centroid(box)
@@ -189,10 +183,8 @@ class DoclingStrategy(BasePlateRecognizer):
         plate_candidates: list[PlateCandidate] = []
         seen_matched_plates = set()
 
-        # 1. Collect individual recognized text tokens
-        for tok in clean_tokens:
-            y_pos = tok.cy if tok.cy is not None else 0.0
-            for rank, cand_norm in enumerate(normalize_candidate_strings(tok.text)):
+        def evaluate_candidate(raw_text: str, y_pos: float) -> None:
+            for rank, cand_norm in enumerate(normalize_candidate_strings(raw_text)):
                 match = INDIAN_PLATE_REGEX.fullmatch(cand_norm)
                 if match:
                     info = self.parse_plate_info(match.group(0))
@@ -202,6 +194,10 @@ class DoclingStrategy(BasePlateRecognizer):
                             seen_matched_plates.add(plate_num)
                             info["raw_text"] = raw_text_summary
                             plate_candidates.append(PlateCandidate(y_pos=y_pos, rank=rank, info=info))
+
+        # 1. Collect individual recognized text tokens
+        for tok in clean_tokens:
+            evaluate_candidate(tok.text, tok.cy if tok.cy is not None else 0.0)
 
         # 2. Collect 2-line combinations sorted by 2D spatial proximity
         candidate_pairs: list[tuple[float, str, float]] = []  # (dist, text, y_pos)
@@ -224,16 +220,7 @@ class DoclingStrategy(BasePlateRecognizer):
         candidate_pairs.sort(key=lambda p: p[0])
 
         for _, pair_raw, y_pos in candidate_pairs:
-            for rank, pair_norm in enumerate(normalize_candidate_strings(pair_raw)):
-                match = INDIAN_PLATE_REGEX.fullmatch(pair_norm)
-                if match:
-                    info = self.parse_plate_info(match.group(0))
-                    if info:
-                        plate_num = info.get("plate")
-                        if plate_num and plate_num not in seen_matched_plates:
-                            seen_matched_plates.add(plate_num)
-                            info["raw_text"] = raw_text_summary
-                            plate_candidates.append(PlateCandidate(y_pos=y_pos, rank=rank, info=info))
+            evaluate_candidate(pair_raw, y_pos)
 
         # 3. Select best candidate: prioritize exact matches (rank 0) first,
         # then rank by lower-bumper vertical position descending (highest y)

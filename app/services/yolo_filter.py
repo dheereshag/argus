@@ -1,5 +1,5 @@
 import threading
-from typing import TypedDict
+from typing import Any, TypedDict
 
 import numpy as np
 from PIL import Image
@@ -8,8 +8,8 @@ from ultralytics import YOLO
 from app.core.config import settings
 from app.core.contracts import bounded, ensure, require
 from app.core.logging import logger
-from app.schemas.plate import BoundingBox, ImageInput, RecognitionStatusEnum
-from app.services.image_processing import clamp_box, load_rgb
+from app.schemas.plate import RecognitionStatusEnum
+from app.services.image_processing import BoundingBox, ImageInput, clamp_box, load_rgb
 
 
 class YoloResult(TypedDict, total=True):
@@ -71,19 +71,15 @@ def _run_detection(
     vehicles: list[tuple[int, str, BoundingBox]] = []
 
     boxes = getattr(results, "boxes", None)
-    if boxes is None or len(boxes) == 0:
+    if boxes is None or len(boxes) == 0 or not hasattr(boxes, "cls"):
         return False, []
 
-    if hasattr(boxes, "cls") and hasattr(boxes.cls, "cpu"):
-        cls_ids = boxes.cls.cpu().numpy()
-        confs = boxes.conf.cpu().numpy()
-        xyxy = boxes.xyxy.cpu().numpy() if getattr(boxes, "xyxy", None) is not None else None
-    elif hasattr(boxes, "cls"):
-        cls_ids = np.array(boxes.cls)
-        confs = np.array(boxes.conf)
-        xyxy = np.array(boxes.xyxy) if getattr(boxes, "xyxy", None) is not None else None
-    else:
-        return False, []
+    def to_np(arr: Any) -> np.ndarray:
+        return arr.cpu().numpy() if hasattr(arr, "cpu") else np.asarray(arr)
+
+    cls_ids = to_np(boxes.cls)
+    confs = to_np(boxes.conf)
+    xyxy = to_np(boxes.xyxy) if getattr(boxes, "xyxy", None) is not None else None
 
     # Bounded: a frame with hundreds of detections is a frame we decline to fully process
     detections = bounded(list(zip(cls_ids, confs, strict=False)), MAX_DETECTIONS, "YOLO detections")
@@ -180,6 +176,8 @@ def filter_vehicle_and_occupancy(
             "vehicle_count": vehicle_count,
         }
 
+    occupancy_note = "with human presence" if human_detected else "with no human occupancy"
+
     if vehicle_count == 0:
         if reject_on_no_vehicle:
             return {
@@ -191,7 +189,6 @@ def filter_vehicle_and_occupancy(
                 "human_detected": human_detected,
                 "vehicle_count": 0,
             }
-        occupancy_note = "with human presence" if human_detected else "with no human occupancy"
         return {
             "is_eligible": True,
             "status": None,
@@ -202,7 +199,6 @@ def filter_vehicle_and_occupancy(
             "vehicle_count": 0,
         }
 
-    occupancy_note = "with human presence" if human_detected else "with no human occupancy"
     multi_note = f" ({vehicle_count} vehicles detected)" if vehicle_count > 1 else ""
     return {
         "is_eligible": True,

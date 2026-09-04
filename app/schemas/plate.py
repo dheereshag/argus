@@ -2,10 +2,6 @@ from enum import Enum
 
 from pydantic import BaseModel, Field
 
-# Python 3.12 Type Aliases
-type BoundingBox = tuple[int, int, int, int]
-type ImageInput = str | bytes
-
 
 class RecognitionStatusEnum(str, Enum):
     SUCCESS = "success"

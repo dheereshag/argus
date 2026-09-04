@@ -7,17 +7,10 @@ import threading
 from unittest.mock import MagicMock, patch
 
 import pytest
-from PIL import Image
 
 from app.core.contracts import ContractViolation, bounded, ensure, require
 from app.services.pipeline import validate_plate_results
-
-
-def _jpeg(width: int, height: int) -> bytes:
-    buf = io.BytesIO()
-    Image.new("RGB", (width, height), (100, 100, 100)).save(buf, format="JPEG")
-    return buf.getvalue()
-
+from tests.conftest import create_test_jpeg
 
 # ---------------------------------------------------------------------------
 # Runtime contracts (preconditions and postconditions)
@@ -165,7 +158,7 @@ def test_non_list_provider_output_is_handled():
 def test_image_loading_closes_its_source_handle():
     from app.services.image_processing import load_rgb
 
-    buf = io.BytesIO(_jpeg(64, 64))
+    buf = io.BytesIO(create_test_jpeg(64, 64))
     img = load_rgb(buf.getvalue())
 
     assert img.size == (64, 64)

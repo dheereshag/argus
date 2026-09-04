@@ -3,11 +3,9 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from app.core.config import settings
 from app.core.exceptions import (
     ANPRServiceError,
     InvalidImageError,
-    PayloadTooLargeError,
 )
 from app.core.logging import logger
 from app.schemas.plate import (
@@ -60,13 +58,6 @@ def recognize_plate_image(
         raw_bytes = image_input
     else:
         raise InvalidImageError(f"Unsupported image input type: {type(image_input).__name__}")
-
-    if len(raw_bytes) > settings.MAX_UPLOAD_BYTES:
-        raise PayloadTooLargeError(
-            f"Image exceeds maximum permitted size of {settings.MAX_UPLOAD_BYTES // (1024 * 1024)} MB."
-        )
-    if not raw_bytes:
-        raise InvalidImageError(f"Image '{filename}' is empty.")
 
     image_bytes = decode_and_downscale(raw_bytes)
 

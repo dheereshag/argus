@@ -11,13 +11,7 @@ from app.core.config import settings
 from app.core.exceptions import InvalidImageError, PayloadTooLargeError
 from app.services.image_processing import decode_and_downscale
 from app.services.pipeline import recognize_plate_image
-
-
-def _jpeg(width: int, height: int) -> bytes:
-    buf = io.BytesIO()
-    Image.new("RGB", (width, height), (120, 120, 120)).save(buf, format="JPEG")
-    return buf.getvalue()
-
+from tests.conftest import create_test_jpeg as _jpeg
 
 # --------------------------------------------------------------------------
 # Upload size & limits
