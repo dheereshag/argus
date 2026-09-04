@@ -9,8 +9,7 @@ import numpy as np
 from PIL import Image
 from rapidocr import RapidOCR
 
-from app.core.config import settings
-from app.core.contracts import bounded, require
+from app.core.contracts import require
 from app.core.logging import logger
 from app.services.base import BasePlateRecognizer
 from app.services.constants import (
@@ -147,14 +146,11 @@ class DoclingStrategy(BasePlateRecognizer):
         if any(item.cy is not None for item in raw_items):
             raw_items.sort(key=lambda x: x.cy if x.cy is not None else 9999.0)
 
-        # Bounded OCR lines
-        lines_data = list(bounded(raw_items, settings.MAX_OCR_LINES, "OCR text lines"))
-
         clean_tokens: list[OCRToken] = []
         raw_text_parts: list[str] = []
         seen_tokens = set()
 
-        for token in lines_data:
+        for token in raw_items:
             if not token.text or token.score < 0.20:
                 continue
             raw_text_parts.append(token.text.strip())

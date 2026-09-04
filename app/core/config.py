@@ -32,9 +32,6 @@ class Settings(BaseSettings):
     REJECT_ON_MULTIPLE_VEHICLES: bool = False
     REJECT_ON_NO_VEHICLE: bool = False
 
-    # OCR line processing upper bound
-    MAX_OCR_LINES: int = 500
-
     # Server & CORS Settings
     SERVER_HOST: str = "0.0.0.0"
     SERVER_PORT: int = 8000
