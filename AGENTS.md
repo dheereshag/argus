@@ -90,6 +90,14 @@ For any Python modifications:
 - Use `uv remove <package>` to uninstall and remove dependencies.
 - Never manually edit the `dependencies` or `dependency-groups` arrays in `pyproject.toml` directly; let `uv` manage dependency specification, lockfile synchronization (`uv.lock`), and virtual environment state.
 
+## 8. No Backward-Compatibility Shims
+
+**Never add or keep backward-compatibility code for obsolete tests or legacy implementations.**
+
+- Do not compromise production code types or signatures to satisfy stale test mocks or old conventions.
+- If a function returns a typed dataclass/model, never add `isinstance(x, dict)` checks, dict subscription shims (`__getitem__`, `get`), or fallback adapters.
+- Update tests and callers to strictly match the current, clean production contracts. Never bend production code backward for tests.
+
 ---
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.

@@ -12,7 +12,7 @@ from app.schemas import (
     RecognitionStatusEnum,
 )
 from app.services.detector import filter_vehicle_and_occupancy
-from app.services.image_processing import decode_and_downscale, load_rgb
+from app.services.image_processing import decode_and_downscale
 from app.services.ocr import PlateRecognizer
 
 
@@ -81,40 +81,7 @@ def recognize_plate_image(
     image_bytes = decode_and_downscale(_resolve_bytes(image_input))
 
     # Stage 1: Vehicle Detection & Occupancy Gatekeeping
-    det_res = filter_vehicle_and_occupancy(image_bytes)
-    detection = (
-        det_res
-        if isinstance(det_res, DetectionResult)
-        else DetectionResult(
-            is_eligible=det_res["is_eligible"],
-            status=det_res.get("status"),
-            status_message=det_res.get("status_message", ""),
-            vehicle_detected=det_res.get("vehicle_detected", False),
-            vehicle_type=det_res.get("vehicle_type"),
-            human_detected=det_res.get("human_detected", False),
-            vehicle_count=det_res.get("vehicle_count", 1 if det_res.get("vehicle_detected") else 0),
-            vehicle_box=det_res.get("vehicle_box"),
-            crop=det_res.get("crop"),
-        )
-    )
-
-    if detection.crop is None and detection.vehicle_box is not None:
-        try:
-            pil_img = load_rgb(image_bytes)
-            detection = DetectionResult(
-                is_eligible=detection.is_eligible,
-                status=detection.status,
-                status_message=detection.status_message,
-                vehicle_detected=detection.vehicle_detected,
-                vehicle_type=detection.vehicle_type,
-                human_detected=detection.human_detected,
-                vehicle_count=detection.vehicle_count,
-                vehicle_box=detection.vehicle_box,
-                crop=pil_img.crop(detection.vehicle_box),
-            )
-        except (ValueError, OSError, RuntimeError) as exc:
-            logger.debug(f"Could not crop vehicle box: {exc}")
-
+    detection = filter_vehicle_and_occupancy(image_bytes)
     if not detection.is_eligible:
         logger.info(f"Image '{resolved_filename}' ineligible: {detection.status_message}")
         return _build_response(
