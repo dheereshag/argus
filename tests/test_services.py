@@ -1,12 +1,15 @@
 from unittest.mock import MagicMock, patch
 
+import pytest
+
+from app.core.config import settings
 from app.schemas import RecognitionStatusEnum
+from app.services.detector import filter_vehicle_and_occupancy
 from app.services.plate_rules import (
     INDIAN_PLATE_REGEX,
     STATE_CODES,
     normalize_candidate_strings,
 )
-from app.services.yolo_filter import filter_vehicle_and_occupancy
 
 
 def test_indian_plate_regex_and_state_codes():
@@ -25,7 +28,7 @@ def test_indian_plate_regex_and_state_codes():
         assert STATE_CODES.get(state_code) == expected_state
 
 
-@patch("app.services.yolo_filter.get_yolo_model")
+@patch("app.services.detector.get_yolo_model")
 def test_yolo_filter_eligible_vehicle(mock_get_model, sample_image_bytes):
     mock_box_car = MagicMock()
     mock_box_car.__len__.return_value = 1
@@ -48,8 +51,10 @@ def test_yolo_filter_eligible_vehicle(mock_get_model, sample_image_bytes):
     assert res["vehicle_box"] == (10, 10, 90, 90)
 
 
-@patch("app.services.yolo_filter.get_yolo_model")
-def test_yolo_filter_human_detection_policy(mock_get_model, sample_image_bytes):
+@patch("app.services.detector.get_yolo_model")
+def test_yolo_filter_human_detection_policy(
+    mock_get_model, sample_image_bytes, monkeypatch: pytest.MonkeyPatch
+):
     mock_box_human = MagicMock()
     mock_box_human.__len__.return_value = 2
     mock_box_human.cls.cpu().numpy.return_value = [0, 2]  # Class 0 = person, 2 = car
@@ -70,15 +75,16 @@ def test_yolo_filter_human_detection_policy(mock_get_model, sample_image_bytes):
     assert res_default["human_detected"] is True
 
     # Explicit policy: reject_on_human is False -> eligible
-    res_allowed = filter_vehicle_and_occupancy(sample_image_bytes, reject_on_human=False)
+    monkeypatch.setattr(settings, "REJECT_ON_HUMAN_DETECTED", False)
+    res_allowed = filter_vehicle_and_occupancy(sample_image_bytes)
     assert res_allowed["is_eligible"] is True
     assert res_allowed["status"] is None
     assert res_allowed["human_detected"] is True
     assert res_allowed["vehicle_detected"] is True
 
 
-@patch("app.services.yolo_filter.get_yolo_model")
-def test_yolo_filter_no_vehicle_policy(mock_get_model, sample_image_bytes):
+@patch("app.services.detector.get_yolo_model")
+def test_yolo_filter_no_vehicle_policy(mock_get_model, sample_image_bytes, monkeypatch: pytest.MonkeyPatch):
     mock_box_empty = MagicMock()
     mock_box_empty.__len__.return_value = 0
     mock_box_empty.cls.cpu().numpy.return_value = []
@@ -100,15 +106,16 @@ def test_yolo_filter_no_vehicle_policy(mock_get_model, sample_image_bytes):
     assert res_default["vehicle_count"] == 0
 
     # Explicit policy: reject_on_no_vehicle is False -> eligible for direct plate OCR
-    res_allowed = filter_vehicle_and_occupancy(sample_image_bytes, reject_on_no_vehicle=False)
+    monkeypatch.setattr(settings, "REJECT_ON_NO_VEHICLE", False)
+    res_allowed = filter_vehicle_and_occupancy(sample_image_bytes)
     assert res_allowed["is_eligible"] is True
     assert res_allowed["status"] is None
     assert res_allowed["vehicle_detected"] is False
     assert res_allowed["vehicle_count"] == 0
 
 
-@patch("app.services.yolo_filter.get_yolo_model")
-def test_yolo_filter_multiple_vehicles_policy(mock_get_model, sample_image_bytes):
+@patch("app.services.detector.get_yolo_model")
+def test_yolo_filter_multiple_vehicles_policy(mock_get_model, sample_image_bytes, monkeypatch: pytest.MonkeyPatch):
     mock_box_multiple = MagicMock()
     mock_box_multiple.__len__.return_value = 2
     mock_box_multiple.cls.cpu().numpy.return_value = [2, 7]  # Class 2 = car, 7 = truck
@@ -130,7 +137,8 @@ def test_yolo_filter_multiple_vehicles_policy(mock_get_model, sample_image_bytes
     assert res_default["vehicle_count"] == 2
 
     # Explicit policy: reject_on_multiple_vehicles is False -> eligible with primary vehicle
-    res_allowed = filter_vehicle_and_occupancy(sample_image_bytes, reject_on_multiple_vehicles=False)
+    monkeypatch.setattr(settings, "REJECT_ON_MULTIPLE_VEHICLES", False)
+    res_allowed = filter_vehicle_and_occupancy(sample_image_bytes)
     assert res_allowed["is_eligible"] is True
     assert res_allowed["status"] is None
     assert res_allowed["vehicle_detected"] is True

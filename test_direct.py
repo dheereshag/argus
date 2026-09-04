@@ -2,9 +2,9 @@ import argparse
 import os
 import time
 
+from app.services.detector import filter_vehicle_and_occupancy
 from app.services.image_processing import decode_and_downscale
 from app.services.ocr import PlateRecognizer
-from app.services.yolo_filter import filter_vehicle_and_occupancy
 
 TESTS_DIR = "tests"
 

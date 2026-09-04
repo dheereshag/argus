@@ -25,6 +25,28 @@ class PlateCandidate:
     info: dict[str, Any]
 
 
+@dataclass(slots=True)
+class DetectionResult:
+    """Stage 1 result: vehicle localization, occupancy checks, and cropped vehicle image."""
+
+    is_eligible: bool
+    status: RecognitionStatusEnum | None
+    status_message: str
+    vehicle_detected: bool
+    vehicle_type: str | None
+    human_detected: bool
+    vehicle_count: int
+    vehicle_box: tuple[int, int, int, int] | None = None
+    crop: Any = None
+
+    def __getitem__(self, key: str) -> Any:
+        return getattr(self, key)
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
+
+
+
 
 class RecognitionStatusEnum(str, Enum):
     SUCCESS = "success"

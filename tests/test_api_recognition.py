@@ -56,7 +56,7 @@ def test_recognize_sample_image(client, sample_image_bytes):
 
 
 def test_recognize_sample_image_allowed_when_policy_disabled(client, sample_image_bytes):
-    with patch("app.services.yolo_filter.settings.REJECT_ON_NO_VEHICLE", False):
+    with patch("app.services.detector.settings.REJECT_ON_NO_VEHICLE", False):
         response = client.post(
             "/recognize",
             files={"file": ("test.jpg", sample_image_bytes, "image/jpeg")},

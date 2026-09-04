@@ -14,10 +14,10 @@ from app.core.contracts import ContractViolation
 from app.core.exceptions import ANPRServiceError
 from app.core.logging import logger
 from app.schemas import APIErrorResponse, RecognitionResponse
+from app.services.detector import get_yolo_model
 from app.services.image_processing import validate_image_upload
 from app.services.ocr import check_ocr_engine
 from app.services.pipeline import recognize_plate_image
-from app.services.yolo_filter import get_yolo_model
 
 
 def _error_response(status_code: int, message: str, error_type: str, details: Any = None) -> JSONResponse:

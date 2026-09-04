@@ -6,9 +6,9 @@ from app.core.config import settings
 from app.core.contracts import ContractViolation
 from app.core.exceptions import ANPRServiceError
 from app.core.logging import logger
+from app.services.detector import get_yolo_model
 from app.services.ocr import check_ocr_engine
 from app.services.pipeline import recognize_plate_image
-from app.services.yolo_filter import get_yolo_model
 
 
 def main():
