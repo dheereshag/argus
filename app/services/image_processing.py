@@ -9,17 +9,12 @@ from app.core.contracts import ensure, require
 from app.core.exceptions import InvalidImageError, PayloadTooLargeError
 
 # Python 3.12 Type Aliases
-type BoundingBox = tuple[int, int, int, int]
 type ImageInput = str | bytes | Image.Image | np.ndarray
 
 # Decompression-bomb guard. Pillow's default limit only emits a warning;
 # this makes an oversized image raise before allocation.
 Image.MAX_IMAGE_PIXELS = settings.MAX_IMAGE_PIXELS
 object.__setattr__(ImageFile, "LOAD_TRUNCATED_IMAGES", True)
-
-# A crop narrower than this cannot contain a readable plate. Used to reject
-# degenerate boxes rather than feeding a 2-pixel sliver to downstream models.
-MIN_CROP_EDGE_PX = 8
 
 # Permitted image formats and MIME types
 ALLOWED_IMAGE_FORMATS: frozenset[str] = frozenset({"JPEG", "PNG", "WEBP", "BMP"})
@@ -114,42 +109,6 @@ def decode_and_downscale(
     ensure(min(pil_img.size) > 0, "downscaled image collapsed to zero size")
     ensure(max(pil_img.size) <= max_edge, f"downscale failed to bound edge to {max_edge}")
     return _to_jpeg_bytes(pil_img)
-
-
-def clamp_box(
-    box: BoundingBox | None,
-    width: int,
-    height: int,
-) -> BoundingBox | None:
-    """
-    Clamp an xyxy box to real image bounds.
-    Returns None when the box is malformed or degenerate after clamping.
-    """
-    require(width > 0 and height > 0, f"image dimensions must be positive, got {width}x{height}")
-
-    if not box or len(box) != 4:
-        return None
-
-    try:
-        x1, y1, x2, y2 = (int(v) for v in box)
-    except (TypeError, ValueError):
-        return None
-
-    # Handle corner-swapped coordinates
-    if x2 < x1:
-        x1, x2 = x2, x1
-    if y2 < y1:
-        y1, y2 = y2, y1
-
-    x1 = max(0, min(x1, width))
-    y1 = max(0, min(y1, height))
-    x2 = max(0, min(x2, width))
-    y2 = max(0, min(y2, height))
-
-    if x2 - x1 < MIN_CROP_EDGE_PX or y2 - y1 < MIN_CROP_EDGE_PX:
-        return None
-
-    return (x1, y1, x2, y2)
 
 
 def load_rgb(image_input: ImageInput) -> Image.Image:

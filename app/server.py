@@ -2,6 +2,7 @@ import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -13,17 +14,26 @@ from app.core.config import settings
 from app.core.contracts import ContractViolation
 from app.core.exceptions import ANPRServiceError
 from app.core.logging import logger
-from app.schemas.error import APIErrorResponse
+from app.schemas.plate import APIErrorResponse
 from app.services.ocr import check_ocr_engine
 from app.services.yolo_filter import get_yolo_model
 
 
+def _error_response(status_code: int, message: str, error_type: str, details: Any = None) -> JSONResponse:
+    payload = APIErrorResponse(
+        success=False,
+        status_code=status_code,
+        message=message,
+        error_type=error_type,
+        details=details,
+        timestamp=datetime.now(UTC),
+    )
+    return JSONResponse(status_code=status_code, content=payload.model_dump(mode="json"))
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    """
-    Application lifespan manager:
-    Pre-warms YOLO model and verifies OCR engines during service startup.
-    """
+    """Pre-warms YOLO model and verifies OCR engines during service startup."""
     logger.info(f"Starting {settings.PROJECT_NAME} v{settings.VERSION}...")
 
     try:
@@ -48,15 +58,12 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title=settings.PROJECT_NAME,
         version=settings.VERSION,
-        description=(
-            "Enterprise Automatic Number Plate Recognition (ANPR) Microservice powered by YOLO v11 and RapidOCR."
-        ),
+        description="Enterprise Automatic Number Plate Recognition (ANPR) Microservice powered by YOLO v11 and RapidOCR.",
         docs_url=settings.DOCS_URL,
         redoc_url=settings.REDOC_URL,
         lifespan=lifespan,
     )
 
-    # CORS Middleware
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.CORS_ORIGINS,
@@ -65,7 +72,6 @@ def create_app() -> FastAPI:
         allow_headers=settings.CORS_ALLOW_HEADERS,
     )
 
-    # Process time header middleware
     @app.middleware("http")
     async def add_process_time_header(request: Request, call_next):
         start_time = time.perf_counter()
@@ -74,87 +80,27 @@ def create_app() -> FastAPI:
         response.headers["X-Process-Time-Ms"] = f"{process_time_ms:.2f}"
         return response
 
-    # Exception Handlers
     @app.exception_handler(ANPRServiceError)
     async def handle_anpr_service_error(request: Request, exc: ANPRServiceError) -> JSONResponse:
         logger.warning(f"Domain exception on {request.url.path}: {exc.message} ({exc.status_code})")
-        payload = APIErrorResponse(
-            success=False,
-            status_code=exc.status_code,
-            message=exc.message,
-            error_type=exc.__class__.__name__,
-            timestamp=datetime.now(UTC),
-        )
-        return JSONResponse(
-            status_code=exc.status_code,
-            content=payload.model_dump(mode="json"),
-        )
+        return _error_response(exc.status_code, exc.message, exc.__class__.__name__)
 
     @app.exception_handler(ContractViolation)
     async def handle_contract_violation(request: Request, exc: ContractViolation) -> JSONResponse:
         logger.error(f"Internal contract violation on {request.url.path}: {exc}")
-        payload = APIErrorResponse(
-            success=False,
-            status_code=500,
-            message="Internal system assertion contract failed.",
-            error_type="ContractViolation",
-            details=str(exc),
-            timestamp=datetime.now(UTC),
-        )
-        return JSONResponse(
-            status_code=500,
-            content=payload.model_dump(mode="json"),
-        )
+        return _error_response(500, "Internal system assertion contract failed.", "ContractViolation", str(exc))
 
     @app.exception_handler(RequestValidationError)
     async def handle_validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
         logger.warning(f"Request validation error on {request.url.path}: {exc.errors()}")
-        payload = APIErrorResponse(
-            success=False,
-            status_code=422,
-            message="Request validation error.",
-            error_type="RequestValidationError",
-            details=exc.errors(),
-            timestamp=datetime.now(UTC),
-        )
-        return JSONResponse(
-            status_code=422,
-            content=payload.model_dump(mode="json"),
-        )
+        return _error_response(422, "Request validation error.", "RequestValidationError", exc.errors())
 
     @app.exception_handler(Exception)
     async def handle_unhandled_exception(request: Request, exc: Exception) -> JSONResponse:
         logger.exception(f"Unhandled server error on {request.url.path}: {exc}")
-        payload = APIErrorResponse(
-            success=False,
-            status_code=500,
-            message="An internal server error occurred.",
-            error_type="InternalServerError",
-            timestamp=datetime.now(UTC),
-        )
-        return JSONResponse(
-            status_code=500,
-            content=payload.model_dump(mode="json"),
-        )
+        return _error_response(500, "An internal server error occurred.", "InternalServerError")
 
-    # Root endpoint for service information
-    @app.get(
-        "/",
-        summary="Service Information",
-        description="Root metadata information for the Argus ANPR API.",
-        tags=["Info"],
-    )
-    async def root():
-        return {
-            "name": settings.PROJECT_NAME,
-            "version": settings.VERSION,
-            "status": "running",
-            "docs": "/docs",
-        }
-
-    # Mount API routers
     app.include_router(api_router)
-
     return app
 
 

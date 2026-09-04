@@ -11,13 +11,13 @@ from rapidocr import RapidOCR
 
 from app.core.contracts import require
 from app.core.logging import logger
-from app.services.constants import (
+from app.services.image_processing import ImageInput, load_rgb
+from app.services.plate_rules import (
     INDIAN_PLATE_REGEX,
     NON_PLATE_WORDS,
-    STATE_CODES,
     normalize_candidate_strings,
+    parse_plate_info,
 )
-from app.services.image_processing import ImageInput, load_rgb
 
 # Direct RapidOCR engine instance
 _OCR_ENGINE = RapidOCR()
@@ -107,37 +107,8 @@ class PlateRecognizer:
     """
 
     def parse_plate_info(self, raw_plate: str | None) -> dict[str, Any] | None:
-        """
-        Validate candidate plate string against Indian plate regex and resolve State/UT.
-        Strips whitespace and normalizes known state prefix confusions (e.g. W8 -> WB).
-        """
-        if not raw_plate:
-            return None
-
-        cleaned = re.sub(r"[^A-Za-z0-9]", "", str(raw_plate)).upper()
-        if not cleaned:
-            return None
-
-        if cleaned.startswith("W8"):
-            cleaned = "WB" + cleaned[2:]
-
-        match = INDIAN_PLATE_REGEX.fullmatch(cleaned)
-        if not match:
-            return None
-
-        matched_plate = cleaned
-
-        # Standard Indian Series State resolution
-        if match.group(1):
-            state_code = match.group(1).upper()
-            state_name = STATE_CODES.get(state_code, "Unknown State")
-            return {"plate": matched_plate, "state": state_name}
-
-        # Bharat (BH) Series
-        if match.group(5):  # "BH"
-            return {"plate": matched_plate, "state": STATE_CODES.get("BH", "Bharat Series (National)")}
-
-        return {"plate": matched_plate, "state": "Unknown State"}
+        """Validate candidate plate string against Indian plate regex and resolve State/UT."""
+        return parse_plate_info(raw_plate)
 
     def _extract_plates_from_image_array(self, img_pil: Image.Image) -> list[dict[str, Any]]:
         require(img_pil is not None, "_extract_plates_from_image_array received None")

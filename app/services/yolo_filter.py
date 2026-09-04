@@ -8,7 +8,11 @@ from app.core.config import settings
 from app.core.contracts import bounded, ensure, require
 from app.core.logging import logger
 from app.schemas.plate import RecognitionStatusEnum
-from app.services.image_processing import BoundingBox, ImageInput, clamp_box, load_rgb
+from app.services.image_processing import ImageInput, load_rgb
+
+# Bounding box geometry: (x1, y1, x2, y2)
+type BoundingBox = tuple[int, int, int, int]
+MIN_CROP_EDGE_PX = 8
 
 
 class YoloResult(TypedDict, total=True):
@@ -48,6 +52,38 @@ FOUR_WHEELER_CLASS_NAMES = {2: "car", 5: "bus", 7: "truck"}
 
 # Upper bound on detections examined per frame.
 MAX_DETECTIONS = 100
+
+
+def clamp_box(
+    box: BoundingBox | None,
+    width: int,
+    height: int,
+) -> BoundingBox | None:
+    """Clamp an xyxy box to real image bounds. Returns None when malformed or degenerate."""
+    require(width > 0 and height > 0, f"image dimensions must be positive, got {width}x{height}")
+
+    if not box or len(box) != 4:
+        return None
+
+    try:
+        x1, y1, x2, y2 = (int(v) for v in box)
+    except (TypeError, ValueError):
+        return None
+
+    if x2 < x1:
+        x1, x2 = x2, x1
+    if y2 < y1:
+        y1, y2 = y2, y1
+
+    x1 = max(0, min(x1, width))
+    y1 = max(0, min(y1, height))
+    x2 = max(0, min(x2, width))
+    y2 = max(0, min(y2, height))
+
+    if x2 - x1 < MIN_CROP_EDGE_PX or y2 - y1 < MIN_CROP_EDGE_PX:
+        return None
+
+    return (x1, y1, x2, y2)
 
 
 def _run_detection(
@@ -110,6 +146,29 @@ def _run_detection(
     return human_detected, [(v_type, box) for _, v_type, box in vehicles]
 
 
+def _build_result(
+    *,
+    is_eligible: bool,
+    status: RecognitionStatusEnum | None,
+    message: str,
+    vehicle_detected: bool,
+    vehicle_type: str | None,
+    human_detected: bool,
+    vehicle_count: int,
+    vehicle_box: BoundingBox | None,
+) -> YoloResult:
+    return {
+        "is_eligible": is_eligible,
+        "status": status,
+        "status_message": message,
+        "vehicle_detected": vehicle_detected,
+        "vehicle_type": vehicle_type,
+        "human_detected": human_detected,
+        "vehicle_count": vehicle_count,
+        "vehicle_box": vehicle_box,
+    }
+
+
 def filter_vehicle_and_occupancy(
     image_input: ImageInput,
     human_conf_thresh: float | None = None,
@@ -119,7 +178,7 @@ def filter_vehicle_and_occupancy(
     reject_on_no_vehicle: bool | None = None,
 ) -> YoloResult:
     """
-    Pre-screening gate combining vehicle detection and occupancy filtering.
+    Pre-screening gate combining vehicle detection, cropping geometry, and occupancy filtering.
     """
     human_conf_thresh = human_conf_thresh or settings.HUMAN_CONF_THRESH
     vehicle_conf_thresh = vehicle_conf_thresh or settings.VEHICLE_CONF_THRESH
@@ -151,64 +210,64 @@ def filter_vehicle_and_occupancy(
 
     if human_detected and reject_on_human:
         logger.warning("Rejected frame: Human presence detected.")
-        return {
-            "is_eligible": False,
-            "status": RecognitionStatusEnum.REJECTED_HUMAN_DETECTED,
-            "status_message": "Image rejected: Human presence detected.",
-            "vehicle_detected": vehicle_count > 0,
-            "vehicle_type": primary_vehicle_type,
-            "human_detected": human_detected,
-            "vehicle_count": vehicle_count,
-            "vehicle_box": primary_vehicle_box,
-        }
+        return _build_result(
+            is_eligible=False,
+            status=RecognitionStatusEnum.REJECTED_HUMAN_DETECTED,
+            message="Image rejected: Human presence detected.",
+            vehicle_detected=vehicle_count > 0,
+            vehicle_type=primary_vehicle_type,
+            human_detected=human_detected,
+            vehicle_count=vehicle_count,
+            vehicle_box=primary_vehicle_box,
+        )
 
     if vehicle_count > 1 and reject_on_multiple_vehicles:
         types_str = ", ".join(detected_vehicle_types)
         logger.warning(f"Rejected frame: {vehicle_count} vehicles detected ({types_str}).")
-        return {
-            "is_eligible": False,
-            "status": RecognitionStatusEnum.REJECTED_MULTIPLE_VEHICLES,
-            "status_message": f"Image rejected: Multiple 4-wheeler vehicles detected ({vehicle_count} vehicles: {types_str}). Weighbridge allows only 1 vehicle.",
-            "vehicle_detected": True,
-            "vehicle_type": primary_vehicle_type,
-            "human_detected": human_detected,
-            "vehicle_count": vehicle_count,
-            "vehicle_box": primary_vehicle_box,
-        }
+        return _build_result(
+            is_eligible=False,
+            status=RecognitionStatusEnum.REJECTED_MULTIPLE_VEHICLES,
+            message=f"Image rejected: Multiple 4-wheeler vehicles detected ({vehicle_count} vehicles: {types_str}). Weighbridge allows only 1 vehicle.",
+            vehicle_detected=True,
+            vehicle_type=primary_vehicle_type,
+            human_detected=human_detected,
+            vehicle_count=vehicle_count,
+            vehicle_box=primary_vehicle_box,
+        )
 
     occupancy_note = "with human presence" if human_detected else "with no human occupancy"
 
     if vehicle_count == 0:
         if reject_on_no_vehicle:
-            return {
-                "is_eligible": False,
-                "status": RecognitionStatusEnum.REJECTED_NO_FOUR_WHEELER,
-                "status_message": "Image rejected: No 4-wheeler vehicle (car, bus, truck) detected.",
-                "vehicle_detected": False,
-                "vehicle_type": None,
-                "human_detected": human_detected,
-                "vehicle_count": 0,
-                "vehicle_box": None,
-            }
-        return {
-            "is_eligible": True,
-            "status": None,
-            "status_message": f"No vehicle detected ({occupancy_note}). Eligible for direct plate recognition.",
-            "vehicle_detected": False,
-            "vehicle_type": None,
-            "human_detected": human_detected,
-            "vehicle_count": 0,
-            "vehicle_box": None,
-        }
+            return _build_result(
+                is_eligible=False,
+                status=RecognitionStatusEnum.REJECTED_NO_FOUR_WHEELER,
+                message="Image rejected: No 4-wheeler vehicle (car, bus, truck) detected.",
+                vehicle_detected=False,
+                vehicle_type=None,
+                human_detected=human_detected,
+                vehicle_count=0,
+                vehicle_box=None,
+            )
+        return _build_result(
+            is_eligible=True,
+            status=None,
+            message=f"No vehicle detected ({occupancy_note}). Eligible for direct plate recognition.",
+            vehicle_detected=False,
+            vehicle_type=None,
+            human_detected=human_detected,
+            vehicle_count=0,
+            vehicle_box=None,
+        )
 
     multi_note = f" ({vehicle_count} vehicles detected)" if vehicle_count > 1 else ""
-    return {
-        "is_eligible": True,
-        "status": None,
-        "status_message": f"4-wheeler ({primary_vehicle_type}){multi_note} detected {occupancy_note}. Eligible for plate recognition.",
-        "vehicle_detected": True,
-        "vehicle_type": primary_vehicle_type,
-        "human_detected": human_detected,
-        "vehicle_count": vehicle_count,
-        "vehicle_box": primary_vehicle_box,
-    }
+    return _build_result(
+        is_eligible=True,
+        status=None,
+        message=f"4-wheeler ({primary_vehicle_type}){multi_note} detected {occupancy_note}. Eligible for plate recognition.",
+        vehicle_detected=True,
+        vehicle_type=primary_vehicle_type,
+        human_detected=human_detected,
+        vehicle_count=vehicle_count,
+        vehicle_box=primary_vehicle_box,
+    )

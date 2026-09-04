@@ -102,26 +102,26 @@ def test_yolo_singleton_initializes_once():
 
 
 def test_out_of_bounds_box_is_clamped():
-    from app.services.image_processing import clamp_box
+    from app.services.yolo_filter import clamp_box
 
     assert clamp_box((-50, -50, 5000, 5000), 640, 480) == (0, 0, 640, 480)
 
 
 def test_corner_swapped_box_is_repaired():
-    from app.services.image_processing import clamp_box
+    from app.services.yolo_filter import clamp_box
 
     assert clamp_box((300, 200, 100, 50), 640, 480) == (100, 50, 300, 200)
 
 
 @pytest.mark.parametrize("bad", [None, (), (1, 2), (0, 0, 2, 2), "nope", (0, 0, "x", 4)])
 def test_unusable_boxes_are_rejected_not_cropped(bad):
-    from app.services.image_processing import clamp_box
+    from app.services.yolo_filter import clamp_box
 
     assert clamp_box(bad, 640, 480) is None
 
 
 def test_clamp_rejects_nonsense_image_dimensions():
-    from app.services.image_processing import clamp_box
+    from app.services.yolo_filter import clamp_box
 
     with pytest.raises(ContractViolation):
         clamp_box((0, 0, 10, 10), 0, 480)

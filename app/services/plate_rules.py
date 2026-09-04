@@ -1,4 +1,5 @@
 import re
+from typing import Any
 
 # Indian State & Union Territory Codes Mapping
 STATE_CODES = {
@@ -244,3 +245,37 @@ def normalize_candidate_strings(raw_str: str) -> list[str]:
                     results.append(bh_cand)
 
     return results
+
+
+def parse_plate_info(raw_plate: str | None) -> dict[str, Any] | None:
+    """
+    Validate candidate plate string against Indian plate regex and resolve State/UT.
+    Strips whitespace and normalizes known state prefix confusions (e.g. W8 -> WB).
+    """
+    if not raw_plate:
+        return None
+
+    cleaned = re.sub(r"[^A-Za-z0-9]", "", str(raw_plate)).upper()
+    if not cleaned:
+        return None
+
+    if cleaned.startswith("W8"):
+        cleaned = "WB" + cleaned[2:]
+
+    match = INDIAN_PLATE_REGEX.fullmatch(cleaned)
+    if not match:
+        return None
+
+    matched_plate = cleaned
+
+    # Standard Indian Series State resolution
+    if match.group(1):
+        state_code = match.group(1).upper()
+        state_name = STATE_CODES.get(state_code, "Unknown State")
+        return {"plate": matched_plate, "state": state_name}
+
+    # Bharat (BH) Series
+    if match.group(5):  # "BH"
+        return {"plate": matched_plate, "state": STATE_CODES.get("BH", "Bharat Series (National)")}
+
+    return {"plate": matched_plate, "state": "Unknown State"}

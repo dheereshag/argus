@@ -2,12 +2,12 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from app.schemas.plate import RecognitionStatusEnum
-from app.services.constants import (
+from app.services.ocr import PlateRecognizer
+from app.services.plate_rules import (
     INDIAN_PLATE_REGEX,
     STATE_CODES,
     normalize_candidate_strings,
 )
-from app.services.ocr import PlateRecognizer
 from app.services.yolo_filter import filter_vehicle_and_occupancy
 
 

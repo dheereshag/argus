@@ -1,4 +1,6 @@
+from datetime import UTC, datetime
 from enum import Enum
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -42,3 +44,14 @@ class RecognitionResponse(BaseModel):
     results: list[PlateResult] = Field(default_factory=list, description="Extracted license plate details")
     execution_time_ms: float | None = Field(None, description="Processing duration in milliseconds")
 
+
+class APIErrorResponse(BaseModel):
+    success: bool = Field(False, description="Always False for error responses")
+    status_code: int = Field(..., description="HTTP status code")
+    message: str = Field(..., description="Human-readable error description")
+    error_type: str = Field(..., description="Exception class or category")
+    details: Any = Field(None, description="Detailed validation or contextual error info")
+    timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        description="UTC timestamp of the error",
+    )

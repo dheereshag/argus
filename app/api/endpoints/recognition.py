@@ -2,11 +2,27 @@ from typing import Annotated
 
 from fastapi import APIRouter, File, UploadFile
 
+from app.core.config import settings
 from app.schemas.plate import RecognitionResponse
 from app.services.image_processing import validate_image_upload
 from app.services.pipeline import recognize_plate_image
 
 router = APIRouter()
+
+
+@router.get(
+    "/",
+    summary="Service Information",
+    description="Root metadata information for the Argus ANPR API.",
+    tags=["Info"],
+)
+async def root():
+    return {
+        "name": settings.PROJECT_NAME,
+        "version": settings.VERSION,
+        "status": "running",
+        "docs": "/docs",
+    }
 
 
 @router.post(

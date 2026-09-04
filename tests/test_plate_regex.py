@@ -17,8 +17,8 @@ tests fail.
 
 import pytest
 
-from app.services.constants import INDIAN_PLATE_REGEX, STATE_CODES
 from app.services.ocr import PlateRecognizer
+from app.services.plate_rules import INDIAN_PLATE_REGEX, STATE_CODES
 
 
 @pytest.fixture
@@ -112,10 +112,11 @@ def test_validation_path_uses_fullmatch_not_search():
     """
     import inspect
 
-    from app.services import ocr
+    from app.services import ocr, plate_rules
 
-    source = inspect.getsource(ocr)
-    assert "INDIAN_PLATE_REGEX.search(" not in source, (
-        f"{ocr.__name__} uses INDIAN_PLATE_REGEX.search(). Use .fullmatch() — "
-        "substring matching is how brand names become licence plates."
-    )
+    for module in (ocr, plate_rules):
+        source = inspect.getsource(module)
+        assert "INDIAN_PLATE_REGEX.search(" not in source, (
+            f"{module.__name__} uses INDIAN_PLATE_REGEX.search(). Use .fullmatch() — "
+            "substring matching is how brand names become licence plates."
+        )
