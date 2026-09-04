@@ -19,57 +19,59 @@ from app.services.plate_rules import (
     parse_plate_info,
 )
 
-_OCR_ENGINE = RapidOCR()
-
 _rapid_logger = logging.getLogger("RapidOCR")
 _rapid_logger.setLevel(logging.ERROR)
 for _h in _rapid_logger.handlers:
     _h.setLevel(logging.ERROR)
 
 
-def get_ocr_engine() -> RapidOCR:
-    """Return the RapidOCR engine instance."""
-    return _OCR_ENGINE
-
-
-def check_ocr_engine() -> bool:
-    """Verify that the RapidOCR engine is operational."""
-    return _OCR_ENGINE is not None
-
-
-def _get_box_centroid(box: Any) -> tuple[float | None, float | None]:
-    """Calculate (x_center, y_center) centroid of an OCR bounding box."""
-    if box is None:
-        return None, None
-    try:
-        if isinstance(box, (list, tuple, np.ndarray)) and len(box) >= 4:
-            if all(isinstance(v, (int, float, np.number)) for v in box[:4]):
-                return float((box[0] + box[2]) / 2.0), float((box[1] + box[3]) / 2.0)
-            if all(isinstance(pt, (list, tuple, np.ndarray)) and len(pt) >= 2 for pt in box):
-                pts_x = [pt[0] for pt in box]
-                pts_y = [pt[1] for pt in box]
-                return float(np.mean(pts_x)), float(np.mean(pts_y))
-    except (TypeError, ValueError, IndexError, AttributeError):
-        pass
-    return None, None
-
-
-def _enhance_contrast(img: Image.Image) -> Image.Image:
-    """Enhance local image contrast and resolution using CLAHE and upscaling for low-contrast/distant plates."""
-    np_img = np.array(img)
-    h, w = np_img.shape[:2]
-
-    if w < 600 or h < 600:
-        np_img = cv2.resize(np_img, (0, 0), fx=2.5, fy=2.5, interpolation=cv2.INTER_CUBIC)
-
-    gray = cv2.cvtColor(np_img, cv2.COLOR_RGB2GRAY) if len(np_img.shape) == 3 else np_img
-    clahe = cv2.createCLAHE(clipLimit=3.5, tileGridSize=(4, 4))
-    enhanced_rgb = cv2.cvtColor(clahe.apply(gray), cv2.COLOR_GRAY2RGB)
-    return Image.fromarray(enhanced_rgb)
-
-
 class PlateRecognizer:
     """ANPR Engine using RapidOCR ONNX Runtime with 2D spatial layout candidate pairing."""
+
+    _engine: RapidOCR | None = None
+
+    @classmethod
+    def get_engine(cls) -> RapidOCR:
+        """Return the singleton RapidOCR engine instance."""
+        if cls._engine is None:
+            cls._engine = RapidOCR()
+        return cls._engine
+
+    @classmethod
+    def check_engine(cls) -> bool:
+        """Verify that the RapidOCR engine is operational."""
+        return cls.get_engine() is not None
+
+    @staticmethod
+    def _get_box_centroid(box: Any) -> tuple[float | None, float | None]:
+        """Calculate (x_center, y_center) centroid of an OCR bounding box."""
+        if box is None:
+            return None, None
+        try:
+            if isinstance(box, (list, tuple, np.ndarray)) and len(box) >= 4:
+                if all(isinstance(v, (int, float, np.number)) for v in box[:4]):
+                    return float((box[0] + box[2]) / 2.0), float((box[1] + box[3]) / 2.0)
+                if all(isinstance(pt, (list, tuple, np.ndarray)) and len(pt) >= 2 for pt in box):
+                    pts_x = [pt[0] for pt in box]
+                    pts_y = [pt[1] for pt in box]
+                    return float(np.mean(pts_x)), float(np.mean(pts_y))
+        except (TypeError, ValueError, IndexError, AttributeError):
+            pass
+        return None, None
+
+    @staticmethod
+    def _enhance_contrast(img: Image.Image) -> Image.Image:
+        """Enhance local image contrast and resolution using CLAHE and upscaling for low-contrast/distant plates."""
+        np_img = np.array(img)
+        h, w = np_img.shape[:2]
+
+        if w < 600 or h < 600:
+            np_img = cv2.resize(np_img, (0, 0), fx=2.5, fy=2.5, interpolation=cv2.INTER_CUBIC)
+
+        gray = cv2.cvtColor(np_img, cv2.COLOR_RGB2GRAY) if len(np_img.shape) == 3 else np_img
+        clahe = cv2.createCLAHE(clipLimit=3.5, tileGridSize=(4, 4))
+        enhanced_rgb = cv2.cvtColor(clahe.apply(gray), cv2.COLOR_GRAY2RGB)
+        return Image.fromarray(enhanced_rgb)
 
     def parse_plate_info(self, raw_plate: str | None) -> dict[str, Any] | None:
         """Validate candidate plate string against Indian plate regex and resolve State/UT."""
@@ -78,7 +80,7 @@ class PlateRecognizer:
     def _extract_plates_from_image_array(self, img_pil: Image.Image) -> list[dict[str, Any]]:
         require(img_pil is not None, "_extract_plates_from_image_array received None")
 
-        engine = get_ocr_engine()
+        engine = self.get_engine()
         raw_items: list[OCRToken] = []
 
         try:
@@ -88,7 +90,7 @@ class PlateRecognizer:
             if txts and scores:
                 boxes = getattr(res, "boxes", None)
                 for idx, (t, s) in enumerate(zip(txts, scores, strict=False)):
-                    cx, cy = _get_box_centroid(boxes[idx]) if (boxes is not None and idx < len(boxes)) else (None, None)
+                    cx, cy = self._get_box_centroid(boxes[idx]) if (boxes is not None and idx < len(boxes)) else (None, None)
                     raw_items.append(OCRToken(text=str(t), score=float(s), cx=cx, cy=cy))
         except (RuntimeError, ValueError, TypeError, IndexError, AttributeError, OSError) as e:
             logger.error(f"[ocr/rapidocr] OCR execution failed: {e}")
@@ -175,7 +177,7 @@ class PlateRecognizer:
             return res
 
         try:
-            enhanced_img = _enhance_contrast(pil_img)
+            enhanced_img = self._enhance_contrast(pil_img)
             res_enh = self._extract_plates_from_image_array(enhanced_img)
             if any(r.get("plate") and r.get("plate") != "N/A" for r in res_enh):
                 return res_enh

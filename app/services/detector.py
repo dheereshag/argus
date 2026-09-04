@@ -18,49 +18,45 @@ from app.services.image_processing import ImageInput, load_rgb
 
 type BoundingBox = tuple[int, int, int, int]
 
-_YOLO_MODEL: YOLO | None = None
-
-
-def get_yolo_model() -> YOLO:
-    """Return the singleton YOLO v11 model instance, loading weights on first call."""
-    global _YOLO_MODEL
-    if _YOLO_MODEL is None:
-        target_model = settings.YOLO_MODEL_NAME if "11" in (settings.YOLO_MODEL_NAME or "") else "yolo11n.pt"
-        logger.debug(f"Loading YOLO model weights: {target_model}")
-        _YOLO_MODEL = YOLO(target_model)
-    ensure(_YOLO_MODEL is not None, "YOLO model failed to initialise")
-    return _YOLO_MODEL
-
-
-def clamp_box(box: Any, width: int, height: int) -> BoundingBox | None:
-    """Clamp an xyxy box to real image bounds. Returns None when malformed or degenerate."""
-    require(width > 0 and height > 0, f"image dimensions must be positive, got {width}x{height}")
-    if not box or not isinstance(box, (tuple, list)) or len(box) != 4:
-        return None
-
-    try:
-        x1, y1, x2, y2 = (int(v) for v in box)
-    except (TypeError, ValueError):
-        return None
-
-    if x2 < x1:
-        x1, x2 = x2, x1
-    if y2 < y1:
-        y1, y2 = y2, y1
-
-    x1, y1 = max(0, min(x1, width)), max(0, min(y1, height))
-    x2, y2 = max(0, min(x2, width)), max(0, min(y2, height))
-
-    if x2 - x1 < MIN_CROP_EDGE_PX or y2 - y1 < MIN_CROP_EDGE_PX:
-        return None
-    return (x1, y1, x2, y2)
-
 
 class VehicleDetector:
     """Stage 1: YOLO v11 Vehicle Detection, Occupancy Policy Gatekeeper, and Cropper."""
 
-    def __init__(self) -> None:
-        self.get_model = get_yolo_model
+    _model: YOLO | None = None
+
+    @classmethod
+    def get_model(cls) -> YOLO:
+        """Return the singleton YOLO v11 model instance, loading weights on first call."""
+        if cls._model is None:
+            target_model = settings.YOLO_MODEL_NAME if "11" in (settings.YOLO_MODEL_NAME or "") else "yolo11n.pt"
+            logger.debug(f"Loading YOLO model weights: {target_model}")
+            cls._model = YOLO(target_model)
+        ensure(cls._model is not None, "YOLO model failed to initialise")
+        return cls._model
+
+    @staticmethod
+    def _clamp_box(box: Any, width: int, height: int) -> BoundingBox | None:
+        """Clamp an xyxy box to real image bounds. Returns None when malformed or degenerate."""
+        require(width > 0 and height > 0, f"image dimensions must be positive, got {width}x{height}")
+        if not box or not isinstance(box, (tuple, list)) or len(box) != 4:
+            return None
+
+        try:
+            x1, y1, x2, y2 = (int(v) for v in box)
+        except (TypeError, ValueError):
+            return None
+
+        if x2 < x1:
+            x1, x2 = x2, x1
+        if y2 < y1:
+            y1, y2 = y2, y1
+
+        x1, y1 = max(0, min(x1, width)), max(0, min(y1, height))
+        x2, y2 = max(0, min(x2, width)), max(0, min(y2, height))
+
+        if x2 - x1 < MIN_CROP_EDGE_PX or y2 - y1 < MIN_CROP_EDGE_PX:
+            return None
+        return (x1, y1, x2, y2)
 
     def _run_detection(
         self,
@@ -102,7 +98,7 @@ class VehicleDetector:
             raw_box: tuple[int, int, int, int] | None = None
             if xyxy is not None and idx < len(xyxy) and len(xyxy[idx]) >= 4:
                 raw_box = (int(xyxy[idx][0]), int(xyxy[idx][1]), int(xyxy[idx][2]), int(xyxy[idx][3]))
-            box = clamp_box(raw_box, width, height)
+            box = self._clamp_box(raw_box, width, height)
             if box is None:
                 continue
 

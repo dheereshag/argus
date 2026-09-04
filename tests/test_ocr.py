@@ -13,7 +13,7 @@ def _mock_engine(txts, scores, boxes):
     return engine
 
 
-@patch("app.services.ocr.get_ocr_engine")
+@patch("app.services.ocr.PlateRecognizer.get_engine")
 def test_single_token_exact_plate_match(mock_get_engine, sample_image_bytes):
     mock_get_engine.return_value = _mock_engine(
         txts=["RJ09GA0165"],
@@ -27,7 +27,7 @@ def test_single_token_exact_plate_match(mock_get_engine, sample_image_bytes):
     assert result[0]["state"] == "Rajasthan"
 
 
-@patch("app.services.ocr.get_ocr_engine")
+@patch("app.services.ocr.PlateRecognizer.get_engine")
 def test_two_line_spatial_pairing(mock_get_engine, sample_image_bytes):
     # Plate split across two OCR lines, e.g. state+district on one line,
     # series+serial directly below it.
@@ -42,7 +42,7 @@ def test_two_line_spatial_pairing(mock_get_engine, sample_image_bytes):
     assert result[0]["plate"] == "RJ09GA0165"
 
 
-@patch("app.services.ocr.get_ocr_engine")
+@patch("app.services.ocr.PlateRecognizer.get_engine")
 def test_decal_words_filtered_no_false_match(mock_get_engine, sample_image_bytes):
     mock_get_engine.return_value = _mock_engine(
         txts=["ASHOK LEYLAND", "TRANSPORT"],
@@ -55,7 +55,7 @@ def test_decal_words_filtered_no_false_match(mock_get_engine, sample_image_bytes
     assert result[0]["plate"] == "N/A"
 
 
-@patch("app.services.ocr.get_ocr_engine")
+@patch("app.services.ocr.PlateRecognizer.get_engine")
 def test_no_ocr_tokens_returns_empty(mock_get_engine, sample_image_bytes):
     mock_get_engine.return_value = _mock_engine(txts=[], scores=[], boxes=[])
     recognizer = PlateRecognizer()
@@ -64,7 +64,7 @@ def test_no_ocr_tokens_returns_empty(mock_get_engine, sample_image_bytes):
     assert result == []
 
 
-@patch("app.services.ocr.get_ocr_engine")
+@patch("app.services.ocr.PlateRecognizer.get_engine")
 def test_low_confidence_token_discarded(mock_get_engine, sample_image_bytes):
     mock_get_engine.return_value = _mock_engine(
         txts=["RJ09GA0165"],

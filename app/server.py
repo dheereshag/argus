@@ -14,9 +14,9 @@ from app.core.contracts import ContractViolation
 from app.core.exceptions import ANPRServiceError
 from app.core.logging import logger
 from app.schemas import APIErrorResponse, RecognitionResponse
-from app.services.detector import get_yolo_model
+from app.services.detector import VehicleDetector
 from app.services.image_processing import validate_image_upload
-from app.services.ocr import check_ocr_engine
+from app.services.ocr import PlateRecognizer
 from app.services.pipeline import recognize_plate_image
 
 
@@ -37,8 +37,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     """Pre-warms YOLO model and verifies OCR engines during service startup."""
     logger.info(f"Starting {settings.PROJECT_NAME} v{settings.VERSION}...")
     try:
-        get_yolo_model()
-        check_ocr_engine()
+        VehicleDetector.get_model()
+        PlateRecognizer.check_engine()
         logger.info("AI models initialized and verified successfully.")
     except (RuntimeError, ValueError, OSError, AttributeError, ImportError) as exc:
         logger.warning(f"Non-fatal warning warming models during startup: {exc}")

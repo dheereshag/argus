@@ -31,7 +31,7 @@ def test_indian_plate_regex_and_state_codes():
     assert INDIAN_PLATE_REGEX.fullmatch("XX99YY9999") is None  # Unknown state code XX
 
 
-@patch("app.services.detector.get_yolo_model")
+@patch("app.services.detector.VehicleDetector.get_model")
 def test_yolo_filter_detection_flow(mock_get_model, sample_image_bytes):
     mock_box = MagicMock()
     mock_box.__len__.return_value = 1
@@ -56,7 +56,7 @@ def test_yolo_filter_detection_flow(mock_get_model, sample_image_bytes):
     assert result.crop is not None
 
 
-@patch("app.services.detector.get_yolo_model")
+@patch("app.services.detector.VehicleDetector.get_model")
 def test_yolo_filter_human_detection_policy(
     mock_get_model, sample_image_bytes, monkeypatch: pytest.MonkeyPatch
 ):
@@ -88,7 +88,7 @@ def test_yolo_filter_human_detection_policy(
     assert res_allowed.vehicle_detected is True
 
 
-@patch("app.services.detector.get_yolo_model")
+@patch("app.services.detector.VehicleDetector.get_model")
 def test_yolo_filter_no_vehicle_policy(mock_get_model, sample_image_bytes, monkeypatch: pytest.MonkeyPatch):
     mock_box_empty = MagicMock()
     mock_box_empty.__len__.return_value = 0
@@ -119,7 +119,7 @@ def test_yolo_filter_no_vehicle_policy(mock_get_model, sample_image_bytes, monke
     assert res_allowed.vehicle_count == 0
 
 
-@patch("app.services.detector.get_yolo_model")
+@patch("app.services.detector.VehicleDetector.get_model")
 def test_yolo_filter_multiple_vehicles_policy(mock_get_model, sample_image_bytes, monkeypatch: pytest.MonkeyPatch):
     mock_box_multiple = MagicMock()
     mock_box_multiple.__len__.return_value = 2

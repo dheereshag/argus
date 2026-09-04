@@ -77,6 +77,7 @@ def test_bounded_rejects_a_nonsense_limit():
 
 def test_yolo_singleton_initializes_once():
     import app.services.detector as yf
+    from app.services.detector import VehicleDetector
 
     builds = []
 
@@ -84,16 +85,16 @@ def test_yolo_singleton_initializes_once():
         builds.append(1)
         return MagicMock()
 
-    original = yf._YOLO_MODEL
+    original = VehicleDetector._model
     try:
-        yf._YOLO_MODEL = None
+        VehicleDetector._model = None
         with patch.object(yf, "YOLO", side_effect=mock_build):
-            m1 = yf.get_yolo_model()
-            m2 = yf.get_yolo_model()
+            m1 = VehicleDetector.get_model()
+            m2 = VehicleDetector.get_model()
         assert m1 is m2
         assert len(builds) == 1
     finally:
-        yf._YOLO_MODEL = original
+        VehicleDetector._model = original
 
 
 # ---------------------------------------------------------------------------
@@ -102,29 +103,29 @@ def test_yolo_singleton_initializes_once():
 
 
 def test_out_of_bounds_box_is_clamped():
-    from app.services.detector import clamp_box
+    from app.services.detector import VehicleDetector
 
-    assert clamp_box((-50, -50, 5000, 5000), 640, 480) == (0, 0, 640, 480)
+    assert VehicleDetector._clamp_box((-50, -50, 5000, 5000), 640, 480) == (0, 0, 640, 480)
 
 
 def test_corner_swapped_box_is_repaired():
-    from app.services.detector import clamp_box
+    from app.services.detector import VehicleDetector
 
-    assert clamp_box((300, 200, 100, 50), 640, 480) == (100, 50, 300, 200)
+    assert VehicleDetector._clamp_box((300, 200, 100, 50), 640, 480) == (100, 50, 300, 200)
 
 
 @pytest.mark.parametrize("bad", [None, (), (1, 2), (0, 0, 2, 2), "nope", (0, 0, "x", 4)])
 def test_unusable_boxes_are_rejected_not_cropped(bad):
-    from app.services.detector import clamp_box
+    from app.services.detector import VehicleDetector
 
-    assert clamp_box(bad, 640, 480) is None
+    assert VehicleDetector._clamp_box(bad, 640, 480) is None
 
 
 def test_clamp_rejects_nonsense_image_dimensions():
-    from app.services.detector import clamp_box
+    from app.services.detector import VehicleDetector
 
     with pytest.raises(ContractViolation):
-        clamp_box((0, 0, 10, 10), 0, 480)
+        VehicleDetector._clamp_box((0, 0, 10, 10), 0, 480)
 
 
 def test_malformed_provider_output_does_not_error():

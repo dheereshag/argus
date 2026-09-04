@@ -6,8 +6,8 @@ from app.core.config import settings
 from app.core.contracts import ContractViolation
 from app.core.exceptions import ANPRServiceError
 from app.core.logging import logger
-from app.services.detector import get_yolo_model
-from app.services.ocr import check_ocr_engine
+from app.services.detector import VehicleDetector
+from app.services.ocr import PlateRecognizer
 from app.services.pipeline import recognize_plate_image
 
 
@@ -19,12 +19,12 @@ def main():
 
     # Warm YOLO model & check OCR engines
     try:
-        get_yolo_model()
+        VehicleDetector.get_model()
         logger.info("YOLO v11 model loaded successfully.")
     except (RuntimeError, ValueError, OSError, AttributeError) as e:
         logger.warning(f"Warning loading YOLO model: {e}")
 
-    check_ocr_engine()
+    PlateRecognizer.check_engine()
 
     try:
         response = recognize_plate_image(args.image)
