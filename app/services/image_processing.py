@@ -4,39 +4,19 @@ import cv2
 import numpy as np
 from PIL import Image, ImageFile, ImageOps
 
+from app.constants import ALLOWED_IMAGE_FORMATS, ALLOWED_IMAGE_MIME_TYPES
 from app.core.config import settings
 from app.core.contracts import ensure, require
 from app.core.exceptions import InvalidImageError, PayloadTooLargeError
 
-# Python 3.12 Type Aliases
 type ImageInput = str | bytes | Image.Image | np.ndarray
 
-# Decompression-bomb guard. Pillow's default limit only emits a warning;
-# this makes an oversized image raise before allocation.
 Image.MAX_IMAGE_PIXELS = settings.MAX_IMAGE_PIXELS
 object.__setattr__(ImageFile, "LOAD_TRUNCATED_IMAGES", True)
 
-# Permitted image formats and MIME types
-ALLOWED_IMAGE_FORMATS: frozenset[str] = frozenset({"JPEG", "PNG", "WEBP", "BMP"})
-ALLOWED_IMAGE_MIME_TYPES: frozenset[str] = frozenset(
-    {
-        "image/jpeg",
-        "image/jpg",
-        "image/pjpeg",
-        "image/png",
-        "image/x-png",
-        "image/webp",
-        "image/bmp",
-        "image/x-ms-bmp",
-    }
-)
-
 
 def probe_image(image_bytes: bytes) -> tuple[str, int, int]:
-    """
-    Inspect image header without allocating full pixel buffers.
-    Returns (format, width, height).
-    """
+    """Inspect image header without allocating full pixel buffers. Returns (format, width, height)."""
     if not image_bytes:
         raise InvalidImageError("Uploaded image file is empty.")
 
@@ -61,16 +41,8 @@ def probe_image(image_bytes: bytes) -> tuple[str, int, int]:
         raise InvalidImageError(f"Uploaded file is not a valid image: {exc}") from exc
 
 
-def validate_image_upload(
-    image_bytes: bytes,
-    content_type: str | None = None,
-) -> str:
-    """
-    Validate that uploaded file bytes constitute a supported image.
-
-    Checks declared MIME type (if provided and non-generic) and inspects image
-    header without allocating pixel buffers. Returns the detected image format (e.g., 'JPEG').
-    """
+def validate_image_upload(image_bytes: bytes, content_type: str | None = None) -> str:
+    """Validate that uploaded file bytes constitute a supported image and MIME type."""
     if content_type:
         clean_type = content_type.split(";")[0].strip().lower()
         if clean_type != "application/octet-stream" and clean_type not in ALLOWED_IMAGE_MIME_TYPES:
@@ -82,27 +54,18 @@ def validate_image_upload(
     return fmt
 
 
-def decode_and_downscale(
-    image_bytes: bytes,
-    max_edge: int | None = None,
-) -> bytes:
-    """
-    Validate an uploaded image and return normalised JPEG bytes.
-    Guards decode against decompression bombs, applies EXIF orientation, and
-    downscales so the longest edge is at most `max_edge`.
-    """
+def decode_and_downscale(image_bytes: bytes, max_edge: int | None = None) -> bytes:
+    """Validate an uploaded image and return downscaled JPEG bytes within max_edge limits."""
     max_edge = max_edge or settings.MAX_IMAGE_EDGE_PX
     require(max_edge > 0, f"max_edge must be positive, got {max_edge}")
 
     _, width, height = probe_image(image_bytes)
-
     if width * height > settings.MAX_IMAGE_PIXELS:
         raise PayloadTooLargeError(
             f"Image is {width}x{height} ({width * height} pixels); limit is {settings.MAX_IMAGE_PIXELS} pixels."
         )
 
     pil_img = load_rgb(image_bytes)
-
     if max(pil_img.size) > max_edge:
         pil_img.thumbnail((max_edge, max_edge), Image.Resampling.LANCZOS)
 
@@ -112,9 +75,7 @@ def decode_and_downscale(
 
 
 def load_rgb(image_input: ImageInput) -> Image.Image:
-    """
-    Decode to an oriented RGB image, releasing the source handle immediately.
-    """
+    """Decode input to an oriented RGB image, releasing source handles immediately."""
     if isinstance(image_input, Image.Image):
         return image_input.convert("RGB")
 

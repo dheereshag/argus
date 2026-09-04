@@ -1,7 +1,6 @@
 import logging
 import math
 import re
-from dataclasses import dataclass
 from typing import Any
 
 import cv2
@@ -9,20 +8,19 @@ import numpy as np
 from PIL import Image
 from rapidocr import RapidOCR
 
+from app.constants import INDIAN_PLATE_REGEX
 from app.core.contracts import require
 from app.core.logging import logger
+from app.schemas import OCRToken, PlateCandidate
 from app.services.image_processing import ImageInput, load_rgb
 from app.services.plate_rules import (
-    INDIAN_PLATE_REGEX,
-    NON_PLATE_WORDS,
+    is_decal_word,
     normalize_candidate_strings,
     parse_plate_info,
 )
 
-# Direct RapidOCR engine instance
 _OCR_ENGINE = RapidOCR()
 
-# Suppress RapidOCR internal per-crop empty detection warnings on logger and its handlers
 _rapid_logger = logging.getLogger("RapidOCR")
 _rapid_logger.setLevel(logging.ERROR)
 for _h in _rapid_logger.handlers:
@@ -37,25 +35,6 @@ def get_ocr_engine() -> RapidOCR:
 def check_ocr_engine() -> bool:
     """Verify that the RapidOCR engine is operational."""
     return _OCR_ENGINE is not None
-
-
-@dataclass(slots=True, frozen=True)
-class OCRToken:
-    """High-performance slotted container for extracted OCR tokens."""
-
-    text: str
-    score: float
-    cx: float | None = None
-    cy: float | None = None
-
-
-@dataclass(slots=True)
-class PlateCandidate:
-    """Slotted candidate plate match with vertical spatial priority ranking."""
-
-    y_pos: float
-    rank: int
-    info: dict[str, Any]
 
 
 def _get_box_centroid(box: Any) -> tuple[float | None, float | None]:
@@ -75,36 +54,22 @@ def _get_box_centroid(box: Any) -> tuple[float | None, float | None]:
     return None, None
 
 
-def _is_decal_word(word: str) -> bool:
-    """Check if a candidate string is a common commercial vehicle decal word."""
-    return word in NON_PLATE_WORDS or any(w in word for w in ("CARRIER", "LEYLAND", "TRANSPORT", "NATIONALPERMIT"))
-
-
 def _enhance_contrast(img: Image.Image) -> Image.Image:
     """Enhance local image contrast and resolution using CLAHE and upscaling for low-contrast/distant plates."""
     np_img = np.array(img)
     h, w = np_img.shape[:2]
 
-    # If crop is low-resolution (e.g. distant truck bumper), upscale 2.5x with bicubic interpolation
     if w < 600 or h < 600:
         np_img = cv2.resize(np_img, (0, 0), fx=2.5, fy=2.5, interpolation=cv2.INTER_CUBIC)
 
-    if len(np_img.shape) == 3:
-        gray = cv2.cvtColor(np_img, cv2.COLOR_RGB2GRAY)
-    else:
-        gray = np_img
-
+    gray = cv2.cvtColor(np_img, cv2.COLOR_RGB2GRAY) if len(np_img.shape) == 3 else np_img
     clahe = cv2.createCLAHE(clipLimit=3.5, tileGridSize=(4, 4))
-    enhanced_gray = clahe.apply(gray)
-    enhanced_rgb = cv2.cvtColor(enhanced_gray, cv2.COLOR_GRAY2RGB)
+    enhanced_rgb = cv2.cvtColor(clahe.apply(gray), cv2.COLOR_GRAY2RGB)
     return Image.fromarray(enhanced_rgb)
 
 
 class PlateRecognizer:
-    """
-    ANPR Engine using RapidOCR ONNX Runtime
-    with 2D spatial layout parsing, slotted dataclass token evaluation, and vertical bumper candidate ranking.
-    """
+    """ANPR Engine using RapidOCR ONNX Runtime with 2D spatial layout candidate pairing."""
 
     def parse_plate_info(self, raw_plate: str | None) -> dict[str, Any] | None:
         """Validate candidate plate string against Indian plate regex and resolve State/UT."""
@@ -114,15 +79,12 @@ class PlateRecognizer:
         require(img_pil is not None, "_extract_plates_from_image_array received None")
 
         engine = get_ocr_engine()
-        np_img = np.array(img_pil)
-
         raw_items: list[OCRToken] = []
 
         try:
-            res = engine(np_img)
+            res = engine(np.array(img_pil))
             if not res:
                 return []
-
             txts = getattr(res, "txts", None)
             scores = getattr(res, "scores", None)
             if txts and scores:
@@ -137,42 +99,27 @@ class PlateRecognizer:
         if not raw_items:
             return []
 
-        # Sort items spatially top-to-bottom if coordinates are available
         if any(item.cy is not None for item in raw_items):
             raw_items.sort(key=lambda x: x.cy if x.cy is not None else 9999.0)
 
         clean_tokens: list[OCRToken] = []
         raw_text_parts: list[str] = []
-        seen_tokens = set()
+        seen_tokens: set[str] = set()
 
         for token in raw_items:
             if not token.text or token.score < 0.20:
                 continue
             raw_text_parts.append(token.text.strip())
 
-            # Full line cleaned
-            cleaned = re.sub(r"[^A-Za-z0-9]", "", token.text).upper()
-            if cleaned and len(cleaned) >= 2 and not _is_decal_word(cleaned) and cleaned not in seen_tokens:
-                seen_tokens.add(cleaned)
-                clean_tokens.append(OCRToken(text=cleaned, score=token.score, cx=token.cx, cy=token.cy))
-
-            # Sub-tokens (when a line contains multiple space-separated words)
-            for part in token.text.split():
-                part_cleaned = re.sub(r"[^A-Za-z0-9]", "", part).upper()
-                if (
-                    part_cleaned
-                    and len(part_cleaned) >= 2
-                    and not _is_decal_word(part_cleaned)
-                    and part_cleaned not in seen_tokens
-                ):
-                    seen_tokens.add(part_cleaned)
-                    clean_tokens.append(OCRToken(text=part_cleaned, score=token.score, cx=token.cx, cy=token.cy))
+            for chunk in [token.text, *token.text.split()]:
+                cleaned = re.sub(r"[^A-Za-z0-9]", "", chunk).upper()
+                if len(cleaned) >= 2 and not is_decal_word(cleaned) and cleaned not in seen_tokens:
+                    seen_tokens.add(cleaned)
+                    clean_tokens.append(OCRToken(text=cleaned, score=token.score, cx=token.cx, cy=token.cy))
 
         raw_text_summary = " ".join(raw_text_parts) if raw_text_parts else "N/A"
-
-        # Candidate collection with vertical position weighting
         plate_candidates: list[PlateCandidate] = []
-        seen_matched_plates = set()
+        seen_matched_plates: set[str] = set()
 
         def evaluate_candidate(raw_text: str, y_pos: float) -> None:
             for rank, cand_norm in enumerate(normalize_candidate_strings(raw_text)):
@@ -186,12 +133,11 @@ class PlateRecognizer:
                             info["raw_text"] = raw_text_summary
                             plate_candidates.append(PlateCandidate(y_pos=y_pos, rank=rank, info=info))
 
-        # 1. Collect individual recognized text tokens
         for tok in clean_tokens:
-            evaluate_candidate(tok.text, tok.cy if tok.cy is not None else 0.0)
+            evaluate_candidate(tok.text, tok.cy or 0.0)
 
-        # 2. Collect 2-line combinations sorted by 2D spatial proximity
-        candidate_pairs: list[tuple[float, str, float]] = []  # (dist, text, y_pos)
+        # 2-line spatial combination
+        candidate_pairs: list[tuple[float, str, float]] = []
         n = len(clean_tokens)
         for i in range(n):
             tok_a = clean_tokens[i]
@@ -207,19 +153,14 @@ class PlateRecognizer:
                 candidate_pairs.append((dist, tok_a.text + tok_b.text, y_mean))
                 candidate_pairs.append((dist + 0.1, tok_b.text + tok_a.text, y_mean))
 
-        # Sort candidate pairs by spatial proximity (closest first)
         candidate_pairs.sort(key=lambda p: p[0])
-
         for _, pair_raw, y_pos in candidate_pairs:
             evaluate_candidate(pair_raw, y_pos)
 
-        # 3. Select best candidate: prioritize exact matches (rank 0) first,
-        # then rank by lower-bumper vertical position descending (highest y)
         if plate_candidates:
             plate_candidates.sort(key=lambda c: (-c.rank, c.y_pos), reverse=True)
             return [plate_candidates[0].info]
 
-        # 4. Fallback: If no valid plate matched
         return [{"plate": "N/A", "state": "N/A", "raw_text": raw_text_summary}]
 
     def recognize(
@@ -235,7 +176,6 @@ class PlateRecognizer:
         if any(r.get("plate") and r.get("plate") != "N/A" for r in res):
             return res
 
-        # CLAHE Contrast Enhancement Fallback
         try:
             enhanced_img = _enhance_contrast(pil_img)
             res_enh = self._extract_plates_from_image_array(enhanced_img)

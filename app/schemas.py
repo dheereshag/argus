@@ -1,8 +1,29 @@
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, Field
+
+
+@dataclass(slots=True, frozen=True)
+class OCRToken:
+    """Slotted container for extracted OCR tokens."""
+
+    text: str
+    score: float
+    cx: float | None = None
+    cy: float | None = None
+
+
+@dataclass(slots=True)
+class PlateCandidate:
+    """Slotted candidate plate match with vertical spatial priority ranking."""
+
+    y_pos: float
+    rank: int
+    info: dict[str, Any]
+
 
 
 class RecognitionStatusEnum(str, Enum):

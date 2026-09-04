@@ -33,24 +33,17 @@ def _error_response(status_code: int, message: str, error_type: str, details: An
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     """Pre-warms YOLO model and verifies OCR engines during service startup."""
     logger.info(f"Starting {settings.PROJECT_NAME} v{settings.VERSION}...")
-
     try:
         get_yolo_model()
-        logger.info("YOLO v11 model loaded and warmed successfully.")
-    except (RuntimeError, ValueError, OSError, AttributeError) as exc:
-        logger.warning(f"Non-fatal warning warming YOLO model during startup: {exc}")
-
-    try:
         check_ocr_engine()
-        logger.info("RapidOCR engine verified successfully.")
+        logger.info("AI models initialized and verified successfully.")
     except (RuntimeError, ValueError, OSError, AttributeError, ImportError) as exc:
-        logger.warning(f"Non-fatal warning checking OCR engine during startup: {exc}")
+        logger.warning(f"Non-fatal warning warming models during startup: {exc}")
 
     yield
-
     logger.info(f"Shutting down {settings.PROJECT_NAME}...")
 
 
@@ -59,7 +52,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title=settings.PROJECT_NAME,
         version=settings.VERSION,
-        description="Enterprise Automatic Number Plate Recognition (ANPR) Microservice powered by YOLO v11 and RapidOCR.",
+        description="Enterprise Automatic Number Plate Recognition (ANPR) Microservice.",
         docs_url=settings.DOCS_URL,
         redoc_url=settings.REDOC_URL,
         lifespan=lifespan,
@@ -77,36 +70,27 @@ def create_app() -> FastAPI:
     async def add_process_time_header(request: Request, call_next):
         start_time = time.perf_counter()
         response = await call_next(request)
-        process_time_ms = (time.perf_counter() - start_time) * 1000
-        response.headers["X-Process-Time-Ms"] = f"{process_time_ms:.2f}"
+        response.headers["X-Process-Time-Ms"] = f"{(time.perf_counter() - start_time) * 1000:.2f}"
         return response
 
     @app.exception_handler(ANPRServiceError)
-    async def handle_anpr_service_error(request: Request, exc: ANPRServiceError) -> JSONResponse:
-        logger.warning(f"Domain exception on {request.url.path}: {exc.message} ({exc.status_code})")
+    async def handle_anpr_error(_: Request, exc: ANPRServiceError) -> JSONResponse:
         return _error_response(exc.status_code, exc.message, exc.__class__.__name__)
 
     @app.exception_handler(ContractViolation)
-    async def handle_contract_violation(request: Request, exc: ContractViolation) -> JSONResponse:
-        logger.error(f"Internal contract violation on {request.url.path}: {exc}")
+    async def handle_contract_error(_: Request, exc: ContractViolation) -> JSONResponse:
         return _error_response(500, "Internal system assertion contract failed.", "ContractViolation", str(exc))
 
     @app.exception_handler(RequestValidationError)
-    async def handle_validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
-        logger.warning(f"Request validation error on {request.url.path}: {exc.errors()}")
+    async def handle_val_error(_: Request, exc: RequestValidationError) -> JSONResponse:
         return _error_response(422, "Request validation error.", "RequestValidationError", exc.errors())
 
     @app.exception_handler(Exception)
-    async def handle_unhandled_exception(request: Request, exc: Exception) -> JSONResponse:
-        logger.exception(f"Unhandled server error on {request.url.path}: {exc}")
+    async def handle_generic_error(req: Request, exc: Exception) -> JSONResponse:
+        logger.exception(f"Unhandled server error on {req.url.path}: {exc}")
         return _error_response(500, "An internal server error occurred.", "InternalServerError")
 
-    @app.get(
-        "/",
-        summary="Service Information",
-        description="Root metadata information for the Argus ANPR API.",
-        tags=["Info"],
-    )
+    @app.get("/", summary="Service Information", tags=["Info"])
     async def root() -> dict[str, str]:
         return {
             "name": settings.PROJECT_NAME,
@@ -115,16 +99,7 @@ def create_app() -> FastAPI:
             "docs": "/docs",
         }
 
-    @app.post(
-        "/recognize",
-        response_model=RecognitionResponse,
-        summary="Recognize Vehicle License Plate",
-        description=(
-            "Upload a vehicle image (JPEG, PNG, WebP, BMP) to execute YOLO v11 pre-screening "
-            "and automated license plate recognition."
-        ),
-        tags=["Recognition"],
-    )
+    @app.post("/recognize", response_model=RecognitionResponse, summary="Recognize Vehicle License Plate", tags=["Recognition"])
     async def recognize_plate(
         file: Annotated[UploadFile, File(description="Image file (JPEG, PNG, WebP, BMP)")],
     ) -> RecognitionResponse:
@@ -141,9 +116,4 @@ app = create_app()
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(
-        "app.server:app",
-        host=settings.SERVER_HOST,
-        port=settings.SERVER_PORT,
-        reload=True,
-    )
+    uvicorn.run("app.server:app", host=settings.SERVER_HOST, port=settings.SERVER_PORT, reload=True)
