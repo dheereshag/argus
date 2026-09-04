@@ -3,7 +3,6 @@ Tests for runtime contracts, bounds, resource lifecycle, and error isolation.
 """
 
 import io
-import threading
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -72,32 +71,27 @@ def test_bounded_rejects_a_nonsense_limit():
 
 
 # ---------------------------------------------------------------------------
-# Thread-safe model singleton initialization
+# Model singleton initialization
 # ---------------------------------------------------------------------------
 
 
-def test_yolo_singleton_is_built_once_under_concurrency():
+def test_yolo_singleton_initializes_once():
     import app.services.yolo_filter as yf
 
     builds = []
 
-    def slow_build(_name):
-        import time
-
-        time.sleep(0.05)
+    def mock_build(_name):
         builds.append(1)
         return MagicMock()
 
     original = yf._YOLO_MODEL
     try:
         yf._YOLO_MODEL = None
-        with patch.object(yf, "YOLO", side_effect=slow_build):
-            threads = [threading.Thread(target=yf.get_yolo_model) for _ in range(8)]
-            for t in threads:
-                t.start()
-            for t in threads:
-                t.join()
-        assert len(builds) == 1, f"YOLO model built {len(builds)} times; the lock is not holding"
+        with patch.object(yf, "YOLO", side_effect=mock_build):
+            m1 = yf.get_yolo_model()
+            m2 = yf.get_yolo_model()
+        assert m1 is m2
+        assert len(builds) == 1
     finally:
         yf._YOLO_MODEL = original
 

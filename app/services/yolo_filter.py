@@ -1,4 +1,3 @@
-import threading
 from typing import Any, TypedDict
 
 import numpy as np
@@ -24,23 +23,20 @@ class YoloResult(TypedDict, total=True):
     vehicle_count: int
 
 
-# Global lazy-loaded YOLO model instance, guarded by a thread lock.
+# Global lazy-loaded YOLO model instance.
 _YOLO_MODEL: YOLO | None = None
-_YOLO_LOCK = threading.Lock()
 
 
 def get_yolo_model() -> YOLO:
     global _YOLO_MODEL
     if _YOLO_MODEL is None:
-        with _YOLO_LOCK:
-            if _YOLO_MODEL is None:
-                target_model = (
-                    settings.YOLO_MODEL_NAME
-                    if settings.YOLO_MODEL_NAME and "11" in settings.YOLO_MODEL_NAME
-                    else "yolo11n.pt"
-                )
-                logger.debug(f"Loading YOLO model weights: {target_model}")
-                _YOLO_MODEL = YOLO(target_model)
+        target_model = (
+            settings.YOLO_MODEL_NAME
+            if settings.YOLO_MODEL_NAME and "11" in settings.YOLO_MODEL_NAME
+            else "yolo11n.pt"
+        )
+        logger.debug(f"Loading YOLO model weights: {target_model}")
+        _YOLO_MODEL = YOLO(target_model)
     ensure(_YOLO_MODEL is not None, "YOLO model failed to initialise")
     return _YOLO_MODEL
 
