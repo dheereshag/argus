@@ -7,14 +7,6 @@ class ANPRServiceError(Exception):
         super().__init__(message)
 
 
-class ProviderNotFoundError(ANPRServiceError):
-    """Raised when an unknown recognition provider is requested."""
-
-    def __init__(self, provider: str, available_providers: list[str]):
-        message = f"Unknown provider '{provider}'. Available providers: {', '.join(available_providers)}"
-        super().__init__(message=message, status_code=400)
-
-
 class InvalidImageError(ANPRServiceError):
     """Raised when an input file is not a valid image."""
 

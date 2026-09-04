@@ -21,8 +21,6 @@ class YoloResult(TypedDict, total=True):
     vehicle_detected: bool
     vehicle_type: str | None
     human_detected: bool
-    vehicle_box: BoundingBox | None
-    vehicle_boxes: list[BoundingBox]
     vehicle_count: int
 
 
@@ -153,11 +151,9 @@ def filter_vehicle_and_occupancy(
     human_detected, vehicles = _run_detection(pil_img, human_conf_thresh, vehicle_conf_thresh)
 
     detected_vehicle_types = [v_type for v_type, _ in vehicles]
-    vehicle_boxes = [box for _, box in vehicles]
     vehicle_count = len(vehicles)
 
     primary_vehicle_type = detected_vehicle_types[0] if detected_vehicle_types else None
-    primary_vehicle_box = vehicle_boxes[0] if vehicle_boxes else None
 
     if human_detected and reject_on_human:
         logger.warning("Rejected frame: Human presence detected.")
@@ -168,8 +164,6 @@ def filter_vehicle_and_occupancy(
             "vehicle_detected": vehicle_count > 0,
             "vehicle_type": primary_vehicle_type,
             "human_detected": human_detected,
-            "vehicle_box": primary_vehicle_box,
-            "vehicle_boxes": vehicle_boxes,
             "vehicle_count": vehicle_count,
         }
 
@@ -183,8 +177,6 @@ def filter_vehicle_and_occupancy(
             "vehicle_detected": True,
             "vehicle_type": primary_vehicle_type,
             "human_detected": human_detected,
-            "vehicle_box": primary_vehicle_box,
-            "vehicle_boxes": vehicle_boxes,
             "vehicle_count": vehicle_count,
         }
 
@@ -197,8 +189,6 @@ def filter_vehicle_and_occupancy(
                 "vehicle_detected": False,
                 "vehicle_type": None,
                 "human_detected": human_detected,
-                "vehicle_box": None,
-                "vehicle_boxes": [],
                 "vehicle_count": 0,
             }
         occupancy_note = "with human presence" if human_detected else "with no human occupancy"
@@ -209,8 +199,6 @@ def filter_vehicle_and_occupancy(
             "vehicle_detected": False,
             "vehicle_type": None,
             "human_detected": human_detected,
-            "vehicle_box": None,
-            "vehicle_boxes": [],
             "vehicle_count": 0,
         }
 
@@ -223,7 +211,5 @@ def filter_vehicle_and_occupancy(
         "vehicle_detected": True,
         "vehicle_type": primary_vehicle_type,
         "human_detected": human_detected,
-        "vehicle_box": primary_vehicle_box,
-        "vehicle_boxes": vehicle_boxes,
         "vehicle_count": vehicle_count,
     }

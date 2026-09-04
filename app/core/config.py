@@ -32,10 +32,6 @@ class Settings(BaseSettings):
     REJECT_ON_MULTIPLE_VEHICLES: bool = False
     REJECT_ON_NO_VEHICLE: bool = False
 
-    # Work bounds (fixed upper bound on vehicle boxes evaluated).
-    # Boxes are area-sorted, so the largest few are the only plausible candidates.
-    MAX_VEHICLE_BOXES: int = 5
-
     # OCR line processing upper bound
     MAX_OCR_LINES: int = 500
 
