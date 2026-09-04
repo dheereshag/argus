@@ -17,8 +17,8 @@ tests fail.
 
 import pytest
 
+from app.constants import INDIAN_PLATE_REGEX, STATE_CODES
 from app.services.ocr import PlateRecognizer
-from app.services.plate_rules import INDIAN_PLATE_REGEX, STATE_CODES
 
 
 @pytest.fixture

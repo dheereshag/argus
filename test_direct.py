@@ -32,7 +32,7 @@ def test_models():
         yolo_res = filter_vehicle_and_occupancy(img_bytes)
         t_yolo = round((time.time() - t_yolo_start) * 1000, 2)
         print(
-            f"[YOLO v11 Prescreening] ({t_yolo:>7.2f} ms): vehicle={yolo_res['vehicle_type']}, count={yolo_res.get('vehicle_count', 1)}"
+            f"[YOLO v11 Prescreening] ({t_yolo:>7.2f} ms): vehicle={yolo_res.vehicle_type}, count={yolo_res.vehicle_count}"
         )
 
         t0 = time.time()

@@ -77,12 +77,13 @@ class VehicleDetector:
         if boxes is None or len(boxes) == 0 or not hasattr(boxes, "cls"):
             return False, []
 
-        def to_np(arr: Any) -> np.ndarray:
-            return arr.cpu().numpy() if hasattr(arr, "cpu") else np.asarray(arr)
-
-        cls_ids = to_np(boxes.cls)
-        confs = to_np(boxes.conf)
-        xyxy = to_np(boxes.xyxy) if getattr(boxes, "xyxy", None) is not None else None
+        cls_ids = boxes.cls.cpu().numpy() if hasattr(boxes.cls, "cpu") else np.asarray(boxes.cls)
+        confs = boxes.conf.cpu().numpy() if hasattr(boxes.conf, "cpu") else np.asarray(boxes.conf)
+        xyxy = (
+            (boxes.xyxy.cpu().numpy() if hasattr(boxes.xyxy, "cpu") else np.asarray(boxes.xyxy))
+            if getattr(boxes, "xyxy", None) is not None
+            else None
+        )
 
         human_detected = False
         vehicles: list[tuple[int, str, BoundingBox]] = []
@@ -111,10 +112,7 @@ class VehicleDetector:
         vehicles.sort(key=lambda item: item[0], reverse=True)
         return human_detected, [(v_type, box) for _, v_type, box in vehicles]
 
-    def detect(
-        self,
-        image_input: ImageInput,
-    ) -> DetectionResult:
+    def detect(self, image_input: ImageInput) -> DetectionResult:
         """Execute Stage 1: Detect 4-wheeler vehicles, verify weighbridge occupancy, and extract vehicle crop."""
         pil_img = load_rgb(image_input)
         human_detected, vehicles = self._run_detection(
@@ -125,14 +123,17 @@ class VehicleDetector:
         primary_vehicle_box = vehicles[0][1] if vehicles else None
         vehicle_crop = pil_img.crop(primary_vehicle_box) if primary_vehicle_box else None
 
-        # Policy 1: Human presence
-        if human_detected and settings.REJECT_ON_HUMAN_DETECTED:
-            logger.warning("Rejected frame: Human presence detected.")
+        def _result(
+            is_eligible: bool,
+            status: RecognitionStatusEnum | None,
+            status_message: str,
+            vehicle_detected: bool,
+        ) -> DetectionResult:
             return DetectionResult(
-                is_eligible=False,
-                status=RecognitionStatusEnum.REJECTED_HUMAN_DETECTED,
-                status_message="Image rejected: Human presence detected.",
-                vehicle_detected=vehicle_count > 0,
+                is_eligible=is_eligible,
+                status=status,
+                status_message=status_message,
+                vehicle_detected=vehicle_detected,
                 vehicle_type=primary_vehicle_type,
                 human_detected=human_detected,
                 vehicle_count=vehicle_count,
@@ -140,20 +141,25 @@ class VehicleDetector:
                 crop=vehicle_crop,
             )
 
+        # Policy 1: Human presence
+        if human_detected and settings.REJECT_ON_HUMAN_DETECTED:
+            logger.warning("Rejected frame: Human presence detected.")
+            return _result(
+                False,
+                RecognitionStatusEnum.REJECTED_HUMAN_DETECTED,
+                "Image rejected: Human presence detected.",
+                vehicle_count > 0,
+            )
+
         # Policy 2: Multiple vehicles
         if vehicle_count > 1 and settings.REJECT_ON_MULTIPLE_VEHICLES:
             types_str = ", ".join(v[0] for v in vehicles)
             logger.warning(f"Rejected frame: {vehicle_count} vehicles detected ({types_str}).")
-            return DetectionResult(
-                is_eligible=False,
-                status=RecognitionStatusEnum.REJECTED_MULTIPLE_VEHICLES,
-                status_message=f"Image rejected: Multiple 4-wheeler vehicles detected ({vehicle_count} vehicles: {types_str}). Weighbridge allows only 1 vehicle.",
-                vehicle_detected=True,
-                vehicle_type=primary_vehicle_type,
-                human_detected=human_detected,
-                vehicle_count=vehicle_count,
-                vehicle_box=primary_vehicle_box,
-                crop=vehicle_crop,
+            return _result(
+                False,
+                RecognitionStatusEnum.REJECTED_MULTIPLE_VEHICLES,
+                f"Image rejected: Multiple 4-wheeler vehicles detected ({vehicle_count} vehicles: {types_str}). Weighbridge allows only 1 vehicle.",
+                True,
             )
 
         occupancy_note = "with human presence" if human_detected else "with no human occupancy"
@@ -161,43 +167,28 @@ class VehicleDetector:
         # Policy 3: No vehicle
         if vehicle_count == 0:
             if settings.REJECT_ON_NO_VEHICLE:
-                return DetectionResult(
-                    is_eligible=False,
-                    status=RecognitionStatusEnum.REJECTED_NO_FOUR_WHEELER,
-                    status_message="Image rejected: No 4-wheeler vehicle (car, bus, truck) detected.",
-                    vehicle_detected=False,
-                    vehicle_type=None,
-                    human_detected=human_detected,
-                    vehicle_count=0,
-                    vehicle_box=None,
-                    crop=None,
+                return _result(
+                    False,
+                    RecognitionStatusEnum.REJECTED_NO_FOUR_WHEELER,
+                    "Image rejected: No 4-wheeler vehicle (car, bus, truck) detected.",
+                    False,
                 )
-            return DetectionResult(
-                is_eligible=True,
-                status=None,
-                status_message=f"No vehicle detected ({occupancy_note}). Eligible for direct plate recognition.",
-                vehicle_detected=False,
-                vehicle_type=None,
-                human_detected=human_detected,
-                vehicle_count=0,
-                vehicle_box=None,
-                crop=None,
+            return _result(
+                True,
+                None,
+                f"No vehicle detected ({occupancy_note}). Eligible for direct plate recognition.",
+                False,
             )
 
         multi_note = f" ({vehicle_count} vehicles detected)" if vehicle_count > 1 else ""
-        return DetectionResult(
-            is_eligible=True,
-            status=None,
-            status_message=f"4-wheeler ({primary_vehicle_type}){multi_note} detected {occupancy_note}. Eligible for plate recognition.",
-            vehicle_detected=True,
-            vehicle_type=primary_vehicle_type,
-            human_detected=human_detected,
-            vehicle_count=vehicle_count,
-            vehicle_box=primary_vehicle_box,
-            crop=vehicle_crop,
+        return _result(
+            True,
+            None,
+            f"4-wheeler ({primary_vehicle_type}){multi_note} detected {occupancy_note}. Eligible for plate recognition.",
+            True,
         )
 
 
 def filter_vehicle_and_occupancy(image_input: ImageInput) -> DetectionResult:
     """Convenience function for Stage 1 vehicle detection and occupancy filtering."""
-    return VehicleDetector().detect(image_input=image_input)
+    return VehicleDetector().detect(image_input)

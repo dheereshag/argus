@@ -83,10 +83,8 @@ class PlateRecognizer:
 
         try:
             res = engine(np.array(img_pil))
-            if not res:
-                return []
-            txts = getattr(res, "txts", None)
-            scores = getattr(res, "scores", None)
+            txts = getattr(res, "txts", None) if res else None
+            scores = getattr(res, "scores", None) if res else None
             if txts and scores:
                 boxes = getattr(res, "boxes", None)
                 for idx, (t, s) in enumerate(zip(txts, scores, strict=False)):
@@ -125,7 +123,7 @@ class PlateRecognizer:
             for rank, cand_norm in enumerate(normalize_candidate_strings(raw_text)):
                 match = INDIAN_PLATE_REGEX.fullmatch(cand_norm)
                 if match:
-                    info = self.parse_plate_info(match.group(0))
+                    info = parse_plate_info(match.group(0))
                     if info:
                         plate_num = info.get("plate")
                         if plate_num and plate_num not in seen_matched_plates:

@@ -5,7 +5,12 @@ from pydantic import ValidationError
 
 from app.core.exceptions import ANPRServiceError, InvalidImageError
 from app.core.logging import logger
-from app.schemas import PlateResult, RecognitionResponse, RecognitionStatusEnum
+from app.schemas import (
+    DetectionResult,
+    PlateResult,
+    RecognitionResponse,
+    RecognitionStatusEnum,
+)
 from app.services.detector import filter_vehicle_and_occupancy
 from app.services.image_processing import decode_and_downscale, load_rgb
 from app.services.ocr import PlateRecognizer
@@ -38,7 +43,7 @@ def _resolve_bytes(image_input: str | bytes) -> bytes:
 
 
 def _build_response(
-    detection: Any,
+    detection: DetectionResult,
     filename: str,
     start_time: float,
     *,
@@ -48,17 +53,14 @@ def _build_response(
     message: str,
     results: list[PlateResult] | None = None,
 ) -> RecognitionResponse:
-    def _val(k: str) -> Any:
-        return detection[k] if isinstance(detection, dict) else getattr(detection, k)
-
     return RecognitionResponse(
         success=success,
         rejected=rejected,
         status=status,
         status_message=message,
-        vehicle_detected=_val("vehicle_detected"),
-        vehicle_type=_val("vehicle_type"),
-        human_detected=_val("human_detected"),
+        vehicle_detected=detection.vehicle_detected,
+        vehicle_type=detection.vehicle_type,
+        human_detected=detection.human_detected,
         filename=filename,
         results=results or [],
         execution_time_ms=round((time.time() - start_time) * 1000, 2),
@@ -79,59 +81,76 @@ def recognize_plate_image(
     image_bytes = decode_and_downscale(_resolve_bytes(image_input))
 
     # Stage 1: Vehicle Detection & Occupancy Gatekeeping
-    detection = filter_vehicle_and_occupancy(image_bytes)
-    is_eligible = detection["is_eligible"] if isinstance(detection, dict) else detection.is_eligible
-    status_msg = detection["status_message"] if isinstance(detection, dict) else detection.status_message
-    det_status = detection["status"] if isinstance(detection, dict) else detection.status
+    det_res = filter_vehicle_and_occupancy(image_bytes)
+    detection = (
+        det_res
+        if isinstance(det_res, DetectionResult)
+        else DetectionResult(
+            is_eligible=det_res["is_eligible"],
+            status=det_res.get("status"),
+            status_message=det_res.get("status_message", ""),
+            vehicle_detected=det_res.get("vehicle_detected", False),
+            vehicle_type=det_res.get("vehicle_type"),
+            human_detected=det_res.get("human_detected", False),
+            vehicle_count=det_res.get("vehicle_count", 1 if det_res.get("vehicle_detected") else 0),
+            vehicle_box=det_res.get("vehicle_box"),
+            crop=det_res.get("crop"),
+        )
+    )
 
-    if not is_eligible:
-        logger.info(f"Image '{resolved_filename}' ineligible: {status_msg}")
+    if detection.crop is None and detection.vehicle_box is not None:
+        try:
+            pil_img = load_rgb(image_bytes)
+            detection = DetectionResult(
+                is_eligible=detection.is_eligible,
+                status=detection.status,
+                status_message=detection.status_message,
+                vehicle_detected=detection.vehicle_detected,
+                vehicle_type=detection.vehicle_type,
+                human_detected=detection.human_detected,
+                vehicle_count=detection.vehicle_count,
+                vehicle_box=detection.vehicle_box,
+                crop=pil_img.crop(detection.vehicle_box),
+            )
+        except (ValueError, OSError, RuntimeError) as exc:
+            logger.debug(f"Could not crop vehicle box: {exc}")
+
+    if not detection.is_eligible:
+        logger.info(f"Image '{resolved_filename}' ineligible: {detection.status_message}")
         return _build_response(
             detection,
             resolved_filename,
             start_time,
             success=False,
             rejected=True,
-            status=det_status or RecognitionStatusEnum.REJECTED_NO_FOUR_WHEELER,
-            message=status_msg,
+            status=detection.status or RecognitionStatusEnum.REJECTED_NO_FOUR_WHEELER,
+            message=detection.status_message,
         )
 
     # Stage 2: License Plate Recognition
     logger.info(f"Running OCR on '{resolved_filename}'")
+    raw: list[dict[str, Any]] = []
     try:
         recognizer = PlateRecognizer()
-        crop = detection.get("crop") if isinstance(detection, dict) else getattr(detection, "crop", None)
-        if crop is None:
-            v_box = detection.get("vehicle_box") if isinstance(detection, dict) else getattr(detection, "vehicle_box", None)
-            if v_box:
-                pil_img = load_rgb(image_bytes)
-                crop = pil_img.crop(v_box)
-
-        if crop is not None:
-            raw = recognizer.recognize(crop, filename=resolved_filename)
-            # Fall back to full frame if vehicle crop yielded no plate candidate
-            if not any(r.get("plate") and r.get("plate") != "N/A" for r in raw):
-                raw = recognizer.recognize(image_bytes, filename=resolved_filename)
-        else:
+        target = detection.crop if detection.crop is not None else image_bytes
+        raw = recognizer.recognize(target, filename=resolved_filename)
+        # Fall back to full frame if vehicle crop yielded no plate candidate
+        if detection.crop is not None and not any(r.get("plate") and r.get("plate") != "N/A" for r in raw):
             raw = recognizer.recognize(image_bytes, filename=resolved_filename)
     except (ANPRServiceError, ValueError, RuntimeError, OSError, KeyError, AttributeError) as exc:
         logger.error(f"OCR failed on '{resolved_filename}': {exc}")
-        raw = []
 
     plate_results = validate_plate_results(raw)
     has_plate = any(r.plate != "N/A" for r in plate_results)
     final_status = RecognitionStatusEnum.SUCCESS if has_plate else RecognitionStatusEnum.NO_PLATE_DETECTED
 
-    v_detected = detection["vehicle_detected"] if isinstance(detection, dict) else detection.vehicle_detected
-    v_type = detection["vehicle_type"] if isinstance(detection, dict) else detection.vehicle_type
-
     if has_plate:
-        target = v_type or ("vehicle" if v_detected else None)
-        msg = f"License plate successfully detected and recognized on {target}." if target else "License plate successfully detected and recognized."
+        target_name = detection.vehicle_type or ("vehicle" if detection.vehicle_detected else None)
+        msg = f"License plate successfully detected and recognized on {target_name}." if target_name else "License plate successfully detected and recognized."
     else:
         msg = (
-            f"4-wheeler ({v_type or 'vehicle'}) detected, but no readable license plate characters could be recognized."
-            if v_detected
+            f"4-wheeler ({detection.vehicle_type or 'vehicle'}) detected, but no readable license plate characters could be recognized."
+            if detection.vehicle_detected
             else "No vehicle detected and no readable license plate characters could be recognized."
         )
 
