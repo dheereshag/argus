@@ -28,13 +28,6 @@ dev = [
     "ty>=0.0.74",
 ]
 
-[tool.uv]
-# opencv-python and opencv-python-headless both install into the same `cv2`
-# namespace; having both present breaks the import. ultralytics pulls in
-# plain opencv-python transitively even though the project depends on
-# -headless directly, so this override keeps the unsatisfiable variant out.
-override-dependencies = ["opencv-python; sys_platform == 'unsupported_platform'"]
-
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
