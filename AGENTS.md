@@ -98,6 +98,17 @@ For any Python modifications:
 - If a function returns a typed dataclass/model, never add `isinstance(x, dict)` checks, dict subscription shims (`__getitem__`, `get`), or fallback adapters.
 - Update tests and callers to strictly match the current, clean production contracts. Never bend production code backward for tests.
 
+## 9. Function Size Guidelines (20–50 Lines)
+
+**Keep functions focused, single-purpose, and readable.**
+
+- Functions should typically be between **20–50 lines** (varying with complexity).
+- Extract helper functions whenever a function:
+  - Exceeds 20–50 lines.
+  - Serves multiple distinct concerns or lifecycle steps.
+  - Contains deeply nested control flow (3+ indentation levels).
+- **Harmony with Surgical Changes (§3)**: Apply this heuristic when writing new functions or modifying existing ones; do not arbitrarily refactor untouched adjacent code unless working on that specific component.
+
 ---
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.

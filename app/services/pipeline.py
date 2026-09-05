@@ -117,37 +117,56 @@ def _build_response(
     )
 
 
+def _run_stage2_ocr(detection: DetectionResult, image_bytes: bytes, filename: str) -> list[PlateResult]:
+    """Execute RapidOCR on vehicle crop, falling back to full frame if needed."""
+    logger.info(f"Running OCR on '{filename}'")
+    raw: list[dict[str, Any]] = []
+    try:
+        recognizer = PlateRecognizer()
+        target = detection.crop if detection.crop is not None else image_bytes
+        raw = recognizer.recognize(target, filename=filename)
+
+        if detection.crop is not None and not any(r.get("plate") and r.get("plate") != "N/A" for r in raw):
+            raw = recognizer.recognize(image_bytes, filename=filename)
+    except (ANPRServiceError, ValueError, RuntimeError, OSError, KeyError, AttributeError) as exc:
+        logger.error(f"OCR failed on '{filename}': {exc}")
+
+    return validate_plate_results(raw)
+
+
+def _build_status_message(detection: DetectionResult, has_plate: bool) -> str:
+    """Format descriptive status message for detection and recognition outcome."""
+    if has_plate:
+        target_name = detection.vehicle_type or ("vehicle" if detection.vehicle_detected else None)
+        return (
+            f"License plate successfully detected and recognized on {target_name}."
+            if target_name
+            else "License plate successfully detected and recognized."
+        )
+    if detection.vehicle_detected:
+        return f"4-wheeler ({detection.vehicle_type or 'vehicle'}) detected, but no readable license plate characters could be recognized."
+    return "No vehicle detected and no readable license plate characters could be recognized."
+
+
 def recognize_plate_image(
     image_input: str | bytes,
     filename: str = "image.jpg",
 ) -> RecognitionResponse:
     """
-    Execute the Two-Stage ANPR Pipeline on an input image.
-
-    Pipeline Architecture:
-      - Stage 1: VehicleDetector
-          Runs YOLO v11 object detection, evaluates weighbridge occupancy policies
-          (human presence, multiple vehicle rejection, vehicle presence), and extracts
-          the primary vehicle crop.
-      - Stage 2: PlateRecognizer
-          Executes RapidOCR on the vehicle crop. If no valid registration plate is found,
-          automatically retries on the full uncropped image frame.
+    Execute the Two-Stage ANPR Pipeline (YOLO v11 detection + RapidOCR) on an input image.
 
     Args:
         image_input: File path (str) or binary image bytes.
         filename: Optional filename label used in logging and response payloads.
 
     Returns:
-        RecognitionResponse: Complete pipeline outcome including detection and OCR results.
+        RecognitionResponse: Complete pipeline outcome with detection and OCR results.
     """
     start_time = time.time()
     resolved_filename = filename or (image_input if isinstance(image_input, str) else "image.jpg")
-    # Ingest bytes and enforce downscale bounds
     image_bytes = decode_and_downscale(_resolve_bytes(image_input))
 
-    # --------------------------------------------------------------------------
     # Stage 1: Vehicle Detection & Occupancy Gatekeeping
-    # --------------------------------------------------------------------------
     detection = VehicleDetector().detect(image_bytes)
     if not detection.is_eligible:
         logger.info(f"Image '{resolved_filename}' ineligible: {detection.status_message}")
@@ -161,38 +180,11 @@ def recognize_plate_image(
             message=detection.status_message,
         )
 
-    # --------------------------------------------------------------------------
     # Stage 2: License Plate Recognition
-    # --------------------------------------------------------------------------
-    logger.info(f"Running OCR on '{resolved_filename}'")
-    raw: list[dict[str, Any]] = []
-    try:
-        recognizer = PlateRecognizer()
-        # Primary target: tight vehicle crop from Stage 1 if available
-        target = detection.crop if detection.crop is not None else image_bytes
-        raw = recognizer.recognize(target, filename=resolved_filename)
-
-        # Fallback to full image frame if vehicle crop yielded no valid plate
-        if detection.crop is not None and not any(r.get("plate") and r.get("plate") != "N/A" for r in raw):
-            raw = recognizer.recognize(image_bytes, filename=resolved_filename)
-    except (ANPRServiceError, ValueError, RuntimeError, OSError, KeyError, AttributeError) as exc:
-        logger.error(f"OCR failed on '{resolved_filename}': {exc}")
-
-    # Validate raw dictionaries into PlateResult models
-    plate_results = validate_plate_results(raw)
+    plate_results = _run_stage2_ocr(detection, image_bytes, resolved_filename)
     has_plate = any(r.plate != "N/A" for r in plate_results)
     final_status = RecognitionStatusEnum.SUCCESS if has_plate else RecognitionStatusEnum.NO_PLATE_DETECTED
-
-    # Build human-readable status message
-    if has_plate:
-        target_name = detection.vehicle_type or ("vehicle" if detection.vehicle_detected else None)
-        msg = f"License plate successfully detected and recognized on {target_name}." if target_name else "License plate successfully detected and recognized."
-    else:
-        msg = (
-            f"4-wheeler ({detection.vehicle_type or 'vehicle'}) detected, but no readable license plate characters could be recognized."
-            if detection.vehicle_detected
-            else "No vehicle detected and no readable license plate characters could be recognized."
-        )
+    msg = _build_status_message(detection, has_plate)
 
     return _build_response(
         detection,

@@ -141,80 +141,80 @@ class PlateRecognizer:
         """
         return parse_plate_info(raw_plate)
 
-    def _extract_plates_from_image_array(self, img_pil: Image.Image) -> list[dict[str, Any]]:
-        """
-        Extract and validate Indian license plates from a PIL image array.
-
-        Pipeline:
-          1. RapidOCR inference to obtain text boxes, confidence scores, and raw strings.
-          2. Vertical spatial sorting (top-to-bottom by centroid Y).
-          3. Filtering low-confidence tokens (< 0.20) and commercial vehicle decal words.
-          4. Single-line candidate evaluation with positional normalization.
-          5. Two-line spatial reconstruction (Euclidean distance pairing for split plates).
-          6. Priority ranking and deduplication.
-
-        Args:
-            img_pil: Standardized PIL RGB image (full frame or vehicle crop).
-
-        Returns:
-            list[dict[str, Any]]: List containing best matching plate info dictionary.
-        """
-        require(img_pil is not None, "_extract_plates_from_image_array received None")
-
-        engine = self.get_engine()
-        raw_items: list[OCRToken] = []
-
-        # ----------------------------------------------------------------------
-        # Step 1: Execute RapidOCR inference
-        # ----------------------------------------------------------------------
+    def _run_ocr_inference(self, img_pil: Image.Image) -> list[OCRToken]:
+        """Execute RapidOCR engine and return bounding tokens with centroids."""
         try:
-            res = engine(np.array(img_pil))
+            res = self.get_engine()(np.array(img_pil))
             txts = getattr(res, "txts", None) if res else None
             scores = getattr(res, "scores", None) if res else None
-            if txts and scores:
-                boxes = getattr(res, "boxes", None)
-                for idx, (t, s) in enumerate(zip(txts, scores, strict=False)):
-                    cx, cy = self._get_box_centroid(boxes[idx]) if (boxes is not None and idx < len(boxes)) else (None, None)
-                    raw_items.append(OCRToken(text=str(t), score=float(s), cx=cx, cy=cy))
+            if not txts or not scores:
+                return []
+            boxes = getattr(res, "boxes", None)
+            tokens: list[OCRToken] = []
+            for idx, (t, s) in enumerate(zip(txts, scores, strict=False)):
+                cx, cy = self._get_box_centroid(boxes[idx]) if (boxes is not None and idx < len(boxes)) else (None, None)
+                tokens.append(OCRToken(text=str(t), score=float(s), cx=cx, cy=cy))
+            if any(item.cy is not None for item in tokens):
+                tokens.sort(key=lambda x: x.cy if x.cy is not None else 9999.0)
+            return tokens
         except (RuntimeError, ValueError, TypeError, IndexError, AttributeError, OSError) as e:
             logger.error(f"[ocr/rapidocr] OCR execution failed: {e}")
             return []
 
-        if not raw_items:
-            return []
-
-        # ----------------------------------------------------------------------
-        # Step 2: Sort tokens top-to-bottom by vertical centroid (cy)
-        # ----------------------------------------------------------------------
-        if any(item.cy is not None for item in raw_items):
-            raw_items.sort(key=lambda x: x.cy if x.cy is not None else 9999.0)
-
+    @staticmethod
+    def _clean_and_filter_tokens(raw_items: list[OCRToken]) -> tuple[list[OCRToken], str]:
+        """Filter low-confidence tokens and decals, returning clean tokens and raw text summary."""
         clean_tokens: list[OCRToken] = []
         raw_text_parts: list[str] = []
         seen_tokens: set[str] = set()
 
-        # ----------------------------------------------------------------------
-        # Step 3: Clean, filter, and tokenize OCR output
-        # ----------------------------------------------------------------------
         for token in raw_items:
-            # Discard noisy OCR artifacts with confidence below 0.20
             if not token.text or token.score < 0.20:
                 continue
             raw_text_parts.append(token.text.strip())
 
-            # Split compound tokens and filter commercial decal words
             for chunk in [token.text, *token.text.split()]:
                 cleaned = re.sub(r"[^A-Za-z0-9]", "", chunk).upper()
                 if len(cleaned) >= 2 and not is_decal_word(cleaned) and cleaned not in seen_tokens:
                     seen_tokens.add(cleaned)
                     clean_tokens.append(OCRToken(text=cleaned, score=token.score, cx=token.cx, cy=token.cy))
 
-        raw_text_summary = " ".join(raw_text_parts) if raw_text_parts else "N/A"
+        raw_summary = " ".join(raw_text_parts) if raw_text_parts else "N/A"
+        return clean_tokens, raw_summary
+
+    @staticmethod
+    def _build_spatial_pairs(clean_tokens: list[OCRToken]) -> list[tuple[float, str, float]]:
+        """Construct 2-line spatial candidate pairings sorted by Euclidean centroid distance."""
+        candidate_pairs: list[tuple[float, str, float]] = []
+        n = len(clean_tokens)
+        for i in range(n):
+            tok_a = clean_tokens[i]
+            for j in range(i + 1, min(i + 6, n)):
+                tok_b = clean_tokens[j]
+                if tok_a.cx is not None and tok_a.cy is not None and tok_b.cx is not None and tok_b.cy is not None:
+                    dist = math.hypot(tok_a.cx - tok_b.cx, tok_a.cy - tok_b.cy)
+                    y_mean = float((tok_a.cy + tok_b.cy) / 2.0)
+                else:
+                    dist = float(abs(i - j) * 100.0)
+                    y_mean = tok_a.cy or tok_b.cy or 0.0
+
+                candidate_pairs.append((dist, tok_a.text + tok_b.text, y_mean))
+                candidate_pairs.append((dist + 0.1, tok_b.text + tok_a.text, y_mean))
+
+        candidate_pairs.sort(key=lambda p: p[0])
+        return candidate_pairs
+
+    @staticmethod
+    def _collect_candidates(
+        clean_tokens: list[OCRToken],
+        candidate_pairs: list[tuple[float, str, float]],
+        raw_text_summary: str,
+    ) -> list[PlateCandidate]:
+        """Evaluate single-line and paired candidates against Indian plate syntax."""
         plate_candidates: list[PlateCandidate] = []
         seen_matched_plates: set[str] = set()
 
-        def evaluate_candidate(raw_text: str, y_pos: float) -> None:
-            """Test candidate string variations against the Indian plate regex."""
+        def _evaluate(raw_text: str, y_pos: float) -> None:
             for rank, cand_norm in enumerate(normalize_candidate_strings(raw_text)):
                 match = INDIAN_PLATE_REGEX.fullmatch(cand_norm)
                 if match:
@@ -226,50 +226,41 @@ class PlateRecognizer:
                             info["raw_text"] = raw_text_summary
                             plate_candidates.append(PlateCandidate(y_pos=y_pos, rank=rank, info=info))
 
-        # ----------------------------------------------------------------------
-        # Step 4: Evaluate individual single-line tokens
-        # ----------------------------------------------------------------------
         for tok in clean_tokens:
-            evaluate_candidate(tok.text, tok.cy or 0.0)
+            _evaluate(tok.text, tok.cy or 0.0)
 
-        # ----------------------------------------------------------------------
-        # Step 5: Evaluate 2-line spatial pairings (stacked license plates)
-        # Commercial vehicles in India often display plates split into two lines:
-        # Line 1: 'MH 12' (State + District)
-        # Line 2: 'AB 1234' (Series + Number)
-        # We calculate pairwise 2D Euclidean distances between token centroids.
-        # ----------------------------------------------------------------------
-        candidate_pairs: list[tuple[float, str, float]] = []
-        n = len(clean_tokens)
-        for i in range(n):
-            tok_a = clean_tokens[i]
-            # Search within a local neighborhood horizon of 5 tokens
-            for j in range(i + 1, min(i + 6, n)):
-                tok_b = clean_tokens[j]
-                if tok_a.cx is not None and tok_a.cy is not None and tok_b.cx is not None and tok_b.cy is not None:
-                    dist = math.hypot(tok_a.cx - tok_b.cx, tok_a.cy - tok_b.cy)
-                    y_mean = float((tok_a.cy + tok_b.cy) / 2.0)
-                else:
-                    dist = float(abs(i - j) * 100.0)
-                    y_mean = tok_a.cy or tok_b.cy or 0.0
-
-                # Test both concatenations: tok_a + tok_b (top-bottom) and tok_b + tok_a
-                candidate_pairs.append((dist, tok_a.text + tok_b.text, y_mean))
-                candidate_pairs.append((dist + 0.1, tok_b.text + tok_a.text, y_mean))
-
-        # Test nearest spatial token pairs first
-        candidate_pairs.sort(key=lambda p: p[0])
         for _, pair_raw, y_pos in candidate_pairs:
-            evaluate_candidate(pair_raw, y_pos)
+            _evaluate(pair_raw, y_pos)
 
-        # ----------------------------------------------------------------------
-        # Step 6: Select best plate match by heuristic rank and vertical position
-        # ----------------------------------------------------------------------
-        if plate_candidates:
-            plate_candidates.sort(key=lambda c: (-c.rank, c.y_pos), reverse=True)
-            return [plate_candidates[0].info]
+        return plate_candidates
 
-        return [{"plate": "N/A", "state": "N/A", "raw_text": raw_text_summary}]
+    def _extract_plates_from_image_array(self, img_pil: Image.Image) -> list[dict[str, Any]]:
+        """
+        Extract and validate Indian license plates from a PIL image array.
+
+        Pipeline:
+          1. RapidOCR inference to obtain text boxes, confidence scores, and raw strings.
+          2. Vertical spatial sorting (top-to-bottom by centroid Y).
+          3. Filtering low-confidence tokens (< 0.20) and commercial vehicle decal words.
+          4. Single-line candidate evaluation with positional normalization.
+          5. Two-line spatial reconstruction (Euclidean distance pairing for split plates).
+          6. Priority ranking and deduplication.
+        """
+        require(img_pil is not None, "_extract_plates_from_image_array received None")
+
+        raw_items = self._run_ocr_inference(img_pil)
+        if not raw_items:
+            return []
+
+        clean_tokens, raw_summary = self._clean_and_filter_tokens(raw_items)
+        pairs = self._build_spatial_pairs(clean_tokens)
+        candidates = self._collect_candidates(clean_tokens, pairs, raw_summary)
+
+        if candidates:
+            candidates.sort(key=lambda c: (-c.rank, c.y_pos), reverse=True)
+            return [candidates[0].info]
+
+        return [{"plate": "N/A", "state": "N/A", "raw_text": raw_summary}]
 
     def recognize(
         self,

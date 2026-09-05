@@ -75,30 +75,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     logger.info(f"Shutting down {settings.PROJECT_NAME}...")
 
 
-def create_app() -> FastAPI:
-    """
-    FastAPI application factory.
-
-    Configures:
-      - Lifespan management for model pre-warming.
-      - CORS middleware.
-      - Execution timing middleware (attaching 'X-Process-Time-Ms' header).
-      - Domain exception handlers mapping errors to APIErrorResponse.
-      - Service endpoints: GET / and POST /recognize.
-
-    Returns:
-        FastAPI: Configured FastAPI application instance.
-    """
-    app = FastAPI(
-        title=settings.PROJECT_NAME,
-        version=settings.VERSION,
-        description="Enterprise Automatic Number Plate Recognition (ANPR) Microservice.",
-        docs_url=settings.DOCS_URL,
-        redoc_url=settings.REDOC_URL,
-        lifespan=lifespan,
-    )
-
-    # Cross-Origin Resource Sharing (CORS) middleware
+def _register_middleware(app: FastAPI) -> None:
+    """Register CORS and request timing middleware."""
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.CORS_ORIGINS,
@@ -107,9 +85,6 @@ def create_app() -> FastAPI:
         allow_headers=settings.CORS_ALLOW_HEADERS,
     )
 
-    # --------------------------------------------------------------------------
-    # Request Timing Middleware
-    # --------------------------------------------------------------------------
     @app.middleware("http")
     async def add_process_time_header(request: Request, call_next):
         """Measures total HTTP request roundtrip time and sets X-Process-Time-Ms header."""
@@ -118,33 +93,29 @@ def create_app() -> FastAPI:
         response.headers["X-Process-Time-Ms"] = f"{(time.perf_counter() - start_time) * 1000:.2f}"
         return response
 
-    # --------------------------------------------------------------------------
-    # Exception Handlers
-    # --------------------------------------------------------------------------
+
+def _register_exception_handlers(app: FastAPI) -> None:
+    """Register custom exception handlers mapping errors to standardized APIErrorResponse."""
     @app.exception_handler(ANPRServiceError)
     async def handle_anpr_error(_: Request, exc: ANPRServiceError) -> JSONResponse:
-        """Handle domain-specific ANPR service errors (e.g. 400 Bad Request, 413 Payload Too Large)."""
         return _error_response(exc.status_code, exc.message, exc.__class__.__name__)
 
     @app.exception_handler(ContractViolation)
     async def handle_contract_error(_: Request, exc: ContractViolation) -> JSONResponse:
-        """Handle runtime precondition or postcondition contract violations as 500 Internal Server Errors."""
         return _error_response(500, "Internal system assertion contract failed.", "ContractViolation", str(exc))
 
     @app.exception_handler(RequestValidationError)
     async def handle_val_error(_: Request, exc: RequestValidationError) -> JSONResponse:
-        """Handle FastAPI / Pydantic request parameter validation failures (422 Unprocessable Entity)."""
         return _error_response(422, "Request validation error.", "RequestValidationError", exc.errors())
 
     @app.exception_handler(Exception)
     async def handle_generic_error(req: Request, exc: Exception) -> JSONResponse:
-        """Catch-all unhandled exception handler logging error trace and returning 500."""
         logger.exception(f"Unhandled server error on {req.url.path}: {exc}")
         return _error_response(500, "An internal server error occurred.", "InternalServerError")
 
-    # --------------------------------------------------------------------------
-    # API Endpoints
-    # --------------------------------------------------------------------------
+
+def _register_routes(app: FastAPI) -> None:
+    """Register REST API endpoints for service info and license plate recognition."""
     @app.get("/", summary="Service Information", tags=["Info"])
     async def root() -> dict[str, str]:
         """Return microservice name, version, status, and link to interactive documentation."""
@@ -170,6 +141,28 @@ def create_app() -> FastAPI:
         validate_image_upload(image_bytes, content_type=file.content_type)
         return await asyncify(recognize_plate_image)(image_bytes, filename=file.filename or "image.jpg")
 
+
+def create_app() -> FastAPI:
+    """
+    FastAPI application factory.
+
+    Configures lifespan management for pre-warming, middleware, exception handlers,
+    and REST endpoints.
+
+    Returns:
+        FastAPI: Configured FastAPI application instance.
+    """
+    app = FastAPI(
+        title=settings.PROJECT_NAME,
+        version=settings.VERSION,
+        description="Enterprise Automatic Number Plate Recognition (ANPR) Microservice.",
+        docs_url=settings.DOCS_URL,
+        redoc_url=settings.REDOC_URL,
+        lifespan=lifespan,
+    )
+    _register_middleware(app)
+    _register_exception_handlers(app)
+    _register_routes(app)
     return app
 
 
