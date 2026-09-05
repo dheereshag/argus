@@ -274,16 +274,3 @@ class VehicleDetector:
             f"4-wheeler ({primary_vehicle_type}){multi_note} detected {occupancy_note}. Eligible for plate recognition.",
             True,
         )
-
-
-def filter_vehicle_and_occupancy(image_input: ImageInput) -> DetectionResult:
-    """
-    Convenience function for Stage 1 vehicle detection and occupancy filtering.
-
-    Args:
-        image_input: Input image as file path, raw bytes, PIL Image, or NumPy array.
-
-    Returns:
-        DetectionResult: Stage 1 pre-screening evaluation and vehicle crop.
-    """
-    return VehicleDetector().detect(image_input)

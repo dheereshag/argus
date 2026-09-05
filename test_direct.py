@@ -13,7 +13,7 @@ import argparse
 import os
 import time
 
-from app.services.detector import filter_vehicle_and_occupancy
+from app.services.detector import VehicleDetector
 from app.services.image_processing import decode_and_downscale
 from app.services.ocr import PlateRecognizer
 
@@ -36,6 +36,7 @@ def test_models() -> None:
     ]
     image_paths.sort()
 
+    detector = VehicleDetector()
     engine = PlateRecognizer()
 
     for img_path in image_paths:
@@ -51,7 +52,7 @@ def test_models() -> None:
         # Benchmark 1: YOLO v11 Pre-screening & Occupancy Check
         # ----------------------------------------------------------------------
         t_yolo_start = time.time()
-        yolo_res = filter_vehicle_and_occupancy(img_bytes)
+        yolo_res = detector.detect(img_bytes)
         t_yolo = round((time.time() - t_yolo_start) * 1000, 2)
         print(
             f"[YOLO v11 Prescreening] ({t_yolo:>7.2f} ms): vehicle={yolo_res.vehicle_type}, count={yolo_res.vehicle_count}"

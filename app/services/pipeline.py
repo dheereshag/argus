@@ -23,7 +23,7 @@ from app.schemas import (
     RecognitionResponse,
     RecognitionStatusEnum,
 )
-from app.services.detector import filter_vehicle_and_occupancy
+from app.services.detector import VehicleDetector
 from app.services.image_processing import decode_and_downscale
 from app.services.ocr import PlateRecognizer
 
@@ -148,7 +148,7 @@ def recognize_plate_image(
     # --------------------------------------------------------------------------
     # Stage 1: Vehicle Detection & Occupancy Gatekeeping
     # --------------------------------------------------------------------------
-    detection = filter_vehicle_and_occupancy(image_bytes)
+    detection = VehicleDetector().detect(image_bytes)
     if not detection.is_eligible:
         logger.info(f"Image '{resolved_filename}' ineligible: {detection.status_message}")
         return _build_response(

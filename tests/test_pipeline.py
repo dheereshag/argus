@@ -6,7 +6,7 @@ from app.schemas import DetectionResult, RecognitionStatusEnum
 from app.services.pipeline import recognize_plate_image
 
 
-@patch("app.services.pipeline.filter_vehicle_and_occupancy")
+@patch("app.services.pipeline.VehicleDetector.detect")
 def test_recognize_rejected_human(mock_yolo, sample_image_bytes):
     mock_yolo.return_value = DetectionResult(
         is_eligible=False,
@@ -25,7 +25,7 @@ def test_recognize_rejected_human(mock_yolo, sample_image_bytes):
     assert response.results == []
 
 
-@patch("app.services.pipeline.filter_vehicle_and_occupancy")
+@patch("app.services.pipeline.VehicleDetector.detect")
 def test_recognize_rejected_no_four_wheeler(mock_yolo, sample_image_bytes):
     mock_yolo.return_value = DetectionResult(
         is_eligible=False,
@@ -43,7 +43,7 @@ def test_recognize_rejected_no_four_wheeler(mock_yolo, sample_image_bytes):
     assert response.vehicle_detected is False
 
 
-@patch("app.services.pipeline.filter_vehicle_and_occupancy")
+@patch("app.services.pipeline.VehicleDetector.detect")
 def test_recognize_rejected_multiple_vehicles(mock_yolo, sample_image_bytes):
     mock_yolo.return_value = DetectionResult(
         is_eligible=False,
@@ -63,7 +63,7 @@ def test_recognize_rejected_multiple_vehicles(mock_yolo, sample_image_bytes):
 
 
 @patch("app.services.pipeline.PlateRecognizer")
-@patch("app.services.pipeline.filter_vehicle_and_occupancy")
+@patch("app.services.pipeline.VehicleDetector.detect")
 def test_recognize_success(mock_yolo, mock_ocr_cls, sample_image_bytes):
     mock_yolo.return_value = DetectionResult(
         is_eligible=True,
@@ -89,7 +89,7 @@ def test_recognize_success(mock_yolo, mock_ocr_cls, sample_image_bytes):
 
 
 @patch("app.services.pipeline.PlateRecognizer")
-@patch("app.services.pipeline.filter_vehicle_and_occupancy")
+@patch("app.services.pipeline.VehicleDetector.detect")
 def test_recognize_vehicle_cropped(mock_yolo, mock_ocr_cls, sample_image_bytes):
     dummy_crop = Image.new("RGB", (70, 70))
     mock_yolo.return_value = DetectionResult(
@@ -117,7 +117,7 @@ def test_recognize_vehicle_cropped(mock_yolo, mock_ocr_cls, sample_image_bytes):
 
 
 @patch("app.services.pipeline.PlateRecognizer")
-@patch("app.services.pipeline.filter_vehicle_and_occupancy")
+@patch("app.services.pipeline.VehicleDetector.detect")
 def test_recognize_no_vehicle_detected(mock_yolo, mock_ocr_cls, sample_image_bytes):
     mock_yolo.return_value = DetectionResult(
         is_eligible=True,
