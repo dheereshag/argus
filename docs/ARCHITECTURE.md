@@ -74,7 +74,8 @@ flowchart TD
 ```
 argus/
 ├── docs/                        # Architecture and technical documentation
-│   └── ARCHITECTURE.md          # This architecture guide
+│   ├── ARCHITECTURE.md          # This architecture guide
+│   └── EDGE_SECURITY.md         # Raspberry Pi edge hardening and physical security guide
 ├── app/                         # Production application source code
 │   ├── core/                    # Infrastructure and cross-cutting concerns
 │   │   ├── config.py            # Environment settings via Pydantic Settings

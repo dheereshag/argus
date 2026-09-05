@@ -9,6 +9,7 @@ It features an intelligent **YOLO v11 Pre-screening & Vehicle Cropping Pipeline*
 ## 🏛️ Architecture & Codebase Guide
 
 For an in-depth walkthrough of the system architecture, component directory layout, weighbridge policies, and data flow, see the **[Architecture & Codebase Guide](docs/ARCHITECTURE.md)**.
+For edge deployment security on Raspberry Pi (credential protection, binary compilation, and anti-tamper), see the **[Edge Hardening & Security Guide](docs/EDGE_SECURITY.md)**.
 
 ```mermaid
 flowchart LR
