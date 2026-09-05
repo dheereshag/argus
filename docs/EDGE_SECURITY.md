@@ -394,3 +394,99 @@ To ensure the encrypted disk decrypts automatically upon power-on without requir
 | **Immediate** | **Compile Code with Nuitka** | Compile your Python ingestion script and Argus into native `.so` / ELF binaries. |
 | **Next Step** | **Deploy LUKS Full Disk Encryption** | Encrypt root partition using LUKS so that local `.env` and token caches cannot be extracted offline. Unattended boot via Clevis/Tang or TPM 2.0 HAT. |
 | **Hardware** | **Enclosure Switch & Compute Module** | Enclose the hardware in a locked DIN-rail box with an NC tamper microswitch, and transition to a Compute Module (CM4/CM5 with eMMC). |
+
+---
+
+## 7. 2026 Next-Gen Alternatives & Evolution Roadmap
+
+While your current architecture (Argon2 + JWT rotation + Nuitka + LUKS) provides a solid, practical foundation for MVP and pilot deployments, the **2026 state-of-the-art for enterprise IoT & edge fleets** offers four superior architectural alternatives that eliminate the remaining physical and network vulnerabilities:
+
+```
+┌────────────────────────────────────────────────────────┐
+│ 1. Asymmetric Private Key JWT (RFC 7523 / DPoP)        │
+│    Zero passwords exist; private key locked in TPM     │
+├────────────────────────────────────────────────────────┤
+│ 2. Zero-Trust Private Mesh (Tailscale / Cloudflare)    │
+│    Next.js endpoints completely hidden from internet   │
+├────────────────────────────────────────────────────────┤
+│ 3. Immutable Read-Only OS (dm-verity)                  │
+│    Kernel halts if a single byte of code is modified   │
+├────────────────────────────────────────────────────────┤
+│ 4. FIDO Device Onboard (FDO)                           │
+│    Zero-touch factory enrollment; no manual configs    │
+└────────────────────────────────────────────────────────┘
+```
+
+---
+
+### Alternative 1: Asymmetric "Private Key JWT" (RFC 7523) instead of Passwords
+
+#### The Limitation of Passwords on Edge Devices
+Even with JWTs, during initial cold boot the Raspberry Pi must read a **password from a file or memory** to call `POST /api/auth/login`. A password is a static string; if extracted from RAM or disk, an attacker can authenticate from any laptop. Furthermore, **a TPM cannot protect a password**—TPM chips can only protect cryptographic keypairs.
+
+#### The 2026 Solution: Private Key JWT (RFC 7523 / DPoP)
+Instead of username and password, each Raspberry Pi is assigned an **asymmetric keypair** (ECC NIST P-256 or Ed25519):
+1. **Hardware Silicon Key Storage**: The **Private Key** is generated inside the **TPM 2.0 (SLB 9672)** or **ATECC608B** chip and marked **non-exportable**. It can never be copied to an SD card or read by an attacker.
+2. **Public Key on Next.js**: The corresponding **Public Key** is stored in your Next.js database under `Device.publicKey`.
+3. **How Authentication Works**:
+   - When the Pi needs an access token, it asks the TPM to sign a short-lived token:
+     `{"iss": "pi-05", "sub": "pi-05", "exp": now + 60s}`.
+   - The Pi sends this signed token to Next.js (`POST /api/auth/token`).
+   - Next.js verifies the cryptographic signature against `Device.publicKey` in $<0.01$ ms (zero Argon2 needed!) and issues the 5-minute access token.
+4. **Why This Wins**:
+   - **Zero passwords exist anywhere** on the Pi.
+   - Even if a thief clones the entire SD card, **they cannot authenticate because the private key is physically trapped inside silicon**.
+
+---
+
+### Alternative 2: Zero-Trust Private Mesh (Tailscale / WireGuard / Cloudflare Tunnel)
+
+#### The Limitation of Public Ingress
+Hosting `https://your-domain.com/api/entries` and `/api/auth/login` on the public internet means anyone can port-scan, DDoS, or attempt credential-stuffing against your authentication endpoints.
+
+#### The 2026 Solution: Peer-to-Peer Encrypted Overlay Mesh
+Using **Tailscale** (built on WireGuard) or a **Cloudflare Zero-Trust Tunnel**:
+1. Your Next.js backend and all weighbridge Pis join a private peer-to-peer overlay network (e.g. `100.64.0.0/10`).
+2. The Next.js `/api/entries` and `/api/auth` endpoints are **completely closed to the public internet** (ports 80/443 closed to public traffic).
+3. The Raspberry Pi posts directly over the encrypted mesh IP:
+   `http://100.64.0.1:3000/api/entries`.
+4. **Why This Wins**:
+   - Your weighbridge API is 100% invisible to the public internet.
+   - Authentication and packet encryption happen at the Linux kernel WireGuard layer before Next.js even receives a TCP packet.
+
+---
+
+### Alternative 3: Immutable Read-Only OS with `dm-verity`
+
+#### The Limitation of Standard Writable Filesystems
+On standard Raspberry Pi OS (Debian), the root partition is a writable `ext4` filesystem. An attacker with local access can modify system libraries (`libc.so`), alter Python runtime binaries, or inject dynamic linker preload hooks (`LD_PRELOAD`) to intercept unencrypted memory.
+
+#### The 2026 Solution: Kernel-Enforced Integrity via `dm-verity`
+Standard in ChromeOS, Android, and industrial Linux (Ubuntu Core / Yocto):
+1. The root OS and compiled Nuitka binaries are packaged into a **read-only squashfs image** backed by a cryptographic Merkle hash tree (**`dm-verity`**).
+2. The root hash of the tree is signed by your private key and verified by the Raspberry Pi 5 Boot ROM.
+3. If an attacker tampers with even **one single byte** of your compiled code or OS files on the SD card, the Linux kernel detects the hash mismatch and **instantly halts the machine with a kernel panic**.
+4. All variable runtime data (offline store-and-forward queue) is isolated into a separate encrypted partition or RAM (`tmpfs`).
+
+---
+
+### Alternative 4: FIDO Device Onboard (FDO) for Zero-Touch Fleet Provisioning
+
+#### The Limitation of Manual Setup
+When deploying 20 or 50 weighbridges, manual provisioning requires flashing distinct passwords into config files for every single SD card.
+
+#### The 2026 Solution: FIDO Device Onboard (FDO / LF Edge)
+1. You ship stock Raspberry Pis straight to the weighbridge installations.
+2. On initial power-on, the device contacts an automated FDO Rendezvous Server.
+3. The device cryptographically proves its factory silicon identity, downloads its encrypted configuration and access certificates from your Next.js server, and enrolls itself into your fleet with **zero human intervention**.
+
+---
+
+### Tiered Evolution Matrix
+
+| Security Tier | Architecture Stack | Effort | Best Used For |
+| :--- | :--- | :--- | :--- |
+| **Tier 1: Practical Foundation** | **Argon2 + JWT Rotation + Nuitka + LUKS** | **Current** | **MVP & Pilots**: Protects code from casual copy and isolates blast radius per device. |
+| **Tier 2: Hardware Secret Lock** | **Private Key JWT via TPM 2.0 (RFC 7523)** | **Low–Med** | **Recommended Next**: Eliminates all stored passwords from the Pi; locks identity into hardware silicon. |
+| **Tier 3: Network Stealth** | **Tailscale / Cloudflare Zero-Trust Tunnel** | **Low** | **Recommended Next**: Closes backend to the public internet; eliminates DDoS and public scraping. |
+| **Tier 4: Enterprise Appliance** | **CM4/CM5 + eMMC + `dm-verity` + FDO** | **High** | **Commercial Scale**: Tamper-proof, immutable appliance with zero-touch factory provisioning. |
