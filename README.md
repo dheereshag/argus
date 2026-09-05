@@ -6,6 +6,22 @@ It features an intelligent **YOLO v11 Pre-screening & Vehicle Cropping Pipeline*
 
 ---
 
+## 🏛️ Architecture & Codebase Guide
+
+For an in-depth walkthrough of the system architecture, component directory layout, weighbridge policies, and data flow, see the **[Architecture & Codebase Guide](docs/ARCHITECTURE.md)**.
+
+```mermaid
+flowchart LR
+    A[Input Image] --> B[YOLO v11 Pre-screening]
+    B -->|Verified Single Vehicle| C[Vehicle Crop]
+    B -->|Human or Multi-Vehicle| X[Policy Rejection]
+    C --> D[RapidOCR ONNX]
+    D --> E[Spatial Pairing & Indian Plate Regex]
+    E --> F[API / CLI Response]
+```
+
+---
+
 ## ⚙️ Environment Variables (`.env`)
 
 Set the following environment variables in your local `.env` file (see [`.env.example`](file:///.env.example)):

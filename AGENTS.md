@@ -75,12 +75,12 @@ For any Python modifications:
 - `uv run ty check` (0 errors, 0 warnings)
 - `uv run pytest` (all tests pass)
 
-## 6. Update README.md
+## 6. Update Documentation (`docs/` and `README.md`)
 
-**Always keep `README.md` in sync with codebase changes.**
+**Always keep documentation in `docs/` and `README.md` in sync with codebase changes.**
 
-- Explicitly update `README.md` whenever adding, modifying, or removing features, API endpoints, environment variables, dependencies, or workflows.
-- Ensure all setup instructions, configuration options, and usage examples remain accurate and up-to-date.
+- Explicitly update `README.md` and relevant guides in `docs/` (such as `docs/ARCHITECTURE.md`) whenever adding, modifying, or removing features, API endpoints, environment variables, architecture patterns, dependencies, or workflows.
+- Ensure all setup instructions, configuration options, usage examples, and architectural diagrams remain accurate and up-to-date.
 
 ## 7. Dependency Management via `uv`
 
