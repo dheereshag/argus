@@ -13,6 +13,7 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from typing import Annotated, Any
 
+from asyncer import asyncify
 from fastapi import FastAPI, File, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -154,7 +155,7 @@ def create_app() -> FastAPI:
             "docs": "/docs",
         }
 
-    @app.post("/recognize", response_model=RecognitionResponse, summary="Recognize Vehicle License Plate", tags=["Recognition"])
+    @app.post("/recognize", summary="Recognize Vehicle License Plate", tags=["Recognition"])
     async def recognize_plate(
         file: Annotated[UploadFile, File(description="Image file (JPEG, PNG, WebP, BMP)")],
     ) -> RecognitionResponse:
@@ -167,7 +168,7 @@ def create_app() -> FastAPI:
         """
         image_bytes = await file.read()
         validate_image_upload(image_bytes, content_type=file.content_type)
-        return recognize_plate_image(image_bytes, filename=file.filename or "image.jpg")
+        return await asyncify(recognize_plate_image)(image_bytes, filename=file.filename or "image.jpg")
 
     return app
 

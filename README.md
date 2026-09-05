@@ -42,6 +42,15 @@ uv sync
 ```
 
 ### 2. Start FastAPI REST API Server
+Using the FastAPI CLI (entrypoint configured in `pyproject.toml`):
+```bash
+# Development with hot-reload
+uv run fastapi dev
+
+# Production mode
+uv run fastapi run
+```
+Or directly via Uvicorn:
 ```bash
 uv run uvicorn app.server:app --reload --host 0.0.0.0 --port 8000
 ```

@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
+    "asyncer>=0.0.18",
     "fastapi>=0.141.1",
     "loguru>=0.7.2",
     "numpy>=2.5.1",
@@ -28,12 +29,15 @@ dev = [
     "ty>=0.0.74",
 ]
 
+[tool.fastapi]
+entrypoint = "app.server:app"
+
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
 
 [tool.ruff.lint]
-extend-select = ["T20"]
+extend-select = ["T20", "FAST"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["T201"]
