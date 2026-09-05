@@ -1,3 +1,10 @@
+"""
+Application configuration and environment settings for Argus ANPR.
+
+Loads settings from environment variables and `.env` files using Pydantic Settings.
+Configures YOLO model paths, detection thresholds, image payload limits, and server parameters.
+"""
+
 import os
 from importlib.metadata import PackageNotFoundError, version
 
@@ -13,24 +20,26 @@ except PackageNotFoundError:
 
 
 class Settings(BaseSettings):
+    """Global configuration settings for the Argus service."""
+
     PROJECT_NAME: str = "Argus ANPR Microservice"
     VERSION: str = _PKG_VERSION
 
     # YOLO Model Settings
-    YOLO_MODEL_NAME: str = "yolo11n.pt"
-    YOLO_CONFIG_DIR: str = ".cache/ultralytics"
-    HUMAN_CONF_THRESH: float = 0.30
-    VEHICLE_CONF_THRESH: float = 0.35
+    YOLO_MODEL_NAME: str = "yolo11n.pt"  # Pre-trained weights file or model identifier
+    YOLO_CONFIG_DIR: str = ".cache/ultralytics"  # Local storage directory for Ultralytics cache
+    HUMAN_CONF_THRESH: float = 0.30  # Minimum confidence to flag a person presence
+    VEHICLE_CONF_THRESH: float = 0.35  # Minimum confidence to recognize a 4-wheeler (car, bus, truck)
 
-    # Upload limits
-    MAX_UPLOAD_BYTES: int = 8 * 1024 * 1024  # reject the request body above this
-    MAX_IMAGE_PIXELS: int = 50_000_000  # decompression-bomb guard (w * h)
-    MAX_IMAGE_EDGE_PX: int = 1920  # downscale longest edge before inference
+    # Image payload & upload security limits
+    MAX_UPLOAD_BYTES: int = 8 * 1024 * 1024  # Reject incoming request body larger than 8 MB
+    MAX_IMAGE_PIXELS: int = 50_000_000  # Guard against decompression bomb attacks (w * h)
+    MAX_IMAGE_EDGE_PX: int = 1920  # Downscale longest image edge to this before inference
 
-    # Pre-screening Rejection Policies
-    REJECT_ON_HUMAN_DETECTED: bool = True
-    REJECT_ON_MULTIPLE_VEHICLES: bool = True
-    REJECT_ON_NO_VEHICLE: bool = True
+    # Pre-screening Rejection Policies (e.g., Weighbridge single-vehicle occupancy rules)
+    REJECT_ON_HUMAN_DETECTED: bool = True  # Reject if pedestrian/operator is present in frame
+    REJECT_ON_MULTIPLE_VEHICLES: bool = True  # Reject if more than 1 four-wheeler is on the scale
+    REJECT_ON_NO_VEHICLE: bool = True  # Reject if no eligible four-wheeler is found
 
     # Server & CORS Settings
     SERVER_HOST: str = "0.0.0.0"
