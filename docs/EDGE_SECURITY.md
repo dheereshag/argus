@@ -14,12 +14,12 @@ This guide addresses physical edge security, device authentication, and anti-tam
 │ 3. Ingestion Client (Compiled with Nuitka)             │
 │    Holds unique credentials (e.g., Device ID: pi-05)   │
 └──────────────────────────┬─────────────────────────────┘
-                           │ HTTPS POST /api/telemetry
+                           │ HTTPS POST /api/entries
                            ▼
 ┌────────────────────────────────────────────────────────┐
 │ Cloud / On-Prem Backend (Next.js)                      │
 │ - Reverse Proxy (Nginx / Caddy / Cloudflare)           │
-│ - Next.js Route Handlers (app/api/telemetry/route.ts)   │
+│ - Next.js Route Handlers (app/api/entries/route.ts)    │
 │ - Database (Stores device identities & scoped roles)   │
 └────────────────────────────────────────────────────────┘
 ```
@@ -27,7 +27,7 @@ This guide addresses physical edge security, device authentication, and anti-tam
 ### Key Context & Clarifications
 1. **Per-Device Credentials**: Each Raspberry Pi has its own **unique** username and password / token. There is **no shared global master password**.
 2. **Backend**: Built with **Next.js** (App Router Route Handlers / Middleware).
-3. **Role Enforcement**: The backend verifies `user.role == 'device'` to enforce that devices can only `POST` telemetry and cannot read other records or perform administrative tasks.
+3. **Role Enforcement**: The backend verifies `user.role == 'device'` to enforce that devices can only `POST /api/entries` and cannot read other records or perform administrative tasks.
 
 ---
 
@@ -41,9 +41,9 @@ However, how does this compare to `device.crt` (mTLS) and scoped API keys in a N
 
 | Criterion | Unique Credentials + Argon2 + JWT Refresh | Per-Device API Key (`x-device-id` + `x-device-key`) | Mutual TLS (`device.crt` / mTLS) |
 | :--- | :--- | :--- | :--- |
-| **Protocol Flow in Next.js** | `POST /api/auth/login` (Argon2) $\rightarrow$ issues short-lived JWT + Refresh Token $\rightarrow$ `POST /api/telemetry` verifies JWT. | Single-step: Pi sends `x-device-id` and `x-device-key` directly in request headers. | Handshake-level: Identity verified during TLS handshake before HTTP request begins. |
+| **Protocol Flow in Next.js** | `POST /api/auth/login` (Argon2) $\rightarrow$ issues short-lived JWT + Refresh Token $\rightarrow$ `POST /api/entries` verifies JWT. | Single-step: Pi sends `x-device-id` and `x-device-key` directly in request headers. | Handshake-level: Identity verified during TLS handshake before HTTP request begins. |
 | **Operational Feasibility** | **High**: Weighment is a 30–60s physical cycle; 100ms Argon2 cost on login/refresh is completely imperceptible. | **High**: Completely stateless; zero token refresh logic needed on edge. | **Maximum Security**: Reverse proxy filters connections at network perimeter. |
-| **Next.js Server Load** | **Low on Telemetry**: Telemetry requests only verify fast JWT signatures ($<0.01$ ms). Argon2 is only computed on login/refresh. | **Ultra-lightweight**: Fast SHA-256 hash ($0.005$ ms) on every request. | Zero Node.js load: Reverse proxy drops unauthorized connections before touching Next.js. |
+| **Next.js Server Load** | **Low on Weighment Entries**: Entry requests only verify fast JWT signatures ($<0.01$ ms). Argon2 is only computed on login/refresh. | **Ultra-lightweight**: Fast SHA-256 hash ($0.005$ ms) on every request. | Zero Node.js load: Reverse proxy drops unauthorized connections before touching Next.js. |
 | **Edge Reliability on Network Drops** | Moderate: Pi needs retry logic to handle token expiration if the network drops for longer than the JWT lifetime. | Highly robust: 100% stateless; automatically recovers and resumes posting when network returns. | Maximum: Connection level; no tokens or sessions to expire or maintain. |
 | **Credential Entropy** | High if machine-generated; Argon2id provides state-of-the-art memory-hardness against GPU cracking. | High: 256-bit CSPRNG cryptographic string (`argus_live_...`). | Cryptographic: Asymmetric 2048-bit RSA or ECC P-256 keypair. |
 
@@ -59,8 +59,8 @@ Here is why that works well in your operational reality:
    - A truck takes **30 to 60 seconds** to pull onto the weighbridge, settle its suspension, record tare/gross weight, and clear the gate.
    - A 100ms execution time for Argon2 during initial device boot or token refresh represents less than **0.2%** of a single weighment cycle. It has zero noticeable impact on weighbridge throughput.
 
-2. **Telemetry POSTs Do NOT Run Argon2**:
-   - Because you use JWT access tokens, the high-throughput `POST /api/telemetry` endpoint **does not execute Argon2 on every vehicle weighment**.
+2. **Weighment Entry POSTs Do NOT Run Argon2**:
+   - Because you use JWT access tokens, the high-throughput `POST /api/entries` endpoint **does not execute Argon2 on every vehicle weighment**.
    - It only verifies the cryptographic signature of the JWT (using HMAC-SHA256 or Ed25519), which takes **under 0.05 milliseconds**.
    - Argon2 is only computed once during initial startup login and periodically when the refresh token is rotated.
 
@@ -69,7 +69,102 @@ Here is why that works well in your operational reality:
      - **Preemptive Refresh**: Refresh the JWT access token when it reaches 70–80% of its lifespan, rather than waiting for an HTTP 401 error.
      - **Clock Drift Tolerance**: Ensure the Raspberry Pi synchronizes time via NTP (`chrony` or `systemd-timesyncd`). If the Pi's RTC drifts while offline, JWT timestamp validation (`nbf`, `exp`) can fail prematurely. Allow a 30–60 second clock skew window in your Next.js JWT verification options.
 
-At first glance, both approaches look like an identifier and a secret. However, in backend engineering and IoT design, they operate completely differently:
+---
+
+### Do You Re-Login After 5 Minutes, or Use the Refresh Token?
+
+> [!IMPORTANT]
+> **Always use the Refresh Token.** You should **never** re-login with username and password after 5 minutes.
+
+Here is why:
+
+1. **That is the Exact Purpose of the Refresh Token**:
+   - The 5-minute **access token** is intentionally short-lived so that if it is intercepted or leaked from memory, an attacker has an extremely narrow window of opportunity.
+   - The 7-day **refresh token** exists specifically so that your device **does not have to send the master username and password over the network every 5 minutes** (which would expose credentials 288 times a day).
+2. **Performance (Refresh Does NOT Run Argon2)**:
+   - Calling `POST /api/auth/login` forces Next.js to compute **Argon2** (~100ms CPU).
+   - Calling `POST /api/auth/refresh` **does NOT run Argon2**. It performs a fast token verification or database lookup ($<1$ ms). It is practically instant.
+3. **When Do You Actually Use Username & Password?**:
+   - **Only on initial startup** (when the Pi boots for the first time without any stored tokens), or **if the refresh token itself is expired or revoked** (e.g. the device was completely powered off for more than 7 days).
+4. **Infinite Uptime via Refresh Token Rotation**:
+   - In Next.js, if you implement **Refresh Token Rotation**, each time the Pi calls `POST /api/auth/refresh`, your backend returns:
+     - A new 5-minute **access token**, AND
+     - A refreshed rolling 7-day **refresh token**.
+   - As long as the weighbridge operates at least once every 7 days, the device can run continuously for years without ever needing the master password again.
+
+#### Recommended Edge Python Client Token Handler
+```python
+import time
+import requests
+
+class WeighbridgeAuthClient:
+    def __init__(self, base_url: str, username: str, password: str):
+        self.base_url = base_url
+        self.username = username
+        self.password = password
+        self.access_token: str | None = None
+        self.refresh_token: str | None = None
+        self.expires_at: float = 0.0
+
+    def login(self) -> None:
+        """Called ONLY on cold startup or if refresh token expires (rare)."""
+        res = requests.post(f"{self.base_url}/api/auth/login", json={
+            "username": self.username,
+            "password": self.password
+        }, timeout=10)
+        res.raise_for_status()
+        data = res.json()
+        self.access_token = data["accessToken"]
+        self.refresh_token = data["refreshToken"]
+        # Set expiry (e.g. 5 mins = 300s, refresh preemptively after 240s)
+        self.expires_at = time.time() + 240
+
+    def refresh(self) -> None:
+        """Called every ~4 minutes to obtain fresh access token without Argon2."""
+        try:
+            res = requests.post(f"{self.base_url}/api/auth/refresh", json={
+                "refreshToken": self.refresh_token
+            }, timeout=10)
+            res.raise_for_status()
+            data = res.json()
+            self.access_token = data["accessToken"]
+            # Update refresh token if server uses rotation
+            if "refreshToken" in data:
+                self.refresh_token = data["refreshToken"]
+            self.expires_at = time.time() + 240
+        except Exception:
+            # If refresh token expired or revoked, fallback to cold login
+            self.login()
+
+    def get_valid_token(self) -> str:
+        """Returns active token, refreshing automatically if close to expiry."""
+        if not self.access_token or not self.refresh_token:
+            self.login()
+        elif time.time() >= self.expires_at:
+            self.refresh()
+        return self.access_token
+
+    def post_entry(self, entry_payload: dict) -> requests.Response:
+        """Posts weighment entry to Next.js API using valid JWT, with 401 retry fallback."""
+        token = self.get_valid_token()
+        res = requests.post(
+            f"{self.base_url}/api/entries",
+            json=entry_payload,
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=10
+        )
+        if res.status_code == 401:  # Token expired prematurely
+            self.refresh()
+            res = requests.post(
+                f"{self.base_url}/api/entries",
+                json=entry_payload,
+                headers={"Authorization": f"Bearer {self.access_token}"},
+                timeout=10
+            )
+        return res
+```
+
+---
 
 1. **Hashing Algorithm & Next.js Event Loop Performance (SHA-256 vs bcrypt)**:
    - **Passwords** are designed for humans. Because humans pick predictable passwords, backend systems run slow, CPU-intensive algorithms like **bcrypt** or **argon2id** with work factor 10–12. Verifying a single password consumes ~100ms of 100% CPU thread time. In Next.js (single-threaded Node.js event loop), multiple devices authenticating simultaneously will stall incoming requests.
@@ -109,7 +204,7 @@ At first glance, both approaches look like an identifier and a secret. However, 
 
 #### Example Next.js Route Handler Implementation
 ```typescript
-// app/api/telemetry/route.ts
+// app/api/entries/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import crypto from "crypto";
@@ -134,9 +229,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid device key" }, { status: 403 });
   }
 
-  // Process plate & hardware telemetry...
+  // Process plate & weighment entry...
   const payload = await req.json();
-  await db.reading.create({
+  await db.entry.create({
     data: {
       deviceId: device.id,
       plate: payload.plate,
@@ -220,7 +315,7 @@ To protect both your code and credentials on the edge:
 ├────────────────────────────────────────────────────────┤
 │ 5. Next.js Perimeter Security                          │
 │    Reverse proxy mTLS or unique per-device API tokens  │
-│    scoped strictly to POST /api/telemetry              │
+│    scoped strictly to POST /api/entries                │
 └────────────────────────────────────────────────────────┘
 ```
 
