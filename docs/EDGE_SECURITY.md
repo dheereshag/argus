@@ -25,184 +25,80 @@ This guide addresses physical edge security, device authentication, and anti-tam
 ```
 
 ### Key Context & Clarifications
-1. **Per-Device Credentials**: Each Raspberry Pi has its own **unique** username and password / token. There is **no shared global master password**.
+1. **Per-Device Credentials**: Each Raspberry Pi has its own **unique** Per-Device API Key (`x-device-id` + `x-device-key`). There is **no shared global master password or single token**.
 2. **Backend**: Built with **Next.js** (App Router Route Handlers / Middleware).
-3. **Role Enforcement**: The backend verifies `user.role == 'device'` to enforce that devices can only `POST /api/entries` and cannot read other records or perform administrative tasks.
+3. **Domain Separation & Role Enforcement**: Devices are registered in a dedicated `Device` database table (distinct from human `User` accounts). Devices are scoped strictly to `POST /api/entries` and cannot read other records, query dashboards, or access administrative routes.
 
 ---
 
-## 2. Device Authentication in Next.js: Passwords vs API Keys vs `device.crt` (mTLS)
+## 2. Device Authentication in Next.js: Per-Device API Keys vs `device.crt` (mTLS)
 
-Since each Pi already has its own unique username and password, **the blast radius is isolated**: if Pi #5 is compromised, you can disable account `pi-05` in your Next.js database without affecting Pi #1 through #4.
+Since each Pi has its own unique API key, **the blast radius is strictly isolated**: if Pi #5 is compromised or stolen, you can revoke `pi-05` in your Next.js database without affecting Pi #1 through #4 or any user accounts.
 
-However, how does this compare to `device.crt` (mTLS) and scoped API keys in a Next.js environment?
+### Why Username & Password Was Discarded for Edge Hardware
 
-### Detailed Comparison
+Initially, traditional username/password authentication (with Argon2/bcrypt and JWT access/refresh rotation) might seem familiar from web applications. However, on unattended IoT edge devices, it is an anti-pattern:
 
-| Criterion | Unique Credentials + Argon2 + JWT Refresh | Per-Device API Key (`x-device-id` + `x-device-key`) | Mutual TLS (`device.crt` / mTLS) |
+1. **Identical Physical Vulnerability**:
+   A static password stored in a file on the Raspberry Pi suffers from the *exact same physical extraction risk* as an API key. If an attacker mounts an unencrypted SD card or extracts strings from memory, they obtain the password just as easily. Passwords provide zero additional physical protection over an API key.
+2. **Statefulness & 4G Network Drops**:
+   At unattended weighbridges with intermittent connectivity, JWT access and refresh tokens expire during network drops. When connectivity returns, the device fails with `401 Unauthorized` and must run complex re-login and recovery routines before it can upload data. An API key is **100% stateless**—each request is self-contained.
+3. **Next.js Event Loop Starvation During Store-and-Forward Reconnection**:
+   Argus queues weighment readings locally during network outages. When 4G reconnects, the Pi flushes a burst of 50–200 queued records. If using passwords or sessions, incoming requests force CPU-intensive password hashing (**Argon2 / bcrypt**, taking ~100ms per verification). In single-threaded Node.js, this stalls the event loop. With Per-Device API Keys, Next.js verifies high-entropy keys using **SHA-256 in $0.005$ milliseconds (20,000x faster)**.
+4. **Domain Separation (Fleet Assets vs Human Accounts)**:
+   Hardware cameras should never be modeled as `User` records. They do not have email addresses, password reset flows, or MFA. Storing hardware in a dedicated `Device` table prevents fleet records from polluting human account tables.
+
+---
+
+### Detailed Comparison: Production Ingestion Approaches
+
+| Criterion | Per-Device API Key (`x-device-id` + `x-device-key`) | Mutual TLS (`device.crt` / mTLS) | Hardware Asymmetric Key (TPM 2.0 / RFC 7523) |
 | :--- | :--- | :--- | :--- |
-| **Protocol Flow in Next.js** | `POST /api/auth/login` (Argon2) $\rightarrow$ issues short-lived JWT + Refresh Token $\rightarrow$ `POST /api/entries` verifies JWT. | Single-step: Pi sends `x-device-id` and `x-device-key` directly in request headers. | Handshake-level: Identity verified during TLS handshake before HTTP request begins. |
-| **Operational Feasibility** | **High**: Weighment is a 30–60s physical cycle; 100ms Argon2 cost on login/refresh is completely imperceptible. | **High**: Completely stateless; zero token refresh logic needed on edge. | **Maximum Security**: Reverse proxy filters connections at network perimeter. |
-| **Next.js Server Load** | **Low on Weighment Entries**: Entry requests only verify fast JWT signatures ($<0.01$ ms). Argon2 is only computed on login/refresh. | **Ultra-lightweight**: Fast SHA-256 hash ($0.005$ ms) on every request. | Zero Node.js load: Reverse proxy drops unauthorized connections before touching Next.js. |
-| **Edge Reliability on Network Drops** | Moderate: Pi needs retry logic to handle token expiration if the network drops for longer than the JWT lifetime. | Highly robust: 100% stateless; automatically recovers and resumes posting when network returns. | Maximum: Connection level; no tokens or sessions to expire or maintain. |
-| **Credential Entropy** | High if machine-generated; Argon2id provides state-of-the-art memory-hardness against GPU cracking. | High: 256-bit CSPRNG cryptographic string (`argus_live_...`). | Cryptographic: Asymmetric 2048-bit RSA or ECC P-256 keypair. |
+| **Protocol Flow in Next.js** | Single-step: Pi sends `x-device-id` and `x-device-key` directly in HTTP request headers. | Handshake-level: Identity verified during TLS handshake before HTTP request begins. | Cryptographic: Pi signs request/JWT using hardware private key in TPM; verified against public key. |
+| **Operational Feasibility** | **Maximum**: Works out-of-the-box on managed platforms (Vercel, Railway, Node.js) with zero custom reverse proxy setup. | **High (with Proxy)**: Requires Nginx, Caddy, or Cloudflare API Shield to terminate raw client certs. | **Maximum Security**: Zero secrets stored on disk; private key permanently locked in silicon. |
+| **Next.js Server Load** | **Ultra-lightweight**: Fast SHA-256 hash ($0.005$ ms) on every request using constant-time equality. | Zero Node.js load: Reverse proxy drops unauthorized connections before touching Next.js. | Minimal: Public key signature verification ($<0.05$ ms) with no database secret lookups. |
+| **Edge Reliability on Network Drops** | **100% Stateless**: Automatically recovers and resumes posting instantly when network returns. Zero token refresh code. | Maximum: Connection level; no tokens or sessions to expire or maintain. | Highly robust: Signs requests on-the-fly using hardware clock; stateless. |
+| **Credential Entropy** | High: 256-bit CSPRNG cryptographic string (`argus_live_sec_...`). | Cryptographic: Asymmetric 2048-bit RSA or ECC P-256 keypair. | Cryptographic: Hardware-generated non-exportable ECC P-256 keypair. |
 
 ---
 
-### Your Architecture: Argon2id + JWT Access & Refresh Tokens
+### Recommended Stateless Edge Python Ingestion Client
 
-You are using **Argon2** for password hashing and a **JWT access token + refresh token** architecture in Next.js. 
+Because credentials are sent via headers, the edge ingestion code is simple, reliable, and immune to token expiration or session desynchronization:
 
-Here is why that works well in your operational reality:
-
-1. **Weighment is a Physical Process (100ms is Completely Negligible)**:
-   - A truck takes **30 to 60 seconds** to pull onto the weighbridge, settle its suspension, record tare/gross weight, and clear the gate.
-   - A 100ms execution time for Argon2 during initial device boot or token refresh represents less than **0.2%** of a single weighment cycle. It has zero noticeable impact on weighbridge throughput.
-
-2. **Weighment Entry POSTs Do NOT Run Argon2**:
-   - Because you use JWT access tokens, the high-throughput `POST /api/entries` endpoint **does not execute Argon2 on every vehicle weighment**.
-   - It only verifies the cryptographic signature of the JWT (using HMAC-SHA256 or Ed25519), which takes **under 0.05 milliseconds**.
-   - Argon2 is only computed once during initial startup login and periodically when the refresh token is rotated.
-
-3. **Edge Client Hardening for JWT Refresh**:
-   - To make your edge ingestion script resilient during intermittent 4G/5G connections at the weighbridge:
-     - **Preemptive Refresh**: Refresh the JWT access token when it reaches 70–80% of its lifespan, rather than waiting for an HTTP 401 error.
-     - **Clock Drift Tolerance**: Ensure the Raspberry Pi synchronizes time via NTP (`chrony` or `systemd-timesyncd`). If the Pi's RTC drifts while offline, JWT timestamp validation (`nbf`, `exp`) can fail prematurely. Allow a 30–60 second clock skew window in your Next.js JWT verification options.
-
----
-
-### Do You Re-Login After 5 Minutes, or Use the Refresh Token?
-
-> [!IMPORTANT]
-> **Always use the Refresh Token.** You should **never** re-login with username and password after 5 minutes.
-
-Here is why:
-
-1. **That is the Exact Purpose of the Refresh Token**:
-   - The 5-minute **access token** is intentionally short-lived so that if it is intercepted or leaked from memory, an attacker has an extremely narrow window of opportunity.
-   - The 7-day **refresh token** exists specifically so that your device **does not have to send the master username and password over the network every 5 minutes** (which would expose credentials 288 times a day).
-2. **Performance (Refresh Does NOT Run Argon2)**:
-   - Calling `POST /api/auth/login` forces Next.js to compute **Argon2** (~100ms CPU).
-   - Calling `POST /api/auth/refresh` **does NOT run Argon2**. It performs a fast token verification or database lookup ($<1$ ms). It is practically instant.
-3. **When Do You Actually Use Username & Password?**:
-   - **Only on initial startup** (when the Pi boots for the first time without any stored tokens), or **if the refresh token itself is expired or revoked** (e.g. the device was completely powered off for more than 7 days).
-4. **Infinite Uptime via Refresh Token Rotation**:
-   - In Next.js, if you implement **Refresh Token Rotation**, each time the Pi calls `POST /api/auth/refresh`, your backend returns:
-     - A new 5-minute **access token**, AND
-     - A refreshed rolling 7-day **refresh token**.
-   - As long as the weighbridge operates at least once every 7 days, the device can run continuously for years without ever needing the master password again.
-
-#### Recommended Edge Python Client Token Handler
 ```python
-import time
 import requests
 
-class WeighbridgeAuthClient:
-    def __init__(self, base_url: str, username: str, password: str):
-        self.base_url = base_url
-        self.username = username
-        self.password = password
-        self.access_token: str | None = None
-        self.refresh_token: str | None = None
-        self.expires_at: float = 0.0
+class WeighbridgeDeviceClient:
+    """Stateless edge ingestion client using per-device API keys."""
 
-    def login(self) -> None:
-        """Called ONLY on cold startup or if refresh token expires (rare)."""
-        res = requests.post(f"{self.base_url}/api/auth/login", json={
-            "username": self.username,
-            "password": self.password
-        }, timeout=10)
-        res.raise_for_status()
-        data = res.json()
-        self.access_token = data["accessToken"]
-        self.refresh_token = data["refreshToken"]
-        # Set expiry (e.g. 5 mins = 300s, refresh preemptively after 240s)
-        self.expires_at = time.time() + 240
-
-    def refresh(self) -> None:
-        """Called every ~4 minutes to obtain fresh access token without Argon2."""
-        try:
-            res = requests.post(f"{self.base_url}/api/auth/refresh", json={
-                "refreshToken": self.refresh_token
-            }, timeout=10)
-            res.raise_for_status()
-            data = res.json()
-            self.access_token = data["accessToken"]
-            # Update refresh token if server uses rotation
-            if "refreshToken" in data:
-                self.refresh_token = data["refreshToken"]
-            self.expires_at = time.time() + 240
-        except Exception:
-            # If refresh token expired or revoked, fallback to cold login
-            self.login()
-
-    def get_valid_token(self) -> str:
-        """Returns active token, refreshing automatically if close to expiry."""
-        if not self.access_token or not self.refresh_token:
-            self.login()
-        elif time.time() >= self.expires_at:
-            self.refresh()
-        return self.access_token
+    def __init__(self, base_url: str, device_id: str, device_key: str):
+        self.base_url = base_url.rstrip("/")
+        self.headers = {
+            "x-device-id": device_id,
+            "x-device-key": device_key,
+            "Content-Type": "application/json",
+        }
 
     def post_entry(self, entry_payload: dict) -> requests.Response:
-        """Posts weighment entry to Next.js API using valid JWT, with 401 retry fallback."""
-        token = self.get_valid_token()
-        res = requests.post(
+        """
+        Posts weighment entry to Next.js API.
+        Completely stateless: no login, no JWT refresh loops, no session expiry.
+        """
+        return requests.post(
             f"{self.base_url}/api/entries",
             json=entry_payload,
-            headers={"Authorization": f"Bearer {token}"},
-            timeout=10
+            headers=self.headers,
+            timeout=10,
         )
-        if res.status_code == 401:  # Token expired prematurely
-            self.refresh()
-            res = requests.post(
-                f"{self.base_url}/api/entries",
-                json=entry_payload,
-                headers={"Authorization": f"Bearer {self.access_token}"},
-                timeout=10
-            )
-        return res
 ```
 
 ---
 
-1. **Hashing Algorithm & Next.js Event Loop Performance (SHA-256 vs bcrypt)**:
-   - **Passwords** are designed for humans. Because humans pick predictable passwords, backend systems run slow, CPU-intensive algorithms like **bcrypt** or **argon2id** with work factor 10–12. Verifying a single password consumes ~100ms of 100% CPU thread time. In Next.js (single-threaded Node.js event loop), multiple devices authenticating simultaneously will stall incoming requests.
-   - **Device Keys** are 256-bit high-entropy random strings (e.g. 32 bytes generated via CSPRNG). Because a 256-bit secret is computationally impossible to brute-force ($2^{256}$ search space), your Next.js server does **not** need slow bcrypt. It hashes the key using **SHA-256** (which takes $0.005$ milliseconds—**20,000x faster**) and verifies it using `crypto.timingSafeEqual`.
+### Next.js Route Handler Implementation
 
-2. **Store-and-Forward Reconnection Spikes**:
-   - Because Argus processes images in RAM and buffers to disk only during network outages, once internet connectivity is restored, the Pi flushes a burst of queued records (e.g., 50 to 200 readings).
-   - If using username/password with session renewal or per-request verification, your Next.js server will choke on CPU-bound bcrypt hashing during reconnect bursts. With `x-device-key`, the server validates all 200 requests in a fraction of a millisecond.
+The Next.js backend hashes the incoming `x-device-key` using SHA-256 and compares it against the stored hash in the database using `crypto.timingSafeEqual` to prevent timing attacks:
 
-3. **Stateless M2M Protocol vs Session Desynchronization**:
-   - Traditional password authentication is stateful: the device must log in, store a JWT or session cookie, track expiration timestamps, and execute refresh flows.
-   - At an unattended weighbridge subject to power cuts and intermittent 4G/5G signal, session tokens expire while the network is down. The device script then fails with `401 Unauthorized` and requires complex relogin recovery code.
-   - An API key in the headers (`x-device-id` + `x-device-key`) is **100% stateless**. Every request is self-contained. When the network reconnects, the device simply posts immediately with zero negotiation.
-
-4. **Domain Separation (Fleet Assets vs Human Accounts)**:
-   - Modeling edge devices as "Users" inside your Next.js user database exposes them to human account logic: email verification, forgot-password emails, OAuth logins, and brute-force account lockouts.
-   - Storing devices in a dedicated `Device` table isolates hardware assets cleanly: you can track `deviceId`, `hashedKey`, `hardwareSerial`, `firmwareVersion`, and `lastHeartbeat` without polluting your user authentication tables.
-
-5. **Automated Secret Scanning**:
-   - Device keys use structured prefixes (e.g. `argus_live_sec_...`). If an engineer or field technician accidentally commits a `.env` file or device log to GitHub, automated secret scanners instantly catch the token and notify you. Generic passwords cannot be scanned this way.
-
----
-
-### Verdict: Is `device.crt` (mTLS) Better for Next.js?
-
-**Yes, for zero-trust network perimeter defense, but with architectural tradeoffs:**
-
-- **How mTLS works with Next.js**:
-  Next.js itself (Node.js or Vercel serverless) typically does not terminate raw client certificates directly. Instead, you put **Nginx**, **Caddy**, or **Cloudflare API Shield** in front of Next.js:
-  1. The reverse proxy terminates TLS and checks `device.crt` against your internal Certificate Authority (CA).
-  2. If valid, the reverse proxy passes the verified device Common Name to Next.js via a trusted internal header:
-     `x-forwarded-client-cert-cn: pi-05`.
-  3. If invalid or missing, the reverse proxy **terminates the connection immediately**. Your Next.js app never processes a single byte from unauthorized callers.
-
-- **The Pragmatic Alternative for Next.js (Per-Device API Keys)**:
-  If running Next.js on managed platforms (like Vercel or Railway) where configuring custom mTLS reverse proxies is cumbersome, **Per-Device API Keys** (`x-device-id` + `x-device-token`) are vastly superior to a username/password session login.
-
-#### Example Next.js Route Handler Implementation
 ```typescript
 // app/api/entries/route.ts
 import { NextRequest, NextResponse } from "next/server";
@@ -211,27 +107,53 @@ import crypto from "crypto";
 
 export async function POST(req: NextRequest) {
   const deviceId = req.headers.get("x-device-id");
-  const deviceSecret = req.headers.get("x-device-key");
+  const deviceKey = req.headers.get("x-device-key");
 
-  if (!deviceId || !deviceSecret) {
-    return NextResponse.json({ error: "Missing device credentials" }, { status: 401 });
+  if (!deviceId || !deviceKey) {
+    return NextResponse.json(
+      { error: "Missing device credentials" },
+      { status: 401 }
+    );
   }
 
-  // Fetch device from database
-  const device = await db.device.findUnique({ where: { id: deviceId } });
-  if (!device || device.role !== "device" || !device.isActive) {
-    return NextResponse.json({ error: "Unauthorized or disabled device" }, { status: 403 });
+  // 1. Fetch device record from database
+  const device = await db.device.findUnique({
+    where: { id: deviceId },
+  });
+
+  if (!device || !device.isActive) {
+    return NextResponse.json(
+      { error: "Unauthorized or disabled device" },
+      { status: 403 }
+    );
   }
 
-  // Constant-time token verification to prevent timing attacks
-  const providedHash = crypto.createHash("sha256").update(deviceSecret).digest("hex");
-  if (!crypto.timingSafeEqual(Buffer.from(providedHash), Buffer.from(device.hashedToken))) {
+  // 2. Constant-time SHA-256 verification to prevent timing attacks
+  const providedHash = crypto
+    .createHash("sha256")
+    .update(deviceKey)
+    .digest("hex");
+
+  const isMatch =
+    providedHash.length === device.hashedKey.length &&
+    crypto.timingSafeEqual(
+      Buffer.from(providedHash),
+      Buffer.from(device.hashedKey)
+    );
+
+  if (!isMatch) {
     return NextResponse.json({ error: "Invalid device key" }, { status: 403 });
   }
 
-  // Process plate & weighment entry...
+  // 3. Update device last seen heartbeat
+  await db.device.update({
+    where: { id: device.id },
+    data: { lastSeenAt: new Date() },
+  });
+
+  // 4. Ingest weighment & plate entry
   const payload = await req.json();
-  await db.entry.create({
+  const entry = await db.entry.create({
     data: {
       deviceId: device.id,
       plate: payload.plate,
@@ -240,30 +162,92 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, id: entry.id }, { status: 201 });
 }
 ```
 
 ---
 
+### Data Modeling: `deviceId` vs Eliminating `type` ('automatic' vs 'manual')
+
+Introducing `deviceId` to the `Entry` table enables cleaner database normalization and solves ambiguity between automated edge readings and human operator entries:
+
+#### 1. Why `deviceId` is Essential
+In multi-lane or multi-camera facilities, knowing that a reading was simply "automatic" is insufficient—you must record **which specific camera or weighbridge gate** captured the vehicle. This enables:
+- Per-lane OCR accuracy and misread tracking.
+- Immediate blast-radius queries if a camera goes out of alignment: `SELECT * FROM entries WHERE deviceId = 'lane-02'`.
+- Health monitoring and telemetry (`lastSeenAt`, firmware version) per gate.
+
+#### 2. Can You Eliminate the `type` Column?
+**Yes.** Instead of maintaining a redundant `type: 'automatic' | 'manual'` column that can drift out of sync with foreign keys, the source can be derived:
+- If `deviceId != null` $\rightarrow$ The entry was created automatically by edge hardware.
+- If `userId != null` (or `deviceId == null`) $\rightarrow$ The entry was typed manually by an operator.
+
+```prisma
+// Recommended Prisma Schema
+model Device {
+  id          String    @id // e.g. "pi-lane-01-inbound"
+  name        String
+  hashedKey   String    // SHA-256 hash of x-device-key
+  isActive    Boolean   @default(true)
+  lastSeenAt  DateTime?
+  entries     Entry[]
+  createdAt   DateTime  @default(now())
+}
+
+model Entry {
+  id           String    @id @default(cuid())
+  plate        String
+  vehicleType  String?
+  confidence   Float?
+
+  // Origin & Audit Trail
+  deviceId     String?   // Set if automated camera capture
+  device       Device?   @relation(fields: [deviceId], references: [id])
+  createdById  String?   // Set if created manually by a human operator
+  verifiedById String?   // Set if an operator reviewed/corrected the plate
+
+  createdAt    DateTime  @default(now())
+}
+```
+
+> [!TIP]
+> **Handling Operator Overrides**: In real weighbridge operations, a camera may automatically detect a plate (`deviceId: "pi-01"`), but a human operator might correct a misread character. Keeping `deviceId` (captured by) alongside `verifiedById` / `updatedById` (inspected or corrected by) provides a complete, legally compliant audit trail without needing an awkward boolean flag.
+
+---
+
+### What About `device.crt` (mTLS)? When Should You Upgrade?
+
+While Per-Device API Keys are the pragmatic choice for managed platforms (Vercel, Railway), **mTLS** provides zero-trust network perimeter defense:
+- **How mTLS works with Next.js**:
+  Next.js itself does not terminate raw TLS certificates. You place **Nginx**, **Caddy**, or **Cloudflare API Shield** in front of Next.js:
+  1. The reverse proxy terminates TLS and checks `device.crt` against your internal Certificate Authority (CA).
+  2. If valid, the reverse proxy passes the verified device ID to Next.js via a trusted internal header (`x-forwarded-client-cert-cn: pi-05`).
+  3. If invalid or missing, the reverse proxy **terminates the connection immediately**—Next.js never processes unauthorized requests.
+- **Verdict**: Start with Per-Device API Keys (`x-device-id` + `x-device-key`). If company compliance requires mutual TLS, add an Nginx/Cloudflare reverse proxy in front of Next.js without needing to rewrite application logic.
+
+---
+
 ## 3. Challenge 2: The "Config File & Nuitka" Reality
 
-### Can you put the unique username/password in a config file when compiling with Nuitka?
+### Can you put device API keys or credentials in a config file when compiling with Nuitka?
 
 > [!CAUTION]
 > **No.** Nuitka compiles Python code (`.py`) into native C/C++ machine code (`.so` or binary), but it **does not compile or encrypt external config files**.
 
+Both passwords and static API keys are **shared bearer secrets**. Storing either one in plaintext on an unencrypted SD card exposes them to identical physical extraction risks:
+
 1. **If credentials are in `.env` or `config.json`**:
    - The config file is an uncompiled, plain-text file stored on the disk.
-   - Anyone mounting the SD card on a PC can open `.env` in Notepad and read `PI_05_PASSWORD=...`.
+   - Anyone mounting the SD card on a PC can open `.env` in Notepad and read `PI_DEVICE_KEY=argus_live_sec_...`.
    - The attacker can then use those credentials to send fabricated weighment records to your Next.js API from their own laptop.
 2. **If credentials are hardcoded in Python before running Nuitka**:
    - String literals inside compiled binaries reside in the `.rodata` section.
-   - Running `strings my_compiled_app | grep -i pass` or opening the binary in disassemblers (Ghidra, IDA Pro) or `nuitka-static-unpacker` will extract the credentials in seconds.
+   - Running `strings my_compiled_app | grep -i sec_` or opening the binary in disassemblers (Ghidra, IDA Pro) or `nuitka-static-unpacker` will extract the credentials in seconds.
 
 ### How to Mitigate This
 - **Full Disk Encryption (LUKS)**: If the SD card / eMMC is encrypted, the config file cannot be read offline.
-- **Hardware-Sealed Keys**: When using mTLS, private keys can be generated inside an ATECC608 secure element or TPM 2.0. The private key never exists as a file on disk and cannot be copied.
+- **Hardware-Sealed Keys (TPM 2.0 / ATECC608)**: Move beyond static symmetric secrets to asymmetric keys generated inside a secure element. The private key never exists as a file on disk and cannot be copied.
 
 ---
 
@@ -390,21 +374,21 @@ To ensure the encrypted disk decrypts automatically upon power-on without requir
 
 | Priority | Step | Description |
 | :--- | :--- | :--- |
-| **Immediate** | **Retain Argon2 & Harden Edge JWT Refresh** | Keep Argon2 and JWT tokens. Implement preemptive token refresh (at 75% lifespan) and NTP time sync to avoid clock-skew rejection. |
+| **Immediate** | **Adopt Per-Device API Keys (`x-device-id` + `x-device-key`)** | Deploy stateless per-device API keys with SHA-256 verification in Next.js. Eliminates token expiry during 4G network drops and avoids CPU-heavy password hashing. |
 | **Immediate** | **Compile Code with Nuitka** | Compile your Python ingestion script and Argus into native `.so` / ELF binaries. |
-| **Next Step** | **Deploy LUKS Full Disk Encryption** | Encrypt root partition using LUKS so that local `.env` and token caches cannot be extracted offline. Unattended boot via Clevis/Tang or TPM 2.0 HAT. |
+| **Next Step** | **Deploy LUKS Full Disk Encryption** | Encrypt root partition using LUKS so that local `.env` and credential caches cannot be extracted offline. Unattended boot via Clevis/Tang or TPM 2.0 HAT. |
 | **Hardware** | **Enclosure Switch & Compute Module** | Enclose the hardware in a locked DIN-rail box with an NC tamper microswitch, and transition to a Compute Module (CM4/CM5 with eMMC). |
 
 ---
 
 ## 7. 2026 Next-Gen Alternatives & Evolution Roadmap
 
-While your current architecture (Argon2 + JWT rotation + Nuitka + LUKS) provides a solid, practical foundation for MVP and pilot deployments, the **2026 state-of-the-art for enterprise IoT & edge fleets** offers four superior architectural alternatives that eliminate the remaining physical and network vulnerabilities:
+While the baseline architecture (Per-Device API Keys + Nuitka + LUKS) provides a solid, practical foundation for MVP and pilot deployments, the **2026 state-of-the-art for enterprise IoT & edge fleets** offers four superior architectural alternatives that eliminate the remaining physical and network vulnerabilities:
 
 ```
 ┌────────────────────────────────────────────────────────┐
 │ 1. Asymmetric Private Key JWT (RFC 7523 / DPoP)        │
-│    Zero passwords exist; private key locked in TPM     │
+│    Zero static secrets exist; private key in TPM       │
 ├────────────────────────────────────────────────────────┤
 │ 2. Zero-Trust Private Mesh (Tailscale / Cloudflare)    │
 │    Next.js endpoints completely hidden from internet   │
@@ -419,22 +403,22 @@ While your current architecture (Argon2 + JWT rotation + Nuitka + LUKS) provides
 
 ---
 
-### Alternative 1: Asymmetric "Private Key JWT" (RFC 7523) instead of Passwords
+### Alternative 1: Asymmetric "Private Key JWT" (RFC 7523) instead of Static API Keys
 
-#### The Limitation of Passwords on Edge Devices
-Even with JWTs, during initial cold boot the Raspberry Pi must read a **password from a file or memory** to call `POST /api/auth/login`. A password is a static string; if extracted from RAM or disk, an attacker can authenticate from any laptop. Furthermore, **a TPM cannot protect a password**—TPM chips can only protect cryptographic keypairs.
+#### The Limitation of Shared Static Secrets on Edge Devices
+Even though Per-Device API Keys are vastly superior to passwords in Next.js, an API key is still a static symmetric shared secret. If extracted from unencrypted storage or RAM, an attacker can authenticate from another machine. Furthermore, **a TPM cannot protect a symmetric secret**—TPM chips are designed specifically to protect asymmetric cryptographic keypairs.
 
 #### The 2026 Solution: Private Key JWT (RFC 7523 / DPoP)
-Instead of username and password, each Raspberry Pi is assigned an **asymmetric keypair** (ECC NIST P-256 or Ed25519):
+Instead of a shared API key, each Raspberry Pi is assigned an **asymmetric keypair** (ECC NIST P-256 or Ed25519):
 1. **Hardware Silicon Key Storage**: The **Private Key** is generated inside the **TPM 2.0 (SLB 9672)** or **ATECC608B** chip and marked **non-exportable**. It can never be copied to an SD card or read by an attacker.
 2. **Public Key on Next.js**: The corresponding **Public Key** is stored in your Next.js database under `Device.publicKey`.
 3. **How Authentication Works**:
-   - When the Pi needs an access token, it asks the TPM to sign a short-lived token:
+   - When the Pi sends an entry, it asks the TPM to sign a short-lived token or payload:
      `{"iss": "pi-05", "sub": "pi-05", "exp": now + 60s}`.
-   - The Pi sends this signed token to Next.js (`POST /api/auth/token`).
-   - Next.js verifies the cryptographic signature against `Device.publicKey` in $<0.01$ ms (zero Argon2 needed!) and issues the 5-minute access token.
+   - The Pi sends this signed token to Next.js (`POST /api/entries`).
+   - Next.js verifies the cryptographic signature against `Device.publicKey` in $<0.01$ ms and processes the entry.
 4. **Why This Wins**:
-   - **Zero passwords exist anywhere** on the Pi.
+   - **Zero static secrets exist anywhere** on the Pi.
    - Even if a thief clones the entire SD card, **they cannot authenticate because the private key is physically trapped inside silicon**.
 
 ---
@@ -442,12 +426,12 @@ Instead of username and password, each Raspberry Pi is assigned an **asymmetric 
 ### Alternative 2: Zero-Trust Private Mesh (Tailscale / WireGuard / Cloudflare Tunnel)
 
 #### The Limitation of Public Ingress
-Hosting `https://your-domain.com/api/entries` and `/api/auth/login` on the public internet means anyone can port-scan, DDoS, or attempt credential-stuffing against your authentication endpoints.
+Hosting `https://your-domain.com/api/entries` on the public internet means anyone can port-scan, DDoS, or attempt brute-force probing against your ingestion endpoints.
 
 #### The 2026 Solution: Peer-to-Peer Encrypted Overlay Mesh
 Using **Tailscale** (built on WireGuard) or a **Cloudflare Zero-Trust Tunnel**:
 1. Your Next.js backend and all weighbridge Pis join a private peer-to-peer overlay network (e.g. `100.64.0.0/10`).
-2. The Next.js `/api/entries` and `/api/auth` endpoints are **completely closed to the public internet** (ports 80/443 closed to public traffic).
+2. The Next.js `/api/entries` endpoint is **completely closed to the public internet** (ports 80/443 closed to public traffic).
 3. The Raspberry Pi posts directly over the encrypted mesh IP:
    `http://100.64.0.1:3000/api/entries`.
 4. **Why This Wins**:
@@ -473,7 +457,7 @@ Standard in ChromeOS, Android, and industrial Linux (Ubuntu Core / Yocto):
 ### Alternative 4: FIDO Device Onboard (FDO) for Zero-Touch Fleet Provisioning
 
 #### The Limitation of Manual Setup
-When deploying 20 or 50 weighbridges, manual provisioning requires flashing distinct passwords into config files for every single SD card.
+When deploying 20 or 50 weighbridges, manual provisioning requires flashing distinct API keys into config files for every single SD card.
 
 #### The 2026 Solution: FIDO Device Onboard (FDO / LF Edge)
 1. You ship stock Raspberry Pis straight to the weighbridge installations.
@@ -486,7 +470,7 @@ When deploying 20 or 50 weighbridges, manual provisioning requires flashing dist
 
 | Security Tier | Architecture Stack | Effort | Best Used For |
 | :--- | :--- | :--- | :--- |
-| **Tier 1: Practical Foundation** | **Argon2 + JWT Rotation + Nuitka + LUKS** | **Current** | **MVP & Pilots**: Protects code from casual copy and isolates blast radius per device. |
-| **Tier 2: Hardware Secret Lock** | **Private Key JWT via TPM 2.0 (RFC 7523)** | **Low–Med** | **Recommended Next**: Eliminates all stored passwords from the Pi; locks identity into hardware silicon. |
+| **Tier 1: Practical Foundation** | **Per-Device API Keys + Nuitka + LUKS** | **Current** | **Production Baseline**: Zero session desync on 4G drops, fast SHA-256 Next.js verification, isolated blast radius per device. |
+| **Tier 2: Hardware Secret Lock** | **Private Key JWT via TPM 2.0 (RFC 7523)** | **Low–Med** | **Recommended Next**: Eliminates all static secrets from the Pi; locks identity into hardware silicon. |
 | **Tier 3: Network Stealth** | **Tailscale / Cloudflare Zero-Trust Tunnel** | **Low** | **Recommended Next**: Closes backend to the public internet; eliminates DDoS and public scraping. |
 | **Tier 4: Enterprise Appliance** | **CM4/CM5 + eMMC + `dm-verity` + FDO** | **High** | **Commercial Scale**: Tamper-proof, immutable appliance with zero-touch factory provisioning. |
