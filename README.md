@@ -137,6 +137,7 @@ uv run ruff check --fix
 # 2. Type Checking
 uv run ty check
 
-# 3. Test Suite
-uv run pytest
+# 3. Test Suite (with 100% statement coverage)
+uv run pytest --cov=app --cov-report=term-missing
 ```
+

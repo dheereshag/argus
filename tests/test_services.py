@@ -155,3 +155,126 @@ def test_normalize_candidate_strings():
     assert "WB12AB1234" in normalize_candidate_strings("W812AB1234")
     assert "RJ14GJ4976" in normalize_candidate_strings("RT14G34976")
     assert "RJ09GA0165" in normalize_candidate_strings("RJ09GA0165")
+
+
+def test_clamp_box_edge_cases():
+    detector = VehicleDetector()
+    # Invalid box structures
+    assert detector._clamp_box(None, 100, 100) is None
+    assert detector._clamp_box([], 100, 100) is None
+    assert detector._clamp_box([1, 2], 100, 100) is None
+    assert detector._clamp_box(["a", "b", "c", "d"], 100, 100) is None
+
+    # Inverted box (x2 < x1, y2 < y1)
+    assert detector._clamp_box((50, 50, 10, 10), 100, 100) == (10, 10, 50, 50)
+
+    # Degenerate box (< 8px)
+    assert detector._clamp_box((10, 10, 15, 15), 100, 100) is None
+
+    # Clamped bounds
+    assert detector._clamp_box((-10, -10, 200, 200), 100, 100) == (0, 0, 100, 100)
+
+
+def test_load_rgb_rgba_array():
+    import numpy as np
+
+    from app.services.image_processing import load_rgb
+
+    arr_rgba = np.zeros((20, 20, 4), dtype=np.uint8)
+    img = load_rgb(arr_rgba)
+    assert img.size == (20, 20)
+
+
+@patch("app.services.detector.VehicleDetector.get_model")
+def test_yolo_empty_boxes(mock_get_model, sample_image_bytes):
+    mock_results = MagicMock()
+    mock_results.boxes = None
+    mock_model = MagicMock()
+    mock_model.return_value = [mock_results]
+    mock_get_model.return_value = mock_model
+
+    result = VehicleDetector().detect(sample_image_bytes)
+    assert result.vehicle_detected is False
+    assert result.vehicle_count == 0
+
+
+def test_yolo_get_model_direct():
+    model = VehicleDetector.get_model()
+    assert model is not None
+
+
+@patch("app.services.detector.VehicleDetector.get_model")
+def test_yolo_unclamped_degenerate_box_skipped(mock_get_model, sample_image_bytes):
+    mock_box = MagicMock()
+    mock_box.__len__.return_value = 1
+    mock_box.cls.cpu().numpy.return_value = [2]  # car
+    mock_box.conf.cpu().numpy.return_value = [0.9]
+    mock_box.xyxy.cpu().numpy.return_value = [[10, 10, 12, 12]]  # degenerate < 8px width/height
+
+    mock_results = MagicMock()
+    mock_results.boxes = mock_box
+    mock_model = MagicMock()
+    mock_model.return_value = [mock_results]
+    mock_get_model.return_value = mock_model
+
+    result = VehicleDetector().detect(sample_image_bytes)
+    assert result.vehicle_detected is False
+
+
+def test_inspect_image_unsupported_format_and_bomb():
+    import io
+    from unittest.mock import patch
+
+    from PIL import Image
+
+    from app.core.exceptions import InvalidImageError, PayloadTooLargeError
+    from app.services.image_processing import probe_image
+
+    # Create GIF in memory
+    buf = io.BytesIO()
+    Image.new("RGB", (20, 20)).save(buf, format="GIF")
+    with pytest.raises(InvalidImageError, match="Unsupported image format"):
+        probe_image(buf.getvalue())
+
+    # DecompressionBombError handling
+    with (
+        patch("PIL.Image.open", side_effect=Image.DecompressionBombError("Bomb detected")),
+        pytest.raises(PayloadTooLargeError, match="Image dimensions exceed permitted budget"),
+    ):
+        probe_image(b"dummy")
+
+
+
+def test_load_rgb_grayscale_and_file_paths(tmp_path, sample_image_bytes):
+    from unittest.mock import patch
+
+    import numpy as np
+    from PIL import Image
+
+    from app.core.exceptions import InvalidImageError, PayloadTooLargeError
+    from app.services.image_processing import load_rgb
+
+    # 1. 2D grayscale array
+    gray_arr = np.zeros((30, 30), dtype=np.uint8)
+    img_gray = load_rgb(gray_arr)
+    assert img_gray.size == (30, 30)
+    assert img_gray.mode == "RGB"
+
+    # 2. File path string
+    file_path = tmp_path / "test_img.jpg"
+    file_path.write_bytes(sample_image_bytes)
+    img_file = load_rgb(str(file_path))
+    assert img_file.size == (100, 100)
+
+    # 3. Nonexistent file path string
+    with pytest.raises(InvalidImageError, match="Could not decode uploaded image"):
+        load_rgb(str(tmp_path / "nonexistent.jpg"))
+
+    # 4. DecompressionBombError via file path
+    with (
+        patch("PIL.Image.open", side_effect=Image.DecompressionBombError("Bomb")),
+        pytest.raises(PayloadTooLargeError, match="Image dimensions exceed permitted budget"),
+    ):
+        load_rgb(str(file_path))
+
+

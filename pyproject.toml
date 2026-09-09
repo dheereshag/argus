@@ -25,6 +25,7 @@ dependencies = [
 dev = [
     "httpx>=0.28.1",
     "pytest>=8.0.0",
+    "pytest-cov>=7.1.0",
     "ruff>=0.16.4",
     "ty>=0.0.74",
 ]
@@ -42,3 +43,12 @@ extend-select = ["T20", "FAST"]
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["T201"]
 "test_direct.py" = ["T201"]
+
+[tool.coverage.run]
+source = ["app"]
+
+[tool.coverage.report]
+exclude_also = [
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]

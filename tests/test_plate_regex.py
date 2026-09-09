@@ -120,3 +120,33 @@ def test_validation_path_uses_fullmatch_not_search():
             f"{module.__name__} uses INDIAN_PLATE_REGEX.search(). Use .fullmatch() — "
             "substring matching is how brand names become licence plates."
         )
+
+
+def test_plate_rules_edge_cases():
+    """Verify edge cases in Bharat series normalization and non-alphanumeric cleaning."""
+    from app.services.plate_rules import (
+        _normalize_bh_series,
+        normalize_candidate_strings,
+        parse_plate_info,
+    )
+
+    # BH present but too short or invalid index -> line 124 None
+    assert _normalize_bh_series("BH123") is None
+    assert _normalize_bh_series("1BH123") is None
+
+    # Only non-alphanumeric characters -> cleaned is empty -> line 203 None
+    assert parse_plate_info("---###$$$") is None
+
+
+    # 8-character candidate normalization
+    eight_char = normalize_candidate_strings("DL1A1234")
+    assert any("DL01A1234" in c or "DL1A1234" in c for c in eight_char)
+
+    # 9-character candidate normalization
+    nine_char = normalize_candidate_strings("DL01A1234")
+    assert len(nine_char) > 0
+
+    # 6H Bharat series replacement
+    bh_candidates = normalize_candidate_strings("226H1234AA")
+    assert any("BH" in c for c in bh_candidates)
+
