@@ -8,10 +8,12 @@ character recognition (OCR) errors based on positional syntax (digits vs letters
 """
 
 import re
+from collections.abc import Callable
 from typing import Any
 
 from app.constants import (
     CHAR_TO_DIGIT,
+    COMMERCIAL_DECAL_SUBSTRINGS,
     DIGIT_TO_CHAR,
     INDIAN_PLATE_REGEX,
     NON_PLATE_WORDS,
@@ -51,7 +53,7 @@ def is_decal_word(word: str) -> bool:
     """
     if word in NON_PLATE_WORDS or is_phone_number(word):
         return True
-    return any(w in word for w in ("CARRIER", "LEYLAND", "TRANSPORT", "NATIONALPERMIT", "FASTAG", "DIESEL"))
+    return any(w in word for w in COMMERCIAL_DECAL_SUBSTRINGS)
 
 
 def _apply_char_map(text: str, mapping: dict[str, str]) -> str:
@@ -122,19 +124,24 @@ def _normalize_bh_series(cand: str) -> str | None:
     return None
 
 
+_NORMALIZERS_BY_LENGTH: tuple[tuple[int, Callable[[str, str], list[str]]], ...] = (
+    (11, _normalize_11_char),
+    (10, _normalize_10_char),
+    (9, _normalize_9_char),
+    (8, _normalize_8_char),
+)
+
+
 def _expand_candidates_for_string(cand: str, results: list[str]) -> None:
     """Generate and append positional character permutations for a single candidate string."""
     st_corr = STATE_PREFIX_CORRECTIONS.get(cand[:2], cand[:2])
     generated: list[str] = []
 
-    if len(cand) == 11:
-        generated.extend(_normalize_11_char(cand, st_corr))
-    elif len(cand) == 10:
-        generated.extend(_normalize_10_char(cand, st_corr))
-    elif len(cand) == 9:
-        generated.extend(_normalize_9_char(cand, st_corr))
-    elif len(cand) == 8:
-        generated.extend(_normalize_8_char(cand, st_corr))
+    cand_len = len(cand)
+    for target_len, normalizer in _NORMALIZERS_BY_LENGTH:
+        if cand_len == target_len:
+            generated.extend(normalizer(cand, st_corr))
+            break
 
     bh_cand = _normalize_bh_series(cand)
     if bh_cand:

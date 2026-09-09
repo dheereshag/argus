@@ -255,3 +255,13 @@ NON_PLATE_WORDS: frozenset[str] = frozenset(
         "POWER",
     }
 )
+
+# Substrings commonly embedded in commercial vehicle text decals and badges
+COMMERCIAL_DECAL_SUBSTRINGS: tuple[str, ...] = (
+    "CARRIER",
+    "LEYLAND",
+    "TRANSPORT",
+    "NATIONALPERMIT",
+    "FASTAG",
+    "DIESEL",
+)
