@@ -7,6 +7,7 @@ Exposes REST endpoints for:
   - Standardized JSON error envelopes and request execution timing headers.
 """
 
+import asyncio
 import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -28,6 +29,16 @@ from app.services.detector import VehicleDetector
 from app.services.image_processing import validate_image_upload
 from app.services.ocr import PlateRecognizer
 from app.services.pipeline import recognize_plate_image
+
+_inference_semaphore: asyncio.Semaphore | None = None
+
+
+def _get_semaphore() -> asyncio.Semaphore:
+    """Return singleton asyncio semaphore limiting concurrent AI pipeline executions."""
+    global _inference_semaphore
+    if _inference_semaphore is None:
+        _inference_semaphore = asyncio.Semaphore(settings.MAX_CONCURRENT_INFERENCES)
+    return _inference_semaphore
 
 
 def _error_response(status_code: int, message: str, error_type: str, details: Any = None) -> JSONResponse:
@@ -139,7 +150,8 @@ def _register_routes(app: FastAPI) -> None:
         """
         image_bytes = await file.read()
         validate_image_upload(image_bytes, content_type=file.content_type)
-        return await asyncify(recognize_plate_image)(image_bytes, filename=file.filename or "image.jpg")
+        async with _get_semaphore():
+            return await asyncify(recognize_plate_image)(image_bytes, filename=file.filename or "image.jpg")
 
 
 def create_app() -> FastAPI:

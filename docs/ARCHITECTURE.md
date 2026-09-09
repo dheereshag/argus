@@ -57,15 +57,18 @@ flowchart TD
    - Executes RapidOCR (ONNX Runtime) on the vehicle crop.
    - If no candidate text is found, executes a fallback pass on the full image frame.
    - Uses CLAHE (Contrast Limited Adaptive Histogram Equalization) and cubic interpolation if lighting or contrast is suboptimal.
-4. **Spatial Layout & Two-Line Plate Pairing** ([`app/services/ocr.py`](file:///Users/d/Downloads/argus/app/services/ocr.py)):
-   - Computes 2D centroids for detected text boxes.
-   - Reconstructs stacked two-line plates (common on Indian commercial trucks) using vertical sorting and Euclidean distance thresholding.
+4. **Spatial Layout & Multi-Line Plate Clustering** ([`app/services/ocr.py`](file:///Users/d/Downloads/argus/app/services/ocr.py)):
+   - Evaluates token bounding boxes and centroids.
+   - Groups horizontally aligned tokens into lines using vertical bounding box overlap.
+   - Reconstructs stacked multi-line plates (common on Indian commercial trucks) using horizontal line concatenation and vertical stacking.
 5. **Domain Validation & Normalization** ([`app/services/plate_rules.py`](file:///Users/d/Downloads/argus/app/services/plate_rules.py)):
-   - Cleans decal noise and unwanted text tokens.
-   - Applies optical character confusion heuristics (e.g. `O` $\leftrightarrow$ `0`, `I` $\leftrightarrow$ `1`, `B` $\leftrightarrow$ `8`) based on expected character position in Indian registration syntax (`XX 00 XX 0000`).
-   - Validates state codes against national transport department mappings in [`app/constants.py`](file:///Users/d/Downloads/argus/app/constants.py).
+   - Filters decal words and 10-digit driver mobile numbers.
+   - Strips HSRP blue band `"IND"` prefixes fused to license plates.
+   - Applies optical character confusion heuristics across standard 8 to 11-character plates (including 3-letter series like `DL01CAA1234`).
+   - Normalizes Bharat Series (`BH`) with OCR confusion resilience.
+   - Validates state codes (including 2024 Telangana `TG` update) against [`app/constants.py`](file:///Users/d/Downloads/argus/app/constants.py).
 6. **Structured Output Assembly** ([`app/schemas.py`](file:///Users/d/Downloads/argus/app/schemas.py)):
-   - Packages result into a typed [`RecognitionResponse`](file:///Users/d/Downloads/argus/app/schemas.py) model including execution latency, vehicle metadata, and recognized plates.
+   - Packages result into a typed [`RecognitionResponse`](file:///Users/d/Downloads/argus/app/schemas.py) model including execution latency, vehicle metadata, OCR confidence score, and plate bounding box coordinates.
 
 ---
 
@@ -151,13 +154,18 @@ argus/
 | `REJECT_ON_HUMAN_DETECTED` | `true` | Prevents weighment if a driver/operator is standing on the scale (safety and weight tampering prevention). |
 | `REJECT_ON_MULTIPLE_VEHICLES` | `true` | Prevents incorrect tandem weighment when more than one 4-wheeler is detected in the field of view. |
 | `REJECT_ON_NO_VEHICLE` | `true` | Prevents running compute-heavy OCR when no qualifying vehicle (`car`, `truck`, `bus`) is present. |
+| `MIN_HUMAN_BOX_AREA_RATIO` | `0.005` | Ignores tiny background pedestrian noise smaller than 0.5% frame area to prevent false rejections. |
+| `MIN_VEHICLE_BOX_AREA_RATIO` | `0.01` | Ignores distant background vehicles smaller than 1.0% frame area. |
+| `MAX_CONCURRENT_INFERENCES` | `4` | Concurrency throttle for CPU/GPU worker threads. |
 
 ### 2. Indian License Plate Syntax & Disambiguation
 Indian vehicle registration marks follow strict conventions:
-- **Format**: `^([A-Z]{2})[ -]?([0-9]{1,3}|[0-9]{2}[A-Z]{1,3})[ -]?([A-Z]{0,3})[ -]?([0-9]{4})$`
-- **Two-Stage Disambiguation**:
-  - The first two characters represent the State/Union Territory code (e.g., `MH`, `DL`, `KA`). Numbers like `0` or `1` in these positions are corrected to `O` or `I`.
-  - The trailing characters represent the registration number (digits `0001` to `9999`). Letters like `O` or `I` in numeric positions are corrected to `0` or `1`.
+- **Format**: `^([A-Z]{2})[ -]?(?:0[1-9]|[1-9]\d|[1-9])[ -]?([A-Za-z]{1,3})[ -]?(\d{3,4})$` or Bharat series `^(\d{2})[ -]?(BH)[ -]?(\d{4})[ -]?([A-Za-z]{1,2})$`
+- **Positional Disambiguation**:
+  - The first two characters represent the State/Union Territory code (e.g., `MH`, `DL`, `TG`, `KA`). Numbers like `0` or `1` in these positions are corrected to `O` or `I`, and known prefixes (e.g. `W8` $\to$ `WB`, `7G` $\to$ `TG`, `M4` $\to$ `MH`) are corrected.
+  - HSRP `"IND"` national stamps fused to the start of plates are stripped prior to normalization.
+  - The trailing characters represent the registration number (digits `0001` to `9999`). Letters like `O`, `D`, or `B` in numeric positions are corrected to `0`, `0`, `8`.
+  - Both single-line and stacked two-line plates (common on trucks and two-wheelers) are parsed via horizontal line clustering and vertical stacking.
 
 ---
 

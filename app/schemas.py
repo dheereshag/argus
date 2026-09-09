@@ -25,12 +25,14 @@ class OCRToken:
         score: OCR model confidence score in range [0.0, 1.0].
         cx: Centroid X coordinate in pixel space, if available from bounding quad/box.
         cy: Centroid Y coordinate in pixel space, if available from bounding quad/box.
+        box: (x1, y1, x2, y2) bounding box in pixel space.
     """
 
     text: str
     score: float
     cx: float | None = None
     cy: float | None = None
+    box: tuple[int, int, int, int] | None = None
 
 
 @dataclass(slots=True)
@@ -45,11 +47,15 @@ class PlateCandidate:
         y_pos: Vertical position (centroid Y) in the image frame for top-to-bottom spatial ordering.
         rank: Priority rank from normalization heuristics (0 = exact/primary match).
         info: Parsed plate metadata dictionary containing 'plate', 'state', and 'raw_text'.
+        confidence: Average OCR confidence score for candidate tokens [0.0 - 1.0].
+        box: Bounding box (x1, y1, x2, y2) enclosing the candidate tokens.
     """
 
     y_pos: float
     rank: int
     info: dict[str, Any]
+    confidence: float = 0.0
+    box: tuple[int, int, int, int] | None = None
 
 
 @dataclass(slots=True)
@@ -101,6 +107,12 @@ class PlateResult(BaseModel):
     )
     raw_text: str | None = Field(
         None, description="Raw OCR text extracted from the image frame/crop", examples=["BP1-A2453"]
+    )
+    confidence: float | None = Field(
+        None, description="Average OCR confidence score for plate characters [0.0 - 1.0]", examples=[0.98]
+    )
+    box: tuple[int, int, int, int] | None = Field(
+        None, description="Bounding box (x1, y1, x2, y2) of plate in pixel space", examples=[(100, 200, 300, 250)]
     )
 
 

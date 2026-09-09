@@ -40,6 +40,11 @@ class Settings(BaseSettings):
     REJECT_ON_HUMAN_DETECTED: bool = True  # Reject if pedestrian/operator is present in frame
     REJECT_ON_MULTIPLE_VEHICLES: bool = True  # Reject if more than 1 four-wheeler is on the scale
     REJECT_ON_NO_VEHICLE: bool = True  # Reject if no eligible four-wheeler is found
+    MIN_HUMAN_BOX_AREA_RATIO: float = 0.005  # Ignore background pedestrians smaller than 0.5% frame area
+    MIN_VEHICLE_BOX_AREA_RATIO: float = 0.01  # Ignore distant background vehicles smaller than 1.0% frame area
+
+    # Concurrency Settings
+    MAX_CONCURRENT_INFERENCES: int = 4  # Maximum concurrent requests processed in threadpool
 
     # Server & CORS Settings
     SERVER_HOST: str = "0.0.0.0"

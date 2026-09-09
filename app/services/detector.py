@@ -111,22 +111,18 @@ class VehicleDetector:
         human_conf_thresh: float,
         vehicle_conf_thresh: float,
     ) -> tuple[bool, list[tuple[str, BoundingBox]]]:
-        """Parse raw YOLO output arrays, clamp boxes, and sort 4-wheeler vehicles by area."""
+        """Parse raw YOLO output arrays, clamp boxes, filter scale, and sort vehicles."""
         human_detected = False
         vehicles: list[tuple[int, str, BoundingBox]] = []
+        total_frame_area = width * height
+        min_human_area = settings.MIN_HUMAN_BOX_AREA_RATIO * total_frame_area
+        min_vehicle_area = settings.MIN_VEHICLE_BOX_AREA_RATIO * total_frame_area
 
         for idx, (raw_cls, conf) in enumerate(
             bounded(list(zip(cls_ids, confs, strict=False)), MAX_DETECTIONS, "YOLO detections")
         ):
             cls_id = int(raw_cls)
-            if cls_id == PERSON_CLASS_ID and conf >= human_conf_thresh:
-                human_detected = True
-                continue
-
-            if cls_id not in FOUR_WHEELER_CLASS_NAMES or conf < vehicle_conf_thresh:
-                continue
-
-            raw_box: tuple[int, int, int, int] | None = None
+            raw_box = None
             if xyxy is not None and idx < len(xyxy) and len(xyxy[idx]) >= 4:
                 raw_box = (int(xyxy[idx][0]), int(xyxy[idx][1]), int(xyxy[idx][2]), int(xyxy[idx][3]))
             box = self._clamp_box(raw_box, width, height)
@@ -134,7 +130,18 @@ class VehicleDetector:
                 continue
 
             area = (box[2] - box[0]) * (box[3] - box[1])
-            vehicles.append((area, FOUR_WHEELER_CLASS_NAMES[cls_id], box))
+
+            if cls_id == PERSON_CLASS_ID and conf >= human_conf_thresh:
+                if area >= min_human_area:
+                    human_detected = True
+                continue
+
+            if (
+                cls_id in FOUR_WHEELER_CLASS_NAMES
+                and conf >= vehicle_conf_thresh
+                and area >= min_vehicle_area
+            ):
+                vehicles.append((area, FOUR_WHEELER_CLASS_NAMES[cls_id], box))
 
         vehicles.sort(key=lambda item: item[0], reverse=True)
         return human_detected, [(v_type, box) for _, v_type, box in vehicles]

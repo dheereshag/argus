@@ -71,35 +71,32 @@ class PlateRecognizer:
         return cls.get_engine() is not None
 
     @staticmethod
-    def _get_box_centroid(box: Any) -> tuple[float | None, float | None]:
-        """
-        Calculate the (x_center, y_center) centroid of an OCR bounding box.
-
-        RapidOCR returns bounding boxes in varying representations:
-          - 4-point quadrilateral polygon: [[x1, y1], [x2, y2], [x3, y3], [x4, y4]]
-          - 4-element bounding box: [x1, y1, x2, y2]
-
-        Args:
-            box: Bounding box or polygon coordinates returned by the OCR engine.
-
-        Returns:
-            tuple[float | None, float | None]: (x_centroid, y_centroid) or (None, None) if invalid.
-        """
+    def _get_box_geometry(
+        box: Any,
+    ) -> tuple[float | None, float | None, tuple[int, int, int, int] | None]:
+        """Extract (cx, cy, (x1, y1, x2, y2)) from RapidOCR bounding box or polygon."""
         if box is None:
-            return None, None
+            return None, None, None
         try:
-            # Case 1: [x1, y1, x2, y2] box format
             if isinstance(box, (list, tuple, np.ndarray)) and len(box) >= 4:
                 if all(isinstance(v, (int, float, np.number)) for v in box[:4]):
-                    return float((box[0] + box[2]) / 2.0), float((box[1] + box[3]) / 2.0)
-                # Case 2: [[x1, y1], [x2, y2], ...] 4-corner polygon format
+                    x1, y1, x2, y2 = int(box[0]), int(box[1]), int(box[2]), int(box[3])
+                    return float((x1 + x2) / 2.0), float((y1 + y2) / 2.0), (x1, y1, x2, y2)
                 if all(isinstance(pt, (list, tuple, np.ndarray)) and len(pt) >= 2 for pt in box):
-                    pts_x = [pt[0] for pt in box]
-                    pts_y = [pt[1] for pt in box]
-                    return float(np.mean(pts_x)), float(np.mean(pts_y))
+                    pts_x = [float(pt[0]) for pt in box]
+                    pts_y = [float(pt[1]) for pt in box]
+                    x1, y1 = int(min(pts_x)), int(min(pts_y))
+                    x2, y2 = int(max(pts_x)), int(max(pts_y))
+                    return float(np.mean(pts_x)), float(np.mean(pts_y)), (x1, y1, x2, y2)
         except (TypeError, ValueError, IndexError, AttributeError):
             pass
-        return None, None
+        return None, None, None
+
+    @classmethod
+    def _get_box_centroid(cls, box: Any) -> tuple[float | None, float | None]:
+        """Calculate the (x_center, y_center) centroid of an OCR bounding box."""
+        cx, cy, _ = cls._get_box_geometry(box)
+        return cx, cy
 
     @staticmethod
     def _enhance_contrast(img: Image.Image) -> Image.Image:
@@ -110,17 +107,10 @@ class PlateRecognizer:
         shadowed, dirty, or distant:
           - Upscales small crops (< 600px) by 2.5x with bicubic interpolation.
           - Applies CLAHE (clipLimit=3.5, tileGridSize=(4, 4)) to boost plate embossed text.
-
-        Args:
-            img: Source PIL Image.
-
-        Returns:
-            Image.Image: Contrast-enhanced PIL RGB Image.
         """
         np_img = np.array(img)
         h, w = np_img.shape[:2]
 
-        # Upscale low-resolution crops to provide sufficient pixel density for OCR text detector
         if w < 600 or h < 600:
             np_img = cv2.resize(np_img, (0, 0), fx=2.5, fy=2.5, interpolation=cv2.INTER_CUBIC)
 
@@ -130,19 +120,11 @@ class PlateRecognizer:
         return Image.fromarray(enhanced_rgb)
 
     def parse_plate_info(self, raw_plate: str | None) -> dict[str, Any] | None:
-        """
-        Validate candidate plate string against Indian plate regex and resolve State/UT.
-
-        Args:
-            raw_plate: Unprocessed candidate plate string.
-
-        Returns:
-            dict[str, Any] | None: Parsed plate information or None.
-        """
+        """Validate candidate plate string against Indian plate regex and resolve State/UT."""
         return parse_plate_info(raw_plate)
 
     def _run_ocr_inference(self, img_pil: Image.Image) -> list[OCRToken]:
-        """Execute RapidOCR engine and return bounding tokens with centroids."""
+        """Execute RapidOCR engine and return bounding tokens with geometry."""
         try:
             res = self.get_engine()(np.array(img_pil))
             txts = getattr(res, "txts", None) if res else None
@@ -152,8 +134,9 @@ class PlateRecognizer:
             boxes = getattr(res, "boxes", None)
             tokens: list[OCRToken] = []
             for idx, (t, s) in enumerate(zip(txts, scores, strict=False)):
-                cx, cy = self._get_box_centroid(boxes[idx]) if (boxes is not None and idx < len(boxes)) else (None, None)
-                tokens.append(OCRToken(text=str(t), score=float(s), cx=cx, cy=cy))
+                raw_b = boxes[idx] if (boxes is not None and idx < len(boxes)) else None
+                cx, cy, bbox = self._get_box_geometry(raw_b)
+                tokens.append(OCRToken(text=str(t), score=float(s), cx=cx, cy=cy, box=bbox))
             if any(item.cy is not None for item in tokens):
                 tokens.sort(key=lambda x: x.cy if x.cy is not None else 9999.0)
             return tokens
@@ -177,15 +160,52 @@ class PlateRecognizer:
                 cleaned = re.sub(r"[^A-Za-z0-9]", "", chunk).upper()
                 if len(cleaned) >= 2 and not is_decal_word(cleaned) and cleaned not in seen_tokens:
                     seen_tokens.add(cleaned)
-                    clean_tokens.append(OCRToken(text=cleaned, score=token.score, cx=token.cx, cy=token.cy))
+                    clean_tokens.append(
+                        OCRToken(text=cleaned, score=token.score, cx=token.cx, cy=token.cy, box=token.box)
+                    )
 
         raw_summary = " ".join(raw_text_parts) if raw_text_parts else "N/A"
         return clean_tokens, raw_summary
 
     @staticmethod
-    def _build_spatial_pairs(clean_tokens: list[OCRToken]) -> list[tuple[float, str, float]]:
+    def _is_same_horizontal_line(t1: OCRToken, t2: OCRToken) -> bool:
+        """Check if two tokens share the same horizontal text line via box overlap or centroid."""
+        if t1.box is not None and t2.box is not None:
+            y1_overlap = max(t1.box[1], t2.box[1])
+            y2_overlap = min(t1.box[3], t2.box[3])
+            overlap = max(0, y2_overlap - y1_overlap)
+            h1 = max(1, t1.box[3] - t1.box[1])
+            h2 = max(1, t2.box[3] - t2.box[1])
+            return (overlap / min(h1, h2)) >= 0.4
+        if t1.cy is not None and t2.cy is not None:
+            return abs(t1.cy - t2.cy) <= 8.0
+        return False
+
+    @classmethod
+    def _cluster_horizontal_lines(cls, tokens: list[OCRToken]) -> list[list[OCRToken]]:
+        """Group tokens sharing similar vertical Y coordinates into horizontal lines sorted left-to-right."""
+        if not tokens:
+            return []
+        sorted_y = sorted(tokens, key=lambda t: t.cy if t.cy is not None else 9999.0)
+        lines: list[list[OCRToken]] = []
+        for tok in sorted_y:
+            placed = False
+            for line in lines:
+                if cls._is_same_horizontal_line(line[0], tok):
+                    line.append(tok)
+                    placed = True
+                    break
+            if not placed:
+                lines.append([tok])
+
+        for line in lines:
+            line.sort(key=lambda t: t.cx if t.cx is not None else 0.0)
+        return lines
+
+    @staticmethod
+    def _build_spatial_pairs(clean_tokens: list[OCRToken]) -> list[tuple[float, str, float, list[OCRToken]]]:
         """Construct 2-line spatial candidate pairings sorted by Euclidean centroid distance."""
-        candidate_pairs: list[tuple[float, str, float]] = []
+        candidate_pairs: list[tuple[float, str, float, list[OCRToken]]] = []
         n = len(clean_tokens)
         for i in range(n):
             tok_a = clean_tokens[i]
@@ -198,54 +218,74 @@ class PlateRecognizer:
                     dist = float(abs(i - j) * 100.0)
                     y_mean = tok_a.cy or tok_b.cy or 0.0
 
-                candidate_pairs.append((dist, tok_a.text + tok_b.text, y_mean))
-                candidate_pairs.append((dist + 0.1, tok_b.text + tok_a.text, y_mean))
+                candidate_pairs.append((dist, tok_a.text + tok_b.text, y_mean, [tok_a, tok_b]))
+                candidate_pairs.append((dist + 0.1, tok_b.text + tok_a.text, y_mean, [tok_b, tok_a]))
 
         candidate_pairs.sort(key=lambda p: p[0])
         return candidate_pairs
 
     @staticmethod
+    def _compute_token_bounds(tokens: list[OCRToken]) -> tuple[int, int, int, int] | None:
+        """Compute the enclosing (x1, y1, x2, y2) bounding box across a set of tokens."""
+        valid_boxes = [t.box for t in tokens if t.box is not None]
+        if not valid_boxes:
+            return None
+        return (
+            min(b[0] for b in valid_boxes),
+            min(b[1] for b in valid_boxes),
+            max(b[2] for b in valid_boxes),
+            max(b[3] for b in valid_boxes),
+        )
+
     def _collect_candidates(
+        self,
         clean_tokens: list[OCRToken],
-        candidate_pairs: list[tuple[float, str, float]],
+        lines: list[list[OCRToken]],
+        pairs: list[tuple[float, str, float, list[OCRToken]]],
         raw_text_summary: str,
     ) -> list[PlateCandidate]:
-        """Evaluate single-line and paired candidates against Indian plate syntax."""
+        """Evaluate single tokens, horizontal line merges, stacked lines, and spatial pairs."""
         plate_candidates: list[PlateCandidate] = []
         seen_matched_plates: set[str] = set()
 
-        def _evaluate(raw_text: str, y_pos: float) -> None:
+        def _evaluate(raw_text: str, toks: list[OCRToken], y_pos: float) -> None:
+            mean_conf = round(sum(t.score for t in toks) / max(len(toks), 1), 4) if toks else 0.0
+            bbox = self._compute_token_bounds(toks)
             for rank, cand_norm in enumerate(normalize_candidate_strings(raw_text)):
                 match = INDIAN_PLATE_REGEX.fullmatch(cand_norm)
-                if match:
-                    info = parse_plate_info(match.group(0))
-                    if info:
-                        plate_num = info.get("plate")
-                        if plate_num and plate_num not in seen_matched_plates:
-                            seen_matched_plates.add(plate_num)
-                            info["raw_text"] = raw_text_summary
-                            plate_candidates.append(PlateCandidate(y_pos=y_pos, rank=rank, info=info))
+                if not match:
+                    continue
+                info = parse_plate_info(match.group(0))
+                if not info:
+                    continue
+                p_num = info.get("plate")
+                if p_num and p_num not in seen_matched_plates:
+                    seen_matched_plates.add(p_num)
+                    info["raw_text"] = raw_text_summary
+                    info["confidence"] = mean_conf
+                    info["box"] = bbox
+                    plate_candidates.append(
+                        PlateCandidate(y_pos=y_pos, rank=rank, info=info, confidence=mean_conf, box=bbox)
+                    )
 
         for tok in clean_tokens:
-            _evaluate(tok.text, tok.cy or 0.0)
+            _evaluate(tok.text, [tok], tok.cy or 0.0)
 
-        for _, pair_raw, y_pos in candidate_pairs:
-            _evaluate(pair_raw, y_pos)
+        for line in lines:
+            if len(line) > 1:
+                _evaluate("".join(t.text for t in line), line, line[0].cy or 0.0)
+
+        for idx in range(len(lines) - 1):
+            top, bottom = lines[idx], lines[idx + 1]
+            _evaluate("".join(t.text for t in top) + "".join(t.text for t in bottom), top + bottom, top[0].cy or 0.0)
+
+        for _, pair_raw, y_pos, p_toks in pairs:
+            _evaluate(pair_raw, p_toks, y_pos)
 
         return plate_candidates
 
     def _extract_plates_from_image_array(self, img_pil: Image.Image) -> list[dict[str, Any]]:
-        """
-        Extract and validate Indian license plates from a PIL image array.
-
-        Pipeline:
-          1. RapidOCR inference to obtain text boxes, confidence scores, and raw strings.
-          2. Vertical spatial sorting (top-to-bottom by centroid Y).
-          3. Filtering low-confidence tokens (< 0.20) and commercial vehicle decal words.
-          4. Single-line candidate evaluation with positional normalization.
-          5. Two-line spatial reconstruction (Euclidean distance pairing for split plates).
-          6. Priority ranking and deduplication.
-        """
+        """Extract and validate Indian license plates from a PIL image array."""
         require(img_pil is not None, "_extract_plates_from_image_array received None")
 
         raw_items = self._run_ocr_inference(img_pil)
@@ -253,14 +293,15 @@ class PlateRecognizer:
             return []
 
         clean_tokens, raw_summary = self._clean_and_filter_tokens(raw_items)
+        lines = self._cluster_horizontal_lines(clean_tokens)
         pairs = self._build_spatial_pairs(clean_tokens)
-        candidates = self._collect_candidates(clean_tokens, pairs, raw_summary)
+        candidates = self._collect_candidates(clean_tokens, lines, pairs, raw_summary)
 
         if candidates:
-            candidates.sort(key=lambda c: (-c.rank, c.y_pos), reverse=True)
+            candidates.sort(key=lambda c: (-c.rank, c.confidence, -c.y_pos), reverse=True)
             return [candidates[0].info]
 
-        return [{"plate": "N/A", "state": "N/A", "raw_text": raw_summary}]
+        return [{"plate": "N/A", "state": "N/A", "raw_text": raw_summary, "confidence": None, "box": None}]
 
     def recognize(
         self,
@@ -272,25 +313,15 @@ class PlateRecognizer:
 
         Two-Pass Strategy:
           Pass 1: Direct OCR on the input RGB image.
-          Pass 2: If Pass 1 detects no valid plate, enhance contrast and resolution via
-                  CLAHE + bicubic upscaling and retry OCR.
-
-        Args:
-            image_input: Image representation (file path, raw bytes, PIL Image, or NumPy array).
-            filename: Name of the file being processed for diagnostic logging.
-
-        Returns:
-            list[dict[str, Any]]: Extracted plate information dictionaries.
+          Pass 2: Fallback contrast and resolution enhancement via CLAHE + bicubic upscaling.
         """
         require(image_input is not None, "recognize() called with no image")
         pil_img = load_rgb(image_input)
 
-        # Pass 1: Standard extraction on original image
         res = self._extract_plates_from_image_array(pil_img)
         if any(r.get("plate") and r.get("plate") != "N/A" for r in res):
             return res
 
-        # Pass 2: Contrast and resolution enhancement fallback
         try:
             enhanced_img = self._enhance_contrast(pil_img)
             res_enh = self._extract_plates_from_image_array(enhanced_img)
