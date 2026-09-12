@@ -80,7 +80,9 @@
   </g>
 
   <!-- Connecting Arrow 0 -> 1 -->
-  <path d="M 185 170 L 225 170" stroke="#38BDF8" stroke-width="1.8" fill="none" marker-end="url(#arrowCyan)"/>
+  <path d="M 185 170 L 225 170" stroke="#38BDF8" stroke-width="1.8" stroke-dasharray="6,5" fill="none" marker-end="url(#arrowCyan)">
+    <animate attributeName="stroke-dashoffset" values="0;-11" dur="0.9s" repeatCount="indefinite"/>
+  </path>
 
   <!-- ================= STAGE 2: YOLO v11 GATEKEEPER ================= -->
   <g transform="translate(230, 80)">
@@ -110,7 +112,9 @@
   </g>
 
   <!-- Rejection Path Downwards -->
-  <path d="M 320 310 L 320 380" stroke="#EF4444" stroke-width="1.8" stroke-dasharray="4,3" fill="none" marker-end="url(#arrowRed)"/>
+  <path d="M 320 310 L 320 380" stroke="#EF4444" stroke-width="1.8" stroke-dasharray="4,3" fill="none" marker-end="url(#arrowRed)">
+    <animate attributeName="opacity" values="1;0.4;1" dur="1.6s" repeatCount="indefinite"/>
+  </path>
   <text x="330" y="350" font-family="'JetBrains Mono', monospace" font-size="9" font-weight="600" fill="#EF4444">FAIL POLICY</text>
 
   <!-- REJECTION RESULT BOX -->
@@ -124,7 +128,9 @@
   </g>
 
   <!-- Approved Path Forward (Cyan/Green) -->
-  <path d="M 410 170 L 460 170" stroke="#22C55E" stroke-width="1.8" fill="none" marker-end="url(#arrowGreen)"/>
+  <path d="M 410 170 L 460 170" stroke="#22C55E" stroke-width="1.8" stroke-dasharray="6,5" fill="none" marker-end="url(#arrowGreen)">
+    <animate attributeName="stroke-dashoffset" values="0;-11" dur="0.9s" repeatCount="indefinite"/>
+  </path>
   <text x="414" y="162" font-family="'JetBrains Mono', monospace" font-size="9" font-weight="600" fill="#22C55E">PASSED</text>
 
   <!-- ================= STAGE 3: RAPIDOCR ONNX ================= -->
@@ -155,7 +161,9 @@
   </g>
 
   <!-- Connecting Arrow 2 -> 3 -->
-  <path d="M 630 170 L 675 170" stroke="#38BDF8" stroke-width="1.8" fill="none" marker-end="url(#arrowCyan)"/>
+  <path d="M 630 170 L 675 170" stroke="#38BDF8" stroke-width="1.8" stroke-dasharray="6,5" fill="none" marker-end="url(#arrowCyan)">
+    <animate attributeName="stroke-dashoffset" values="0;-11" dur="0.9s" repeatCount="indefinite"/>
+  </path>
 
   <!-- ================= STAGE 4: INDIAN PLATE RULES & SPATIAL PAIRING ================= -->
   <g transform="translate(680, 80)">
@@ -185,7 +193,9 @@
   </g>
 
   <!-- Connecting Arrow 3 -> 4 -->
-  <path d="M 855 170 L 895 170" stroke="#38BDF8" stroke-width="1.8" fill="none" marker-end="url(#arrowCyan)"/>
+  <path d="M 855 170 L 895 170" stroke="#38BDF8" stroke-width="1.8" stroke-dasharray="6,5" fill="none" marker-end="url(#arrowCyan)">
+    <animate attributeName="stroke-dashoffset" values="0;-11" dur="0.9s" repeatCount="indefinite"/>
+  </path>
 
   <!-- ================= STAGE 5: SERIALIZATION & RESPONSE ================= -->
   <g transform="translate(900, 80)">

@@ -9,8 +9,7 @@
 
     <linearGradient id="titleGrad" x1="0%" y1="0%" x2="100%" y2="0%">
       <stop offset="0%" stop-color="#38BDF8"/>
-      <stop offset="50%" stop-color="#818CF8"/>
-      <stop offset="100%" stop-color="#C084FC"/>
+      <stop offset="100%" stop-color="#818CF8"/>
     </linearGradient>
 
     <linearGradient id="laserGrad" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -64,10 +63,11 @@
   <!-- Top System Status Header Bar -->
   <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11" fill="#94A3B8">
     <text x="50" y="38" font-weight="600" letter-spacing="1.5" fill="#38BDF8">ARGUS // VISION-OS</text>
-    <circle cx="210" cy="34" r="3.5" fill="#22C55E"/>
+    <circle cx="210" cy="34" r="3.5" fill="#22C55E">
+      <animate attributeName="opacity" values="1;0.35;1" dur="2.2s" repeatCount="indefinite"/>
+    </circle>
     <text x="222" y="38" letter-spacing="0.5" fill="#22C55E">SYSTEM OPERATIONAL</text>
-    <text x="730" y="38" letter-spacing="1">YOLO v11 • RAPIDOCR ONNX</text>
-    <text x="940" y="38" text-anchor="end" fill="#64748B">LATENCY &lt;50MS</text>
+    <text x="950" y="38" text-anchor="end" letter-spacing="1">YOLO v11 • RAPIDOCR ONNX</text>
   </g>
 
   <line x1="50" y1="48" x2="950" y2="48" stroke="#1E293B" stroke-width="1"/>
@@ -89,10 +89,13 @@
     <text x="29" y="29" font-family="'JetBrains Mono', Consolas, monospace" font-size="9" font-weight="700" fill="#070A12">TRUCK 0.96</text>
 
     <!-- Scanning Laser Beam -->
-    <line x1="26" y1="88" x2="144" y2="88" stroke="url(#laserGrad)" stroke-width="3" filter="url(#glowSoft)"/>
+    <line x1="26" y1="30" x2="144" y2="30" stroke="url(#laserGrad)" stroke-width="3" filter="url(#glowSoft)">
+      <animate attributeName="y1" values="30;140;30" dur="3.4s" repeatCount="indefinite"/>
+      <animate attributeName="y2" values="30;140;30" dur="3.4s" repeatCount="indefinite"/>
+    </line>
 
     <!-- Plate Target Sub-box -->
-    <rect x="42" y="85" width="86" height="36" fill="#0C1222" fill-opacity="0.8" stroke="#22C55E" stroke-width="1.8" rx="3"/>
+    <rect x="42" y="85" width="100" height="36" fill="#0C1222" fill-opacity="0.8" stroke="#22C55E" stroke-width="1.8" rx="3"/>
     <text x="48" y="99" font-family="'JetBrains Mono', Consolas, monospace" font-size="7" font-weight="600" fill="#22C55E">IND LICENSE PLATE</text>
     <text x="48" y="113" font-family="'JetBrains Mono', Consolas, monospace" font-size="11" font-weight="700" fill="#F8FAFC" letter-spacing="1">RJ09 GA 0165</text>
   </g>
@@ -144,6 +147,6 @@
     <text x="50" y="285">CAM_RES: AUTO_ADAPT</text>
     <text x="250" y="285">POLICY: SINGLE_VEHICLE_LOCK</text>
     <text x="530" y="285">OCR_CONFUSION: POSITIONAL_MATRIX</text>
-    <text x="950" y="285" text-anchor="end">SHA-256_EDGE_VERIFIED</text>
+    <text x="950" y="285" text-anchor="end">RUFF + TY + PYTEST VERIFIED</text>
   </g>
 </svg>

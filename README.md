@@ -9,12 +9,12 @@
 
 <p align="center">
   <a href="https://python.org"><img src="https://img.shields.io/badge/Python-3.14+-38BDF8?style=flat-square&logo=python&logoColor=white" alt="Python Version"></a>
-  <a href="https://fastapi.tiangolo.com"><img src="https://img.shields.io/badge/FastAPI-0.141+-009688?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI"></a>
+  <a href="https://fastapi.tiangolo.com"><img src="https://img.shields.io/badge/FastAPI-0.141+-818CF8?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI"></a>
   <a href="https://github.com/ultralytics/ultralytics"><img src="https://img.shields.io/badge/YOLO-v11n-818CF8?style=flat-square&logo=yolo&logoColor=white" alt="YOLO v11"></a>
   <a href="https://github.com/RapidAI/RapidOCR"><img src="https://img.shields.io/badge/OCR-RapidOCR_ONNX-22C55E?style=flat-square" alt="RapidOCR"></a>
-  <a href="tests"><img src="https://img.shields.io/badge/Tests-100%25_Passing-10B981?style=flat-square&logo=pytest&logoColor=white" alt="Pytest Passing"></a>
+  <a href="tests"><img src="https://img.shields.io/badge/Tests-100%25_Passing-22C55E?style=flat-square&logo=pytest&logoColor=white" alt="Pytest Passing"></a>
   <a href="AGENTS.md"><img src="https://img.shields.io/badge/Code_Style-Ruff_%26_Ty-F59E0B?style=flat-square" alt="Ruff & Ty Verified"></a>
-  <a href="docs/EDGE_SECURITY.md"><img src="https://img.shields.io/badge/Edge_Ready-Raspberry_Pi_5_%2F_CM4-C084FC?style=flat-square&logo=raspberrypi&logoColor=white" alt="Raspberry Pi Ready"></a>
+  <a href="docs/EDGE_SECURITY.md"><img src="https://img.shields.io/badge/Edge_Ready-Raspberry_Pi_5_%2F_CM4-64748B?style=flat-square&logo=raspberrypi&logoColor=white" alt="Raspberry Pi Ready"></a>
   <a href="pyproject.toml"><img src="https://img.shields.io/badge/License-MIT-64748B?style=flat-square" alt="License MIT"></a>
 </p>
 
@@ -24,7 +24,7 @@
 
 **Argus** is an industrial-grade Automatic Number Plate Recognition (ANPR) microservice and CLI designed specifically for automated weighbridges, toll gates, and freight security checkpoints.
 
-In high-throughput logistics hubs, standard OCR is insufficient. Fraudulent double-loading, tandem weighment, and driver interference require strict operational policies. Argus combines **YOLO v11 computer vision** with **RapidOCR ONNX Runtime** to deliver sub-50ms inference, intelligent vehicle cropping, automated weighbridge occupancy enforcement, and positional character correction tailored to Indian vehicle registration standards.
+In high-throughput logistics hubs, standard OCR is insufficient. Fraudulent double-loading, tandem weighment, and driver interference require strict operational policies. Argus combines **YOLO v11 computer vision** with **RapidOCR ONNX Runtime** to deliver sub-50ms vehicle pre-screening, intelligent vehicle cropping, automated weighbridge occupancy enforcement, and positional character correction tailored to Indian vehicle registration standards.
 
 ---
 
@@ -34,11 +34,10 @@ In high-throughput logistics hubs, standard OCR is insufficient. Fraudulent doub
 | :--- | :--- | :--- |
 | **Stage 1: Vehicle Prescreening** | Ultralytics YOLO v11 (`yolo11n.pt`) evaluating `car`, `bus`, and `truck` | Guarantees that only valid 4-wheeler motor vehicles proceed to OCR; ignores bikes, animals, and background noise. |
 | **Occupancy Gatekeeping** | Pedestrian detection (`PERSON_CLASS_ID = 0`) & multi-vehicle count thresholding | Prevents scale fraud by rejecting frames where ground operators or multiple vehicles occupy the scale. |
-| **Stage 2: RapidOCR ONNX** | Quantized ONNX Runtime with CLAHE contrast enhancement & cubic upscaling | High-speed OCR execution (<30ms) optimized for both GPU servers and edge CPUs (Raspberry Pi 5). |
+| **Stage 2: RapidOCR ONNX** | Quantized ONNX Runtime with CLAHE contrast enhancement & cubic upscaling, run on the YOLO vehicle crop with automatic full-frame fallback | Typically 300–850ms per frame on CPU, depending on plate/decal text density. |
 | **2D Spatial Clustering** | Centroid tracking and vertical line bounding box overlap grouping | Accurately reconstructs stacked two-line commercial plates (e.g. `RJ 09` / `GA 0165`). |
 | **Indian Plate Domain Rules** | Positional OCR confusion matrices (`O/D` $\leftrightarrow$ `0`, `I/L` $\leftrightarrow$ `1`, `W8` $\rightarrow$ `WB`) | Corrects optical substitutions across 38+ State/UT codes, 3-letter series (`DL01CAA1234`), and Bharat Series (`BH`). |
 | **Production REST API** | FastAPI asynchronous microservice with semaphore-bounded inference concurrency | Native Swagger (`/docs`), ReDoc (`/redoc`), and sub-millisecond per-request timing headers (`X-Process-Time-Ms`). |
-| **Stateless Edge IoT Ingestion** | Zero-session Per-Device API Keys (`x-device-id` + `x-device-key`) with SHA-256 | Eliminates 4G token expiration loops on remote IoT gateways; instant recovery during network reconnects. |
 
 ---
 
@@ -104,6 +103,9 @@ Run plate recognition on a sample test vehicle:
 ```bash
 uv run python -m app.main tests/1.jpg
 ```
+
+> [!NOTE]
+> `REJECT_ON_HUMAN_DETECTED`, `REJECT_ON_MULTIPLE_VEHICLES`, and `REJECT_ON_NO_VEHICLE` all default to `true`. Most other bundled `tests/*.jpg` samples trip one of these policies by design (they were captured for OCR benchmarking, not policy compliance) and will return a `rejected` response rather than a recognized plate — that's expected, not a bug.
 
 Sample JSON CLI output:
 ```json
@@ -262,7 +264,7 @@ Configure operational limits, model weights, and weighbridge gatekeeping policie
 | Variable | Type | Default | Operational Description |
 | :--- | :--- | :--- | :--- |
 | `YOLO_MODEL_NAME` | `str` | `yolo11n.pt` | Ultralytics YOLO v11 model weights path. |
-| `YOLO_CONFIG_DIR` | `str` | `/tmp/Ultralytics` | Ultralytics cache directory for model downloads. |
+| `YOLO_CONFIG_DIR` | `str` | `.cache/ultralytics` | Ultralytics cache directory for model downloads. |
 | `HUMAN_CONF_THRESH` | `float` | `0.30` | Minimum confidence to register human presence. |
 | `VEHICLE_CONF_THRESH` | `float` | `0.35` | Minimum confidence to register a 4-wheeler vehicle. |
 | `REJECT_ON_HUMAN_DETECTED` | `bool` | `true` | Enforce weighbridge safety by rejecting pedestrian presence. |
@@ -334,6 +336,9 @@ State Prefix Misreads:                 W8 -> WB, 7G -> TG, RT -> RJ, D1 -> DL, 0
 ---
 
 ## 🛡️ Raspberry Pi Edge IoT Deployment
+
+> [!NOTE]
+> Argus itself ships only the ANPR engine (YOLO v11 + RapidOCR) and this REST API. The device-auth / cloud-ingestion layer below is a **reference architecture**, not code included in this repository — see [`docs/EDGE_SECURITY.md`](docs/EDGE_SECURITY.md) for the full design.
 
 For weighbridge installations running on edge hardware (Raspberry Pi 5 / CM4 / CM5):
 
