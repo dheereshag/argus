@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "asyncer>=0.0.18",
-    "fastapi>=0.141.1",
+    "fastapi[standard]>=0.141.1",
     "loguru>=0.7.2",
     "numpy>=2.5.1",
     "onnxruntime>=1.29.0",
@@ -14,11 +14,8 @@ dependencies = [
     "pillow>=12.3.0",
     "pydantic>=2.13.4",
     "pydantic-settings>=2.15.0",
-    "python-multipart>=0.0.32",
     "rapidocr>=3.9.2",
-    "requests>=2.32.0",
     "ultralytics>=8.4.106",
-    "uvicorn>=0.52.3",
 ]
 
 [dependency-groups]
