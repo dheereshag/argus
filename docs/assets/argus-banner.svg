@@ -1,0 +1,152 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 320" width="100%" height="100%">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#070A12"/>
+      <stop offset="50%" stop-color="#0C1222"/>
+      <stop offset="100%" stop-color="#060911"/>
+    </linearGradient>
+
+    <linearGradient id="titleGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="100%" stop-color="#818CF8"/>
+    </linearGradient>
+
+    <linearGradient id="laserGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38BDF8" stop-opacity="0"/>
+      <stop offset="50%" stop-color="#38BDF8" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#38BDF8" stop-opacity="0"/>
+    </linearGradient>
+
+    <linearGradient id="accentGreen" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#22C55E"/>
+      <stop offset="100%" stop-color="#10B981"/>
+    </linearGradient>
+
+    <!-- Filters -->
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+
+    <filter id="glowSoft" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+
+    <!-- Patterns -->
+    <pattern id="gridPattern" width="30" height="30" patternUnits="userSpaceOnUse">
+      <path d="M 30 0 L 0 0 0 30" fill="none" stroke="#1E293B" stroke-width="0.7" stroke-opacity="0.6"/>
+      <circle cx="0" cy="0" r="1" fill="#38BDF8" fill-opacity="0.25"/>
+    </pattern>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1000" height="320" fill="url(#bgGrad)" rx="16"/>
+  <rect width="1000" height="320" fill="url(#gridPattern)" rx="16"/>
+
+  <!-- Subtle Radial Glow in Center/Right -->
+  <circle cx="820" cy="160" r="220" fill="#38BDF8" fill-opacity="0.04" filter="url(#glow)"/>
+  <circle cx="180" cy="160" r="140" fill="#818CF8" fill-opacity="0.03" filter="url(#glow)"/>
+
+  <!-- Border Frame -->
+  <rect x="1" y="1" width="998" height="318" fill="none" stroke="#334155" stroke-width="1.2" stroke-opacity="0.6" rx="15"/>
+
+  <!-- Corner HUD Brackets -->
+  <g stroke="#38BDF8" stroke-width="2.5" fill="none" stroke-linecap="round">
+    <path d="M 20 35 L 20 20 L 35 20"/>
+    <path d="M 980 35 L 980 20 L 965 20"/>
+    <path d="M 20 285 L 20 300 L 35 300"/>
+    <path d="M 980 285 L 980 300 L 965 300"/>
+  </g>
+
+  <!-- Top System Status Header Bar -->
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11" fill="#94A3B8">
+    <text x="50" y="38" font-weight="600" letter-spacing="1.5" fill="#38BDF8">ARGUS // VISION-OS</text>
+    <circle cx="210" cy="34" r="3.5" fill="#22C55E">
+      <animate attributeName="opacity" values="1;0.35;1" dur="2.2s" repeatCount="indefinite"/>
+    </circle>
+    <text x="222" y="38" letter-spacing="0.5" fill="#22C55E">SYSTEM OPERATIONAL</text>
+    <text x="950" y="38" text-anchor="end" letter-spacing="1">YOLO v11 • RAPIDOCR ONNX</text>
+  </g>
+
+  <line x1="50" y1="48" x2="950" y2="48" stroke="#1E293B" stroke-width="1"/>
+
+  <!-- Left Side: Optics Reticle &amp; Bounding Box Graphic -->
+  <g transform="translate(60, 75)">
+    <!-- Radar / Optics Scope -->
+    <circle cx="85" cy="85" r="75" fill="none" stroke="#1E293B" stroke-width="1.5"/>
+    <circle cx="85" cy="85" r="55" fill="none" stroke="#334155" stroke-dasharray="4,4" stroke-width="1"/>
+    <circle cx="85" cy="85" r="30" fill="none" stroke="#38BDF8" stroke-opacity="0.4" stroke-width="1"/>
+    
+    <!-- Crosshairs -->
+    <line x1="85" y1="0" x2="85" y2="170" stroke="#38BDF8" stroke-opacity="0.3" stroke-width="1" stroke-dasharray="2,4"/>
+    <line x1="0" y1="85" x2="170" y2="85" stroke="#38BDF8" stroke-opacity="0.3" stroke-width="1" stroke-dasharray="2,4"/>
+
+    <!-- Simulated Vehicle Detection Quad -->
+    <rect x="25" y="30" width="120" height="110" fill="none" stroke="#38BDF8" stroke-width="1.8" stroke-dasharray="8,4" rx="4"/>
+    <rect x="25" y="18" width="60" height="14" fill="#38BDF8" rx="2"/>
+    <text x="29" y="29" font-family="'JetBrains Mono', Consolas, monospace" font-size="9" font-weight="700" fill="#070A12">TRUCK 0.96</text>
+
+    <!-- Scanning Laser Beam -->
+    <line x1="26" y1="30" x2="144" y2="30" stroke="url(#laserGrad)" stroke-width="3" filter="url(#glowSoft)">
+      <animate attributeName="y1" values="30;140;30" dur="3.4s" repeatCount="indefinite"/>
+      <animate attributeName="y2" values="30;140;30" dur="3.4s" repeatCount="indefinite"/>
+    </line>
+
+    <!-- Plate Target Sub-box -->
+    <rect x="42" y="85" width="100" height="36" fill="#0C1222" fill-opacity="0.8" stroke="#22C55E" stroke-width="1.8" rx="3"/>
+    <text x="48" y="99" font-family="'JetBrains Mono', Consolas, monospace" font-size="7" font-weight="600" fill="#22C55E">IND LICENSE PLATE</text>
+    <text x="48" y="113" font-family="'JetBrains Mono', Consolas, monospace" font-size="11" font-weight="700" fill="#F8FAFC" letter-spacing="1">RJ09 GA 0165</text>
+  </g>
+
+  <!-- Center Content: Title, Subtitle, and Feature Highlights -->
+  <g transform="translate(260, 75)">
+    <!-- Engine Tagline -->
+    <rect x="0" y="8" width="170" height="22" fill="#1E293B" stroke="#38BDF8" stroke-opacity="0.5" stroke-width="1" rx="11"/>
+    <text x="12" y="23" font-family="'JetBrains Mono', Consolas, monospace" font-size="10" font-weight="600" fill="#38BDF8" letter-spacing="1">ENTERPRISE ANPR ENGINE</text>
+
+    <!-- Main Title -->
+    <text x="0" y="78" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="54" font-weight="900" letter-spacing="-1.5" fill="url(#titleGrad)">ARGUS</text>
+
+    <!-- One-line Description -->
+    <text x="0" y="106" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="15" font-weight="500" fill="#F8FAFC">
+      Industrial Automatic Number Plate Recognition &amp; Weighbridge Gatekeeper
+    </text>
+    
+    <text x="0" y="128" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#94A3B8">
+      Two-Stage AI Pipeline • Ultralytics YOLO v11 • RapidOCR ONNX • Indian Syntax Disambiguation
+    </text>
+
+    <!-- Feature Badges Row -->
+    <g transform="translate(0, 150)">
+      <!-- Badge 1: 4-Wheeler Verification -->
+      <rect x="0" y="0" width="145" height="28" fill="#131D33" stroke="#1E293B" stroke-width="1" rx="6"/>
+      <circle cx="14" cy="14" r="4" fill="#38BDF8"/>
+      <text x="26" y="18" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" font-weight="500" fill="#E2E8F0">4-Wheeler Guard</text>
+
+      <!-- Badge 2: Safety Gatekeeping -->
+      <rect x="155" y="0" width="165" height="28" fill="#131D33" stroke="#1E293B" stroke-width="1" rx="6"/>
+      <circle cx="169" cy="14" r="4" fill="#22C55E"/>
+      <text x="181" y="18" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" font-weight="500" fill="#E2E8F0">Pedestrian Anti-Tamper</text>
+
+      <!-- Badge 3: Multi-line &amp; HSRP -->
+      <rect x="330" y="0" width="170" height="28" fill="#131D33" stroke="#1E293B" stroke-width="1" rx="6"/>
+      <circle cx="344" cy="14" r="4" fill="#818CF8"/>
+      <text x="356" y="18" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" font-weight="500" fill="#E2E8F0">2-Line &amp; HSRP Parsers</text>
+
+      <!-- Badge 4: Edge Ready -->
+      <rect x="510" y="0" width="160" height="28" fill="#131D33" stroke="#1E293B" stroke-width="1" rx="6"/>
+      <circle cx="524" cy="14" r="4" fill="#F59E0B"/>
+      <text x="536" y="18" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" font-weight="500" fill="#E2E8F0">Raspberry Pi Edge IoT</text>
+    </g>
+  </g>
+
+  <!-- Bottom Technical Coordinate Markers -->
+  <g font-family="'JetBrains Mono', Consolas, monospace" font-size="9" fill="#475569">
+    <text x="50" y="285">CAM_RES: AUTO_ADAPT</text>
+    <text x="250" y="285">POLICY: SINGLE_VEHICLE_LOCK</text>
+    <text x="530" y="285">OCR_CONFUSION: POSITIONAL_MATRIX</text>
+    <text x="950" y="285" text-anchor="end">RUFF + TY + PYTEST VERIFIED</text>
+  </g>
+</svg>

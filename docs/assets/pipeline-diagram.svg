@@ -1,0 +1,240 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 500" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="diagBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#080C16"/>
+      <stop offset="100%" stop-color="#0F172A"/>
+    </linearGradient>
+
+    <!-- Node Gradients -->
+    <linearGradient id="stageGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E293B"/>
+      <stop offset="100%" stop-color="#0F172A"/>
+    </linearGradient>
+
+    <linearGradient id="gateGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E2235"/>
+      <stop offset="100%" stop-color="#141829"/>
+    </linearGradient>
+
+    <linearGradient id="rejectGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#450A0A"/>
+      <stop offset="100%" stop-color="#1F0808"/>
+    </linearGradient>
+
+    <linearGradient id="successGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#064E3B"/>
+      <stop offset="100%" stop-color="#062D24"/>
+    </linearGradient>
+
+    <!-- Arrow Marker Definition -->
+    <marker id="arrowCyan" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#38BDF8"/>
+    </marker>
+    <marker id="arrowGreen" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#22C55E"/>
+    </marker>
+    <marker id="arrowRed" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#EF4444"/>
+    </marker>
+    <marker id="arrowSlate" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#64748B"/>
+    </marker>
+
+    <!-- Grid Pattern -->
+    <pattern id="diagGrid" width="20" height="20" patternUnits="userSpaceOnUse">
+      <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#1E293B" stroke-width="0.5" stroke-opacity="0.7"/>
+    </pattern>
+  </defs>
+
+  <!-- Canvas Background -->
+  <rect width="1040" height="500" fill="url(#diagBg)" rx="12"/>
+  <rect width="1040" height="500" fill="url(#diagGrid)" rx="12"/>
+  <rect x="1" y="1" width="1038" height="498" fill="none" stroke="#334155" stroke-width="1.2" rx="11"/>
+
+  <!-- Top Header Title -->
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
+    <text x="40" y="36" font-size="14" font-weight="700" fill="#38BDF8" letter-spacing="1.5">ARGUS ARCHITECTURE // END-TO-END PIPELINE FLOW</text>
+    <text x="40" y="54" font-size="11" fill="#94A3B8">High-Throughput Two-Stage Computer Vision &amp; Domain Verification Microservice</text>
+  </g>
+
+  <!-- ================= STAGE 1: INGESTION ================= -->
+  <g transform="translate(30, 80)">
+    <rect width="155" height="180" rx="8" fill="url(#stageGrad)" stroke="#38BDF8" stroke-width="1.2"/>
+    <rect x="0" y="0" width="155" height="28" rx="8" fill="#1E293B"/>
+    <text x="12" y="18" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" font-weight="700" fill="#38BDF8">STAGE 0: INGESTION</text>
+    
+    <text x="12" y="46" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" font-weight="600" fill="#F8FAFC">HTTP / Multipart</text>
+    <text x="12" y="60" font-family="'JetBrains Mono', monospace" font-size="9" fill="#94A3B8">• POST /recognize</text>
+    <text x="12" y="74" font-family="'JetBrains Mono', monospace" font-size="9" fill="#94A3B8">• CLI / Python SDK</text>
+
+    <line x1="12" y1="85" x2="143" y2="85" stroke="#334155" stroke-width="0.8"/>
+
+    <text x="12" y="102" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" font-weight="600" fill="#F8FAFC">Safety Preprocessing</text>
+    <text x="12" y="116" font-family="'JetBrains Mono', monospace" font-size="9" fill="#94A3B8">• EXIF auto-rotate</text>
+    <text x="12" y="130" font-family="'JetBrains Mono', monospace" font-size="9" fill="#94A3B8">• Max edge clamp</text>
+    <text x="12" y="144" font-family="'JetBrains Mono', monospace" font-size="9" fill="#94A3B8">• In-memory RGB</text>
+
+    <rect x="12" y="156" width="131" height="16" rx="3" fill="#132338" stroke="#38BDF8" stroke-width="0.5"/>
+    <text x="16" y="168" font-family="'JetBrains Mono', monospace" font-size="8" fill="#38BDF8">image_processing.py</text>
+  </g>
+
+  <!-- Connecting Arrow 0 -> 1 -->
+  <path d="M 185 170 L 225 170" stroke="#38BDF8" stroke-width="1.8" stroke-dasharray="6,5" fill="none" marker-end="url(#arrowCyan)">
+    <animate attributeName="stroke-dashoffset" values="0;-11" dur="0.9s" repeatCount="indefinite"/>
+  </path>
+
+  <!-- ================= STAGE 2: YOLO v11 GATEKEEPER ================= -->
+  <g transform="translate(230, 80)">
+    <rect width="180" height="230" rx="8" fill="url(#gateGrad)" stroke="#818CF8" stroke-width="1.5"/>
+    <rect x="0" y="0" width="180" height="28" rx="8" fill="#272B45"/>
+    <text x="12" y="18" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" font-weight="700" fill="#A5B4FC">STAGE 1: YOLO v11</text>
+    
+    <text x="12" y="46" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" font-weight="600" fill="#F8FAFC">Weighbridge Gatekeeper</text>
+    <text x="12" y="60" font-family="'JetBrains Mono', monospace" font-size="9" fill="#94A3B8">Model: yolo11n.pt</text>
+    <text x="12" y="74" font-family="'JetBrains Mono', monospace" font-size="9" fill="#94A3B8">Classes: car, bus, truck</text>
+
+    <line x1="12" y1="85" x2="168" y2="85" stroke="#334155" stroke-width="0.8"/>
+
+    <text x="12" y="102" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" font-weight="600" fill="#F8FAFC">Occupancy Policies</text>
+    <text x="12" y="116" font-family="'JetBrains Mono', monospace" font-size="9" fill="#EF4444">⚠ Person check</text>
+    <text x="12" y="130" font-family="'JetBrains Mono', monospace" font-size="9" fill="#EF4444">⚠ Multi-vehicle check</text>
+    <text x="12" y="144" font-family="'JetBrains Mono', monospace" font-size="9" fill="#EF4444">⚠ Zero 4-wheeler check</text>
+
+    <line x1="12" y1="155" x2="168" y2="155" stroke="#334155" stroke-width="0.8"/>
+
+    <text x="12" y="172" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" font-weight="600" fill="#22C55E">Vehicle Cropping</text>
+    <text x="12" y="186" font-family="'JetBrains Mono', monospace" font-size="9" fill="#94A3B8">• Largest box selected</text>
+    <text x="12" y="200" font-family="'JetBrains Mono', monospace" font-size="9" fill="#94A3B8">• Bounded pixel clamp</text>
+
+    <rect x="12" y="208" width="156" height="16" rx="3" fill="#1B1D35" stroke="#818CF8" stroke-width="0.5"/>
+    <text x="16" y="220" font-family="'JetBrains Mono', monospace" font-size="8" fill="#A5B4FC">detector.py</text>
+  </g>
+
+  <!-- Rejection Path Downwards -->
+  <path d="M 320 310 L 320 380" stroke="#EF4444" stroke-width="1.8" stroke-dasharray="4,3" fill="none" marker-end="url(#arrowRed)">
+    <animate attributeName="opacity" values="1;0.4;1" dur="1.6s" repeatCount="indefinite"/>
+  </path>
+  <text x="330" y="350" font-family="'JetBrains Mono', monospace" font-size="9" font-weight="600" fill="#EF4444">FAIL POLICY</text>
+
+  <!-- REJECTION RESULT BOX -->
+  <g transform="translate(230, 385)">
+    <rect width="180" height="85" rx="6" fill="url(#rejectGrad)" stroke="#EF4444" stroke-width="1.2"/>
+    <text x="12" y="22" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" font-weight="700" fill="#FCA5A5">POLICY REJECTION</text>
+    <text x="12" y="38" font-family="'JetBrains Mono', monospace" font-size="9" fill="#F87171">• rejected_human_detected</text>
+    <text x="12" y="52" font-family="'JetBrains Mono', monospace" font-size="9" fill="#F87171">• rejected_multiple_vehicles</text>
+    <text x="12" y="66" font-family="'JetBrains Mono', monospace" font-size="9" fill="#F87171">• rejected_no_four_wheeler</text>
+    <text x="12" y="78" font-family="'JetBrains Mono', monospace" font-size="8" fill="#FCA5A5">Fast reject: 0 OCR cost</text>
+  </g>
+
+  <!-- Approved Path Forward (Cyan/Green) -->
+  <path d="M 410 170 L 460 170" stroke="#22C55E" stroke-width="1.8" stroke-dasharray="6,5" fill="none" marker-end="url(#arrowGreen)">
+    <animate attributeName="stroke-dashoffset" values="0;-11" dur="0.9s" repeatCount="indefinite"/>
+  </path>
+  <text x="414" y="162" font-family="'JetBrains Mono', monospace" font-size="9" font-weight="600" fill="#22C55E">PASSED</text>
+
+  <!-- ================= STAGE 3: RAPIDOCR ONNX ================= -->
+  <g transform="translate(465, 80)">
+    <rect width="165" height="230" rx="8" fill="url(#stageGrad)" stroke="#38BDF8" stroke-width="1.2"/>
+    <rect x="0" y="0" width="165" height="28" rx="8" fill="#1E293B"/>
+    <text x="12" y="18" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" font-weight="700" fill="#38BDF8">STAGE 2: RAPIDOCR</text>
+    
+    <text x="12" y="46" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" font-weight="600" fill="#F8FAFC">ONNX Engine</text>
+    <text x="12" y="60" font-family="'JetBrains Mono', monospace" font-size="9" fill="#94A3B8">• Primary: Vehicle Crop</text>
+    <text x="12" y="74" font-family="'JetBrains Mono', monospace" font-size="9" fill="#94A3B8">• Fallback: Full Frame</text>
+
+    <line x1="12" y1="85" x2="153" y2="85" stroke="#334155" stroke-width="0.8"/>
+
+    <text x="12" y="102" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" font-weight="600" fill="#F8FAFC">Contrast Adapt</text>
+    <text x="12" y="116" font-family="'JetBrains Mono', monospace" font-size="9" fill="#94A3B8">• CLAHE enhancement</text>
+    <text x="12" y="130" font-family="'JetBrains Mono', monospace" font-size="9" fill="#94A3B8">• Cubic interpolation</text>
+
+    <line x1="12" y1="142" x2="153" y2="142" stroke="#334155" stroke-width="0.8"/>
+
+    <text x="12" y="158" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" font-weight="600" fill="#F8FAFC">Token Extraction</text>
+    <text x="12" y="172" font-family="'JetBrains Mono', monospace" font-size="9" fill="#94A3B8">• Text quad coordinates</text>
+    <text x="12" y="186" font-family="'JetBrains Mono', monospace" font-size="9" fill="#94A3B8">• Centroid calculation</text>
+    <text x="12" y="200" font-family="'JetBrains Mono', monospace" font-size="9" fill="#94A3B8">• Confidence score</text>
+
+    <rect x="12" y="208" width="141" height="16" rx="3" fill="#132338" stroke="#38BDF8" stroke-width="0.5"/>
+    <text x="16" y="220" font-family="'JetBrains Mono', monospace" font-size="8" fill="#38BDF8">ocr.py (PlateRecognizer)</text>
+  </g>
+
+  <!-- Connecting Arrow 2 -> 3 -->
+  <path d="M 630 170 L 675 170" stroke="#38BDF8" stroke-width="1.8" stroke-dasharray="6,5" fill="none" marker-end="url(#arrowCyan)">
+    <animate attributeName="stroke-dashoffset" values="0;-11" dur="0.9s" repeatCount="indefinite"/>
+  </path>
+
+  <!-- ================= STAGE 4: INDIAN PLATE RULES & SPATIAL PAIRING ================= -->
+  <g transform="translate(680, 80)">
+    <rect width="175" height="230" rx="8" fill="url(#stageGrad)" stroke="#F59E0B" stroke-width="1.2"/>
+    <rect x="0" y="0" width="175" height="28" rx="8" fill="#2B2313"/>
+    <text x="12" y="18" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" font-weight="700" fill="#FBBF24">STAGE 3: PLATE RULES</text>
+    
+    <text x="12" y="46" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" font-weight="600" fill="#F8FAFC">2D Spatial Clustering</text>
+    <text x="12" y="60" font-family="'JetBrains Mono', monospace" font-size="9" fill="#94A3B8">• Multi-line stack join</text>
+    <text x="12" y="74" font-family="'JetBrains Mono', monospace" font-size="9" fill="#94A3B8">• Vertical centroid order</text>
+
+    <line x1="12" y1="85" x2="163" y2="85" stroke="#334155" stroke-width="0.8"/>
+
+    <text x="12" y="102" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" font-weight="600" fill="#F8FAFC">Domain Filtering</text>
+    <text x="12" y="116" font-family="'JetBrains Mono', monospace" font-size="9" fill="#94A3B8">• Decal word filter</text>
+    <text x="12" y="130" font-family="'JetBrains Mono', monospace" font-size="9" fill="#94A3B8">• Phone number filter</text>
+    <text x="12" y="144" font-family="'JetBrains Mono', monospace" font-size="9" fill="#94A3B8">• Strip HSRP 'IND' mark</text>
+
+    <line x1="12" y1="155" x2="163" y2="155" stroke="#334155" stroke-width="0.8"/>
+
+    <text x="12" y="172" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" font-weight="600" fill="#F8FAFC">Confusion Heuristics</text>
+    <text x="12" y="186" font-family="'JetBrains Mono', monospace" font-size="9" fill="#94A3B8">• O/D-&gt;0, I/L-&gt;1, B-&gt;8</text>
+    <text x="12" y="200" font-family="'JetBrains Mono', monospace" font-size="9" fill="#94A3B8">• 38+ State &amp; BH series</text>
+
+    <rect x="12" y="208" width="151" height="16" rx="3" fill="#29200D" stroke="#F59E0B" stroke-width="0.5"/>
+    <text x="16" y="220" font-family="'JetBrains Mono', monospace" font-size="8" fill="#FBBF24">plate_rules.py</text>
+  </g>
+
+  <!-- Connecting Arrow 3 -> 4 -->
+  <path d="M 855 170 L 895 170" stroke="#38BDF8" stroke-width="1.8" stroke-dasharray="6,5" fill="none" marker-end="url(#arrowCyan)">
+    <animate attributeName="stroke-dashoffset" values="0;-11" dur="0.9s" repeatCount="indefinite"/>
+  </path>
+
+  <!-- ================= STAGE 5: SERIALIZATION & RESPONSE ================= -->
+  <g transform="translate(900, 80)">
+    <rect width="110" height="230" rx="8" fill="url(#successGrad)" stroke="#22C55E" stroke-width="1.5"/>
+    <rect x="0" y="0" width="110" height="28" rx="8" fill="#0D3B2E"/>
+    <text x="10" y="18" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" font-weight="700" fill="#4ADE80">OUTPUT</text>
+    
+    <text x="10" y="48" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" font-weight="600" fill="#F8FAFC">JSON Envelope</text>
+    
+    <text x="10" y="68" font-family="'JetBrains Mono', monospace" font-size="8" fill="#86EFAC">{</text>
+    <text x="12" y="82" font-family="'JetBrains Mono', monospace" font-size="8" fill="#86EFAC">"plate":</text>
+    <text x="14" y="94" font-family="'JetBrains Mono', monospace" font-size="8" fill="#F8FAFC">"RJ09GA0165"</text>
+    <text x="12" y="110" font-family="'JetBrains Mono', monospace" font-size="8" fill="#86EFAC">"state":</text>
+    <text x="14" y="122" font-family="'JetBrains Mono', monospace" font-size="8" fill="#F8FAFC">"Rajasthan"</text>
+    <text x="12" y="138" font-family="'JetBrains Mono', monospace" font-size="8" fill="#86EFAC">"conf": 0.98</text>
+    <text x="12" y="152" font-family="'JetBrains Mono', monospace" font-size="8" fill="#86EFAC">"time": 42ms</text>
+    <text x="10" y="166" font-family="'JetBrains Mono', monospace" font-size="8" fill="#86EFAC">}</text>
+
+    <line x1="10" y1="178" x2="100" y2="178" stroke="#166534" stroke-width="0.8"/>
+
+    <text x="10" y="196" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="8" font-weight="600" fill="#86EFAC">✓ Typed Schema</text>
+    <text x="10" y="208" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="8" fill="#BBF7D0">FastAPI/Pydantic</text>
+  </g>
+
+  <!-- Pipeline Return Path to Rejection -->
+  <path d="M 410 425 L 955 425 L 955 315" stroke="#64748B" stroke-width="1.2" stroke-dasharray="3,3" fill="none" marker-start="url(#arrowSlate)"/>
+  <text x="680" y="418" font-family="'JetBrains Mono', monospace" font-size="9" fill="#64748B">REJECTION SERIALIZED TO STANDARD RESPONSE ENVELOPE</text>
+
+  <!-- Bottom Legend Bar -->
+  <g transform="translate(30, 475)" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" fill="#94A3B8">
+    <circle cx="5" cy="-3" r="4" fill="#38BDF8"/>
+    <text x="15" y="0">Primary Pipeline Pass</text>
+
+    <circle cx="170" cy="-3" r="4" fill="#22C55E"/>
+    <text x="180" y="0">Verified 4-Wheeler &amp; Plate Validated</text>
+
+    <circle cx="415" cy="-3" r="4" fill="#EF4444"/>
+    <text x="425" y="0">Weighbridge Safety Rejection Branch</text>
+
+    <text x="1000" y="0" text-anchor="end" fill="#64748B">docs/ARCHITECTURE.md</text>
+  </g>
+</svg>
