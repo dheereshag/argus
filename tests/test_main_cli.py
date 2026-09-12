@@ -15,10 +15,9 @@ def _sample_response():
         success=True,
         rejected=False,
         status=RecognitionStatusEnum.SUCCESS,
-        status_message="Plate detected",
-        vehicle_detected=True,
         vehicle_type="car",
-        human_detected=False,
+        vehicle_count=1,
+        human_count=0,
         filename="test.jpg",
         results=[],
     )

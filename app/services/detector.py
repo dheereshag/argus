@@ -127,9 +127,9 @@ class VehicleDetector:
         height: int,
         human_conf_thresh: float,
         vehicle_conf_thresh: float,
-    ) -> tuple[bool, list[tuple[str, BoundingBox]]]:
-        """Parse raw YOLO output arrays, clamp boxes, filter scale, and sort vehicles."""
-        human_detected = False
+    ) -> tuple[int, list[tuple[str, BoundingBox]]]:
+        """Parse raw YOLO output arrays, clamp boxes, count humans, and sort vehicles."""
+        human_count = 0
         vehicles: list[tuple[int, str, BoundingBox]] = []
         total_frame_area = width * height
         min_human_area = settings.MIN_HUMAN_BOX_AREA_RATIO * total_frame_area
@@ -150,7 +150,7 @@ class VehicleDetector:
 
             if cls_id == PERSON_CLASS_ID and conf >= human_conf_thresh:
                 if area >= min_human_area:
-                    human_detected = True
+                    human_count += 1
                 continue
 
             if (
@@ -161,14 +161,14 @@ class VehicleDetector:
                 vehicles.append((area, FOUR_WHEELER_CLASS_NAMES[cls_id], box))
 
         vehicles.sort(key=lambda item: item[0], reverse=True)
-        return human_detected, [(v_type, box) for _, v_type, box in vehicles]
+        return human_count, [(v_type, box) for _, v_type, box in vehicles]
 
     def _run_detection(
         self,
         pil_img: Image.Image,
         human_conf_thresh: float,
         vehicle_conf_thresh: float,
-    ) -> tuple[bool, list[tuple[str, BoundingBox]]]:
+    ) -> tuple[int, list[tuple[str, BoundingBox]]]:
         """
         Execute YOLO inference on an image and extract filtered detections.
 
@@ -182,7 +182,7 @@ class VehicleDetector:
         results = next(iter(self.get_model()(pil_img, verbose=False)))
         boxes = getattr(results, "boxes", None)
         if boxes is None or len(boxes) == 0 or not hasattr(boxes, "cls"):
-            return False, []
+            return 0, []
 
         cls_ids = boxes.cls.cpu().numpy() if hasattr(boxes.cls, "cpu") else np.asarray(boxes.cls)
         confs = boxes.conf.cpu().numpy() if hasattr(boxes.conf, "cpu") else np.asarray(boxes.conf)
@@ -197,42 +197,35 @@ class VehicleDetector:
 
     @staticmethod
     def _evaluate_occupancy(
-        human_detected: bool,
+        human_count: int,
         vehicles: list[tuple[str, BoundingBox]],
-    ) -> tuple[bool, RecognitionStatusEnum | None, str, bool]:
+    ) -> tuple[bool, RecognitionStatusEnum | None]:
         """
-        Evaluate weighbridge occupancy policies based on detection counts and human presence.
+        Evaluate weighbridge occupancy policies based on detection counts and thresholds.
 
         Returns:
-            tuple[bool, RecognitionStatusEnum | None, str, bool]:
-                (is_eligible, status, status_message, vehicle_detected)
+            tuple[bool, RecognitionStatusEnum | None]: (is_eligible, status)
         """
         vehicle_count = len(vehicles)
-        primary_vehicle_type = vehicles[0][0] if vehicles else None
+        human_limit = settings.MAX_ALLOWED_HUMANS if settings.REJECT_ON_HUMAN_DETECTED else None
+        vehicle_max = settings.MAX_ALLOWED_VEHICLES if settings.REJECT_ON_MULTIPLE_VEHICLES else None
+        vehicle_min = settings.MIN_ALLOWED_VEHICLES if settings.REJECT_ON_NO_VEHICLE else 0
 
-        if human_detected and settings.REJECT_ON_HUMAN_DETECTED:
-            logger.warning("Rejected frame: Human presence detected.")
-            return False, RecognitionStatusEnum.REJECTED_HUMAN_DETECTED, "Image rejected: Human presence detected.", vehicle_count > 0
+        if human_limit is not None and human_count > human_limit:
+            logger.warning(
+                f"Rejected frame: Human count ({human_count}) exceeded limit ({human_limit})."
+            )
+            return False, RecognitionStatusEnum.REJECTED_HUMAN_DETECTED
 
-        if vehicle_count > 1 and settings.REJECT_ON_MULTIPLE_VEHICLES:
+        if vehicle_max is not None and vehicle_count > vehicle_max:
             types_str = ", ".join(v[0] for v in vehicles)
             logger.warning(f"Rejected frame: {vehicle_count} vehicles detected ({types_str}).")
-            return (
-                False,
-                RecognitionStatusEnum.REJECTED_MULTIPLE_VEHICLES,
-                f"Image rejected: Multiple 4-wheeler vehicles detected ({vehicle_count} vehicles: {types_str}). Weighbridge allows only 1 vehicle.",
-                True,
-            )
+            return False, RecognitionStatusEnum.REJECTED_MULTIPLE_VEHICLES
 
-        occupancy_note = "with human presence" if human_detected else "with no human occupancy"
+        if vehicle_count < vehicle_min:
+            return False, RecognitionStatusEnum.REJECTED_NO_FOUR_WHEELER
 
-        if vehicle_count == 0:
-            if settings.REJECT_ON_NO_VEHICLE:
-                return False, RecognitionStatusEnum.REJECTED_NO_FOUR_WHEELER, "Image rejected: No 4-wheeler vehicle (car, bus, truck) detected.", False
-            return True, None, f"No vehicle detected ({occupancy_note}). Eligible for direct plate recognition.", False
-
-        multi_note = f" ({vehicle_count} vehicles detected)" if vehicle_count > 1 else ""
-        return True, None, f"4-wheeler ({primary_vehicle_type}){multi_note} detected {occupancy_note}. Eligible for plate recognition.", True
+        return True, None
 
     def detect(self, image_input: ImageInput) -> DetectionResult:
         """
@@ -250,23 +243,19 @@ class VehicleDetector:
             DetectionResult: Comprehensive stage 1 outcome with eligibility flag and primary crop.
         """
         pil_img = load_rgb(image_input)
-        human_detected, vehicles = self._run_detection(
+        human_count, vehicles = self._run_detection(
             pil_img, settings.HUMAN_CONF_THRESH, settings.VEHICLE_CONF_THRESH
         )
-        is_eligible, status, status_message, vehicle_detected = self._evaluate_occupancy(
-            human_detected, vehicles
-        )
+        is_eligible, status = self._evaluate_occupancy(human_count, vehicles)
         primary_box = vehicles[0][1] if vehicles else None
         crop_box = self._pad_box(primary_box, pil_img.width, pil_img.height) if primary_box else None
 
         return DetectionResult(
             is_eligible=is_eligible,
             status=status,
-            status_message=status_message,
-            vehicle_detected=vehicle_detected,
             vehicle_type=vehicles[0][0] if vehicles else None,
-            human_detected=human_detected,
             vehicle_count=len(vehicles),
+            human_count=human_count,
             vehicle_box=primary_box,
             crop=pil_img.crop(crop_box) if crop_box else None,
         )

@@ -84,7 +84,6 @@ def _build_response(
     success: bool,
     rejected: bool,
     status: RecognitionStatusEnum,
-    message: str,
     results: list[PlateResult] | None = None,
 ) -> RecognitionResponse:
     """
@@ -97,7 +96,6 @@ def _build_response(
         success: Whether a valid plate was identified.
         rejected: Whether the frame was rejected during pre-screening.
         status: High-level status outcome enum.
-        message: Human-readable diagnostic status message.
         results: Optional list of validated PlateResult items.
 
     Returns:
@@ -107,10 +105,9 @@ def _build_response(
         success=success,
         rejected=rejected,
         status=status,
-        status_message=message,
-        vehicle_detected=detection.vehicle_detected,
         vehicle_type=detection.vehicle_type,
-        human_detected=detection.human_detected,
+        vehicle_count=detection.vehicle_count,
+        human_count=detection.human_count,
         filename=filename,
         results=results or [],
         execution_time_ms=round((time.time() - start_time) * 1000, 2),
@@ -134,20 +131,6 @@ def _run_stage2_ocr(detection: DetectionResult, image_bytes: bytes, filename: st
     return validate_plate_results(raw)
 
 
-def _build_status_message(detection: DetectionResult, has_plate: bool) -> str:
-    """Format descriptive status message for detection and recognition outcome."""
-    if has_plate:
-        target_name = detection.vehicle_type or ("vehicle" if detection.vehicle_detected else None)
-        return (
-            f"License plate successfully detected and recognized on {target_name}."
-            if target_name
-            else "License plate successfully detected and recognized."
-        )
-    if detection.vehicle_detected:
-        return f"4-wheeler ({detection.vehicle_type or 'vehicle'}) detected, but no readable license plate characters could be recognized."
-    return "No vehicle detected and no readable license plate characters could be recognized."
-
-
 def recognize_plate_image(
     image_input: str | bytes,
     filename: str = "image.jpg",
@@ -169,7 +152,7 @@ def recognize_plate_image(
     # Stage 1: Vehicle Detection & Occupancy Gatekeeping
     detection = VehicleDetector().detect(image_bytes)
     if not detection.is_eligible:
-        logger.info(f"Image '{resolved_filename}' ineligible: {detection.status_message}")
+        logger.info(f"Image '{resolved_filename}' ineligible: status={detection.status}")
         return _build_response(
             detection,
             resolved_filename,
@@ -177,14 +160,12 @@ def recognize_plate_image(
             success=False,
             rejected=True,
             status=detection.status or RecognitionStatusEnum.REJECTED_NO_FOUR_WHEELER,
-            message=detection.status_message,
         )
 
     # Stage 2: License Plate Recognition
     plate_results = _run_stage2_ocr(detection, image_bytes, resolved_filename)
     has_plate = any(r.plate != "N/A" for r in plate_results)
     final_status = RecognitionStatusEnum.SUCCESS if has_plate else RecognitionStatusEnum.NO_PLATE_DETECTED
-    msg = _build_status_message(detection, has_plate)
 
     return _build_response(
         detection,
@@ -193,6 +174,5 @@ def recognize_plate_image(
         success=has_plate,
         rejected=False,
         status=final_status,
-        message=msg,
         results=plate_results,
     )

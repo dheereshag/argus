@@ -66,22 +66,18 @@ class DetectionResult:
     Attributes:
         is_eligible: True if the frame passes all pre-screening policies and should proceed to OCR.
         status: Specific rejection or success status code enum.
-        status_message: Descriptive explanation of the detection and occupancy evaluation.
-        vehicle_detected: Whether at least one 4-wheeler vehicle (car, bus, truck) was localized.
         vehicle_type: Name of the primary vehicle category ('car', 'bus', 'truck') or None.
-        human_detected: Whether any person was detected exceeding the confidence threshold.
         vehicle_count: Total number of valid 4-wheeler detections meeting the confidence threshold.
+        human_count: Total number of valid human detections meeting the confidence threshold.
         vehicle_box: Clamped (x1, y1, x2, y2) bounding box of the primary vehicle crop.
         crop: Cropped PIL RGB Image containing only the primary vehicle area, or None.
     """
 
     is_eligible: bool
     status: RecognitionStatusEnum | None
-    status_message: str
-    vehicle_detected: bool
     vehicle_type: str | None
-    human_detected: bool
     vehicle_count: int
+    human_count: int = 0
     vehicle_box: tuple[int, int, int, int] | None = None
     crop: Any = None
 
@@ -126,17 +122,16 @@ class RecognitionResponse(BaseModel):
     success: bool = Field(description="Status of the recognition request")
     rejected: bool = Field(
         False,
-        description="Whether the image was rejected during pre-screening (e.g. human detected, no vehicle, multiple vehicles)",
+        description="Whether the image was rejected during pre-screening",
     )
     status: RecognitionStatusEnum = Field(
         description="Detailed status enum for pre-screening and recognition outcome"
     )
-    status_message: str = Field(description="Human readable description of the status outcome")
-    vehicle_detected: bool = Field(description="Whether a 4-wheeler vehicle was detected in the frame")
     vehicle_type: str | None = Field(
         None, description="Specific type of 4-wheeler vehicle detected (e.g., 'car', 'bus', 'truck')", examples=["car"]
     )
-    human_detected: bool = Field(description="Whether a human presence was detected in the frame")
+    vehicle_count: int = Field(0, description="Total number of 4-wheeler vehicles detected in the frame")
+    human_count: int = Field(0, description="Total number of humans detected in the frame")
     filename: str = Field(description="Name of the processed image file")
     results: list[PlateResult] = Field(default_factory=list, description="Extracted license plate details")
     execution_time_ms: float | None = Field(None, description="Processing duration in milliseconds")

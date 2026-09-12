@@ -113,10 +113,9 @@ Sample JSON CLI output:
   "success": true,
   "rejected": false,
   "status": "success",
-  "status_message": "License plate successfully detected and recognized on car.",
-  "vehicle_detected": true,
   "vehicle_type": "car",
-  "human_detected": false,
+  "vehicle_count": 1,
+  "human_count": 0,
   "filename": "tests/1.jpg",
   "results": [
     {
@@ -193,10 +192,9 @@ curl -X POST "http://localhost:8000/recognize" \
   "success": true,
   "rejected": false,
   "status": "success",
-  "status_message": "License plate successfully detected and recognized on car.",
-  "vehicle_detected": true,
   "vehicle_type": "car",
-  "human_detected": false,
+  "vehicle_count": 1,
+  "human_count": 0,
   "filename": "1.jpg",
   "results": [
     {
@@ -217,10 +215,9 @@ curl -X POST "http://localhost:8000/recognize" \
   "success": false,
   "rejected": true,
   "status": "rejected_human_detected",
-  "status_message": "Person detected in frame; rejecting weighment for safety.",
-  "vehicle_detected": true,
   "vehicle_type": "truck",
-  "human_detected": true,
+  "vehicle_count": 1,
+  "human_count": 2,
   "filename": "weighbridge_frame.jpg",
   "results": [],
   "execution_time_ms": 14.82
@@ -244,7 +241,7 @@ response = recognize_plate_image("path/to/vehicle.jpg")
 
 # 2. Evaluate weighbridge gatekeeping outcome
 if response.rejected:
-    print(f"[REJECTED] Weighbridge policy violation: {response.status_message}")
+    print(f"[REJECTED] Weighbridge policy violation: {response.status.value}")
 elif response.success:
     for plate in response.results:
         print(f"Detected Plate : {plate.plate}")
@@ -252,7 +249,7 @@ elif response.success:
         print(f"OCR Confidence : {plate.confidence * 100:.1f}%")
         print(f"Coordinates    : {plate.box}")
 else:
-    print(f"[NOTICE] {response.status_message}")
+    print(f"[NOTICE] Plate recognition outcome: {response.status.value}")
 ```
 
 ---
@@ -268,8 +265,11 @@ Configure operational limits, model weights, and weighbridge gatekeeping policie
 | `HUMAN_CONF_THRESH` | `float` | `0.30` | Minimum confidence to register human presence. |
 | `VEHICLE_CONF_THRESH` | `float` | `0.35` | Minimum confidence to register a 4-wheeler vehicle. |
 | `REJECT_ON_HUMAN_DETECTED` | `bool` | `true` | Enforce weighbridge safety by rejecting pedestrian presence. |
+| `MAX_ALLOWED_HUMANS` | `int` | `0` | Max humans permitted before rejection (e.g. `1` to allow driver, rejecting on >= 2). |
 | `REJECT_ON_MULTIPLE_VEHICLES` | `bool` | `true` | Prevent tandem weighment fraud by rejecting multi-vehicle frames. |
+| `MAX_ALLOWED_VEHICLES` | `int` | `1` | Max 4-wheeler vehicles permitted simultaneously on scale platform. |
 | `REJECT_ON_NO_VEHICLE` | `bool` | `true` | Skip compute-heavy OCR if no 4-wheeler is localized. |
+| `MIN_ALLOWED_VEHICLES` | `int` | `1` | Min 4-wheeler vehicles required on scale (`0` allows close-up crop-only OCR). |
 | `MIN_HUMAN_BOX_AREA_RATIO` | `float` | `0.005` | Filter out distant background pedestrians (<0.5% frame area). |
 | `MIN_VEHICLE_BOX_AREA_RATIO` | `float` | `0.01` | Filter out distant background vehicles (<1.0% frame area). |
 | `MAX_CONCURRENT_INFERENCES` | `int` | `4` | Concurrency semaphore throttle protecting CPU/GPU RAM. |

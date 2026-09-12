@@ -49,7 +49,7 @@ def test_recognize_sample_image(client, sample_image_bytes):
     validated = RecognitionResponse.model_validate(data)
     assert validated.filename == "test.jpg"
     # Plain red box has no 4-wheeler vehicle, default policy rejects
-    assert validated.vehicle_detected is False
+    assert validated.vehicle_count == 0
     assert validated.status == RecognitionStatusEnum.REJECTED_NO_FOUR_WHEELER
     assert validated.rejected is True
     assert validated.success is False
@@ -65,7 +65,7 @@ def test_recognize_sample_image_allowed_when_policy_disabled(client, sample_imag
         data = response.json()
         validated = RecognitionResponse.model_validate(data)
         assert validated.filename == "test.jpg"
-        assert validated.vehicle_detected is False
+        assert validated.vehicle_count == 0
         assert validated.status == RecognitionStatusEnum.NO_PLATE_DETECTED
         assert validated.rejected is False
         assert validated.success is False

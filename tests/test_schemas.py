@@ -1,4 +1,5 @@
 from app.schemas import (
+    DetectionResult,
     PlateResult,
     RecognitionResponse,
     RecognitionStatusEnum,
@@ -23,15 +24,30 @@ def test_recognition_response_valid():
     resp = RecognitionResponse(
         success=True,
         status=RecognitionStatusEnum.SUCCESS,
-        status_message="Plate detected",
-        vehicle_detected=True,
         vehicle_type="car",
-        human_detected=False,
+        vehicle_count=1,
+        human_count=0,
         filename="test.jpg",
         results=[PlateResult(plate="RJ09GA0165", state="Rajasthan")],
         execution_time_ms=123.45,
     )
     assert resp.success is True
     assert resp.status == RecognitionStatusEnum.SUCCESS
+    assert resp.vehicle_count == 1
+    assert resp.human_count == 0
     assert len(resp.results) == 1
     assert resp.results[0].plate == "RJ09GA0165"
+
+
+def test_detection_result_valid():
+    det = DetectionResult(
+        is_eligible=True,
+        status=None,
+        vehicle_type="car",
+        vehicle_count=1,
+        human_count=0,
+    )
+    assert det.is_eligible is True
+    assert det.status is None
+    assert det.vehicle_count == 1
+    assert det.human_count == 0
