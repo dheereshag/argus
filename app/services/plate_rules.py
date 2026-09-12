@@ -15,6 +15,7 @@ from app.constants import (
     CHAR_TO_DIGIT,
     COMMERCIAL_DECAL_SUBSTRINGS,
     DIGIT_TO_CHAR,
+    HSRP_PREFIXES,
     INDIAN_PLATE_REGEX,
     NON_PLATE_WORDS,
     SERIES_CORRECTIONS,
@@ -29,12 +30,14 @@ __all__ = [
     "parse_plate_info",
 ]
 
-_PHONE_PATTERN: re.Pattern[str] = re.compile(r"^[6-9]\d{9}$")
+_CONTACT_PREFIX_PATTERN: re.Pattern[str] = re.compile(
+    r"^(?:MOB|MOBILE|PH|PHONE|TEL|CALL|CONTACT)?([6-9]\d{9})$"
+)
 
 
 def is_phone_number(text: str) -> bool:
-    """Check if a string matches a 10-digit Indian mobile telephone number."""
-    return bool(_PHONE_PATTERN.match(text))
+    """Check if a string matches a 10-digit Indian mobile telephone number (with optional contact prefix)."""
+    return bool(_CONTACT_PREFIX_PATTERN.match(text))
 
 
 def is_decal_word(word: str) -> bool:
@@ -56,6 +59,7 @@ def is_decal_word(word: str) -> bool:
     return any(w in word for w in COMMERCIAL_DECAL_SUBSTRINGS)
 
 
+
 def _apply_char_map(text: str, mapping: dict[str, str]) -> str:
     """Substitute characters in a string based on a substitution mapping dictionary."""
     return "".join(mapping.get(c, c) for c in text)
@@ -69,6 +73,8 @@ def _normalize_11_char(cand: str, st_corr: str) -> list[str]:
     variants = [st_corr + dist + ser + num]
     if dist.startswith("4"):
         variants.append(st_corr + "0" + dist[1:] + ser + num)
+    if "I" in ser or "O" in ser:
+        variants.append(st_corr + dist + ser.replace("I", "J").replace("O", "D") + num)
     return variants
 
 
@@ -80,6 +86,8 @@ def _normalize_10_char(cand: str, st_corr: str) -> list[str]:
     variants = [st_corr + dist + ser + num]
     if dist.startswith("4"):
         variants.append(st_corr + "0" + dist[1:] + ser + num)
+    if "I" in ser or "O" in ser:
+        variants.append(st_corr + dist + ser.replace("I", "J").replace("O", "D") + num)
     return variants
 
 
@@ -96,15 +104,20 @@ def _normalize_9_char(cand: str, st_corr: str) -> list[str]:
 
 
 def _normalize_8_char(cand: str, st_corr: str) -> list[str]:
-    """Normalize older 8-character plate permutations (SS D A NNNN or SS DD A NNN)."""
+    """Normalize older 8-character plate permutations (SS D A NNNN, SS DD A NNN, or SS DD NNNN)."""
     configs = [
         (cand[2:3], CHAR_TO_DIGIT, cand[3:4], DIGIT_TO_CHAR, cand[4:8], CHAR_TO_DIGIT),
         (cand[2:4], CHAR_TO_DIGIT, cand[4:5], DIGIT_TO_CHAR, cand[5:8], CHAR_TO_DIGIT),
     ]
-    return [
+    variants = [
         st_corr + _apply_char_map(d, d_map) + _apply_char_map(s, s_map) + _apply_char_map(n, n_map)
         for d, d_map, s, s_map, n, n_map in configs
     ]
+    variants.append(
+        st_corr + _apply_char_map(cand[2:4], CHAR_TO_DIGIT) + _apply_char_map(cand[4:8], CHAR_TO_DIGIT)
+    )
+    return variants
+
 
 
 def _normalize_bh_series(cand: str) -> str | None:
@@ -156,7 +169,7 @@ def normalize_candidate_strings(raw_str: str) -> list[str]:
     """
     Generate normalized plate candidate variants using positional character rules for Indian plates.
 
-    Handles standard 8-11 character formats, HSRP 'IND' prefix stripping, and Bharat (BH) series.
+    Handles standard 8-11 character formats, HSRP prefix stripping, and Bharat (BH) series.
 
     Args:
         raw_str: Unnormalized OCR text string.
@@ -165,13 +178,18 @@ def normalize_candidate_strings(raw_str: str) -> list[str]:
         list[str]: Ranked list of synthesized candidate strings to test against the regex.
     """
     cleaned = re.sub(r"[^A-Za-z0-9]", "", raw_str).upper()
-    if not cleaned or len(cleaned) < 6:
+    if not cleaned or len(cleaned) < 5:
         return []
 
     candidates = [cleaned]
-    # Strip HSRP 'IND' national strip prefix if fused to registration mark
-    if cleaned.startswith("IND") and len(cleaned) >= 8:
-        candidates.append(cleaned[3:])
+    # Strip HSRP national strip prefix if fused to registration mark
+    for pfx in HSRP_PREFIXES:
+        if cleaned.startswith(pfx) and len(cleaned) >= len(pfx) + 5:
+            candidates.append(cleaned[len(pfx) :])
+
+    # Strip OCR misread arrow/marker if fused to military plate (e.g. A21D123456A -> 21D123456A)
+    if len(cleaned) in (10, 11) and cleaned[0].isalpha() and cleaned[1:3].isdigit() and cleaned[3].isalpha():
+        candidates.append(cleaned[1:])
 
     for prefix, repl in STATE_PREFIX_CORRECTIONS.items():
         for base in list(candidates):
@@ -202,9 +220,11 @@ def parse_plate_info(raw_plate: str | None) -> dict[str, Any] | None:
     if not cleaned:
         return None
 
-    # Strip HSRP 'IND' prefix if present on candidate
-    if cleaned.startswith("IND") and len(cleaned) >= 8:
-        cleaned = cleaned[3:]
+    # Strip HSRP national strip prefix if present on candidate
+    for pfx in HSRP_PREFIXES:
+        if cleaned.startswith(pfx) and len(cleaned) >= len(pfx) + 5:
+            cleaned = cleaned[len(pfx) :]
+            break
 
     # Handle common West Bengal OCR misread prefix
     if cleaned.startswith("W8"):
@@ -217,12 +237,22 @@ def parse_plate_info(raw_plate: str | None) -> dict[str, Any] | None:
     matched_plate = cleaned
     state_name = "Unknown State"
 
-    # Group 1 captures standard state prefix; Group 4 captures Bharat Series 'BH'
+    # Group 1: Standard state prefix; Group 8: Vintage state prefix;
+    # Group 4/5: Bharat Series; Group 10: Military; Group 15: Diplomatic
     if match.group(1):
         state_code = match.group(1).upper()
         state_name = STATE_CODES.get(state_code, "Unknown State")
-    elif match.group(4):
+    elif match.group(8):
+        state_code = match.group(8).upper()
+        state_name = STATE_CODES.get(state_code, "Unknown State")
+    elif match.group(5) == "BH" or match.group(4):
         state_name = STATE_CODES.get("BH", "Bharat Series (National)")
+    elif match.group(15):
+        state_name = "Diplomatic Corps"
+    elif match.group(10):
+        state_name = "Military / Defence Series"
 
     return {"plate": matched_plate, "state": state_name}
+
+
 

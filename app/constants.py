@@ -106,21 +106,36 @@ STATE_CODES: dict[str, str] = {
 STATE_PREFIX_PATTERN = "|".join(sorted([k for k in STATE_CODES if k != "BH"], key=len, reverse=True))
 
 # Compiled regular expression for Indian vehicle registration plates.
-# Matches two primary structures:
+# Matches four primary structures:
 # 1. Standard State Format:
-#    (State Code) + (1-2 digit District RTO) + (1-3 letter Series) + (3-4 digit unique number)
-#    Examples: MH12AB1234, DL01A5678, KA03MB100, RJ09GA0165
+#    (State Code) + (1-2 digit District RTO) + (0-3 letter Series) + (3-4 digit unique number)
+#    Examples: MH12AB1234, DL01A5678, KA03MB100, RJ09GA0165, DL011234
 # 2. Bharat (BH) Series Format:
 #    (2-digit Year) + BH + (4-digit number) + (1-2 letter Series)
 #    Example: 22BH1234AA
+# 3. Military / Defence Vehicle Format:
+#    (Optional Arrow/Marker) + (2-digit Year) + (1-letter Base/Arm) + (5-6 digit Serial) + (1-letter Check)
+#    Examples: ^21D123456A, 21D123456A
+# 4. Diplomatic & Consular Format:
+#    (1-3 digit Country/Mission) + (CD/CC/UN) + (1-4 digit Vehicle Number)
+#    Examples: 77CD01, 12CC34, 01UN12
 INDIAN_PLATE_REGEX: re.Pattern[str] = re.compile(
     r"(?:"
-    rf"({STATE_PREFIX_PATTERN})[\s.-]?(?:0[1-9]|[1-9]\d|[1-9])[\s.-]?([A-Za-z]{{1,3}})[\s.-]?(\d{{3,4}})"
+    rf"({STATE_PREFIX_PATTERN})[\s.-]?(?:0[1-9]|[1-9]\d|[1-9])[\s.-]?([A-HJ-NP-Za-hj-np-z]{{1,3}})[\s.-]?(\d{{3,4}})"
     r"|"
-    r"(\d{2})[\s.-]?(BH)[\s.-]?(\d{4})[\s.-]?([A-Za-z]{1,2})"
+    r"(\d{2})[\s.-]?(BH)[\s.-]?(\d{4})[\s.-]?([A-HJ-NP-Za-hj-np-z]{1,2})"
+    r"|"
+    rf"({STATE_PREFIX_PATTERN})[\s.-]?(?:0[1-9]|[1-9]\d)[\s.-]?(\d{{4}})"
+    r"|"
+    r"(?:\^|[A-Za-z]|\/)?\s*(\d{2})\s*([A-Za-z])\s*(\d{5,6})\s*([A-Za-z])"
+    r"|"
+    r"(\d{1,3})\s*(CD|CC|UN)\s*(\d{1,4})"
     r")",
     re.IGNORECASE,
 )
+
+
+
 
 # OCR visual confusion mappings: letters frequently misidentified in positions expected to be digits.
 # e.g., 'O' or 'D' in number sequence -> '0', 'I' or 'L' -> '1', 'B' -> '8'
@@ -265,3 +280,8 @@ COMMERCIAL_DECAL_SUBSTRINGS: tuple[str, ...] = (
     "FASTAG",
     "DIESEL",
 )
+
+# Extended High Security Registration Plate (HSRP) national strip prefixes
+# Frequently misread by OCR due to vertical alignment or poor contrast (e.g. '1ND', 'IN0')
+HSRP_PREFIXES: tuple[str, ...] = ("IND", "1ND", "IN0", "IIND")
+

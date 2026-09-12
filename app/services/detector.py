@@ -101,6 +101,23 @@ class VehicleDetector:
             return None
         return (x1, y1, x2, y2)
 
+    @staticmethod
+    def _pad_box(
+        box: BoundingBox, width: int, height: int, padding_ratio: float = 0.03
+    ) -> BoundingBox:
+        """Add a safety padding margin around a bounding box, clamped to image boundaries."""
+        bw = box[2] - box[0]
+        bh = box[3] - box[1]
+        pad_x = int(bw * padding_ratio)
+        pad_y = int(bh * padding_ratio)
+        return (
+            max(0, box[0] - pad_x),
+            max(0, box[1] - pad_y),
+            min(width, box[2] + pad_x),
+            min(height, box[3] + pad_y),
+        )
+
+
     def _parse_detections(
         self,
         cls_ids: np.ndarray,
@@ -240,6 +257,7 @@ class VehicleDetector:
             human_detected, vehicles
         )
         primary_box = vehicles[0][1] if vehicles else None
+        crop_box = self._pad_box(primary_box, pil_img.width, pil_img.height) if primary_box else None
 
         return DetectionResult(
             is_eligible=is_eligible,
@@ -250,5 +268,6 @@ class VehicleDetector:
             human_detected=human_detected,
             vehicle_count=len(vehicles),
             vehicle_box=primary_box,
-            crop=pil_img.crop(primary_box) if primary_box else None,
+            crop=pil_img.crop(crop_box) if crop_box else None,
         )
+

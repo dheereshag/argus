@@ -171,3 +171,99 @@ def test_plate_result_metadata_serialization():
     dump = result.model_dump()
     assert dump["confidence"] == 0.965
     assert dump["box"] == (10, 10, 75, 45)
+
+
+# ------------------------------------------------------------------------------
+# 8. Phase 2 Enhancements: Military, Diplomatic, Vintage, HSRP, Ranking & Padding
+# ------------------------------------------------------------------------------
+
+
+def test_military_diplomatic_and_vintage_plates():
+    """Verify recognition of Military, Diplomatic, and vintage 0-series registrations."""
+    # Military plate
+    mil = parse_plate_info("21D123456A")
+    assert mil is not None
+    assert mil["plate"] == "21D123456A"
+    assert mil["state"] == "Military / Defence Series"
+
+    # Military plate with arrow prefix
+    mil_arrow = parse_plate_info("^21D123456A")
+    assert mil_arrow is not None
+    assert mil_arrow["plate"] == "21D123456A"
+    assert mil_arrow["state"] == "Military / Defence Series"
+
+    # Diplomatic plates (CD, UN)
+    dip = parse_plate_info("77CD01")
+    assert dip is not None
+    assert dip["plate"] == "77CD01"
+    assert dip["state"] == "Diplomatic Corps"
+
+    dip_un = parse_plate_info("01UN12")
+    assert dip_un is not None
+    assert dip_un["plate"] == "01UN12"
+    assert dip_un["state"] == "Diplomatic Corps"
+
+    # Vintage no-series plate
+    vin = parse_plate_info("DL011234")
+    assert vin is not None
+    assert vin["plate"] == "DL011234"
+    assert vin["state"] == "Delhi"
+
+
+def test_hsrp_misread_and_phone_contact_prefixes():
+    """Verify HSRP misread prefixes, contact prefixes, and MoRTH series handling."""
+    # Phone number with prefixes
+    assert is_phone_number("MOB9414378858") is True
+    assert is_phone_number("PH9845214173") is True
+    assert is_phone_number("CALL9845214173") is True
+    assert is_phone_number("DL01AB1234") is False
+
+    # HSRP misread prefixes stripped
+    cands_1nd = normalize_candidate_strings("1NDMH12AB1234")
+    assert "MH12AB1234" in cands_1nd
+
+    cands_in0 = normalize_candidate_strings("IN0DL01A1234")
+    assert "DL01A1234" in cands_in0
+
+    # Military OCR arrow marker stripped
+    cands_mil = normalize_candidate_strings("A21D123456A")
+    assert "21D123456A" in cands_mil
+
+    # MoRTH series letters I/O replacement
+    cands_morth_11 = normalize_candidate_strings("DL01CIA1234")
+    assert "DL01CJA1234" in cands_morth_11
+
+
+def test_candidate_ranking_prioritizes_bumper():
+    """Verify that candidate sorting prioritizes lower bumper plate over rooftop decal."""
+    from app.schemas import OCRToken
+
+    # Two tokens with same rank & confidence: roof decal (y=100) vs bumper plate (y=800)
+    tok_roof = OCRToken(text="RJ09GA0165", score=0.95, cx=50.0, cy=100.0, box=(40, 90, 60, 110))
+    tok_bumper = OCRToken(text="MH12AB1234", score=0.95, cx=50.0, cy=800.0, box=(40, 790, 60, 810))
+
+    recognizer = PlateRecognizer()
+    candidates = recognizer._collect_candidates([tok_roof, tok_bumper], [], [], "summary")
+    assert len(candidates) >= 2
+    candidates.sort(key=lambda c: (-c.rank, c.confidence, c.y_pos), reverse=True)
+    # Bumper candidate (y=800) must be sorted ahead of roof candidate (y=100)
+    assert candidates[0].info["plate"] == "MH12AB1234"
+
+
+def test_vehicle_detector_pad_box():
+    """Verify that VehicleDetector._pad_box correctly applies safety margins."""
+    from app.services.detector import VehicleDetector
+
+    # Box inside 100x100 frame
+    box = (10, 10, 60, 60)
+    padded = VehicleDetector._pad_box(box, 100, 100, padding_ratio=0.10)
+    assert padded[0] < 10
+    assert padded[1] < 10
+    assert padded[2] > 60
+    assert padded[3] > 60
+
+    # Box clamped at edges
+    edge_box = (0, 0, 100, 100)
+    padded_edge = VehicleDetector._pad_box(edge_box, 100, 100, padding_ratio=0.10)
+    assert padded_edge == (0, 0, 100, 100)
+

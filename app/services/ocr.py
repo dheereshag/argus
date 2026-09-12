@@ -298,8 +298,14 @@ class PlateRecognizer:
         candidates = self._collect_candidates(clean_tokens, lines, pairs, raw_summary)
 
         if candidates:
-            candidates.sort(key=lambda c: (-c.rank, c.confidence, -c.y_pos), reverse=True)
+            # Sort order: exact match rank (0 > 1), full plate length (10 > 6 chars), higher confidence, lower bumper y_pos > roof y_pos
+            candidates.sort(
+                key=lambda c: (-c.rank, len(c.info.get("plate", "")), c.confidence, c.y_pos),
+                reverse=True,
+            )
             return [candidates[0].info]
+
+
 
         return [{"plate": "N/A", "state": "N/A", "raw_text": raw_summary, "confidence": None, "box": None}]
 
