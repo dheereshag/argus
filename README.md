@@ -89,7 +89,7 @@ Argus uses **[uv](https://docs.astral.sh/uv/)** for fast, deterministic Python e
 
 ```bash
 # Clone the repository
-git clone https://github.com/yamantaka-singh/argus.git
+git clone https://github.com/dheereshag/argus.git
 cd argus
 
 # Synchronize virtual environment and dependencies via uv
@@ -440,6 +440,5 @@ argus/
 
 ## 📄 License & Contributing
 
-- Distributed under the **[MIT License](pyproject.toml)**.
 - For architectural discussions, refer to [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 - Ensure all quality gates pass before submitting contributions: `uv run ruff check --fix && uv run ty check && uv run pytest`.
