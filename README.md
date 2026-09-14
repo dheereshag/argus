@@ -105,7 +105,7 @@ uv run python -m app.main tests/1.jpg
 ```
 
 > [!NOTE]
-> `REJECT_ON_HUMAN_DETECTED`, `REJECT_ON_MULTIPLE_VEHICLES`, and `REJECT_ON_NO_VEHICLE` all default to `true`. Most other bundled `tests/*.jpg` samples trip one of these policies by design (they were captured for OCR benchmarking, not policy compliance) and will return a `rejected` response rather than a recognized plate — that's expected, not a bug.
+> Occupancy gatekeeping policies (`MAX_ALLOWED_HUMANS=0`, `MAX_ALLOWED_VEHICLES=1`, and `MIN_ALLOWED_VEHICLES=1`) enforce single-vehicle weighbridge compliance by default. Other bundled `tests/*.jpg` samples trip one of these policies by design (they were captured for OCR benchmarking or policy testing) and will return a `rejected` response rather than a recognized plate — that's expected, not a bug.
 
 Sample JSON CLI output:
 ```json
@@ -264,12 +264,9 @@ Configure operational limits, model weights, and weighbridge gatekeeping policie
 | `YOLO_CONFIG_DIR` | `str` | `.cache/ultralytics` | Ultralytics cache directory for model downloads. |
 | `HUMAN_CONF_THRESH` | `float` | `0.30` | Minimum confidence to register human presence. |
 | `VEHICLE_CONF_THRESH` | `float` | `0.35` | Minimum confidence to register a 4-wheeler vehicle. |
-| `REJECT_ON_HUMAN_DETECTED` | `bool` | `true` | Enforce weighbridge safety by rejecting pedestrian presence. |
+| `MAX_ALLOWED_HUMANS` | `int \| null` | `0` | Max humans permitted on scale (`0` = strict rejection, `1` = allow driver, `null` = disable). |
 | `ALLOW_CAB_OCCUPANTS` | `bool` | `true` | Permit drivers/occupants and artwork enclosed inside vehicle body; rejects only external scale pedestrians. |
-| `MAX_ALLOWED_HUMANS` | `int` | `0` | Max humans permitted before rejection (e.g. `1` to allow driver, rejecting on >= 2). |
-| `REJECT_ON_MULTIPLE_VEHICLES` | `bool` | `true` | Prevent tandem weighment fraud by rejecting multi-vehicle frames. |
-| `MAX_ALLOWED_VEHICLES` | `int` | `1` | Max 4-wheeler vehicles permitted simultaneously on scale platform. |
-| `REJECT_ON_NO_VEHICLE` | `bool` | `true` | Skip compute-heavy OCR if no 4-wheeler is localized. |
+| `MAX_ALLOWED_VEHICLES` | `int \| null` | `1` | Max 4-wheeler vehicles permitted on scale platform (`null` = disable check). |
 | `MIN_ALLOWED_VEHICLES` | `int` | `1` | Min 4-wheeler vehicles required on scale (`0` allows close-up crop-only OCR). |
 | `MIN_HUMAN_BOX_AREA_RATIO` | `float` | `0.005` | Filter out distant background pedestrians (<0.5% frame area). |
 | `MIN_VEHICLE_BOX_AREA_RATIO` | `float` | `0.01` | Filter out distant background vehicles (<1.0% frame area). |

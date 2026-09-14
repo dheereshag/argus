@@ -51,7 +51,7 @@ flowchart TD
    - Normalizes EXIF orientation and downscales large camera inputs while preserving aspect ratio.
 2. **Stage 1: Vehicle Detection & Weighbridge Gatekeeping** ([`app/services/detector.py`](file:///Users/d/Downloads/argus/app/services/detector.py)):
    - Runs Ultralytics YOLO v11 (`yolo11n.pt`) inference to identify `person`, `car`, `bus`, and `truck` bounding boxes.
-   - Enforces configurable rejection policies (`REJECT_ON_HUMAN_DETECTED`, `REJECT_ON_MULTIPLE_VEHICLES`, `REJECT_ON_NO_VEHICLE`).
+   - Enforces configurable rejection policies (`MAX_ALLOWED_HUMANS`, `MAX_ALLOWED_VEHICLES`, `MIN_ALLOWED_VEHICLES`).
    - Selects the primary vehicle (largest bounding box) and extracts a padded crop.
 3. **Stage 2: Optical Character Recognition (OCR)** ([`app/services/ocr.py`](file:///Users/d/Downloads/argus/app/services/ocr.py)):
    - Executes RapidOCR (ONNX Runtime) on the vehicle crop.
@@ -153,10 +153,10 @@ argus/
 ### 1. Weighbridge Operational Policies
 | Policy Setting | Default | Purpose |
 | :--- | :--- | :--- |
-| `REJECT_ON_HUMAN_DETECTED` | `true` | Prevents weighment if a driver/operator is standing on the scale (safety and weight tampering prevention). |
+| `MAX_ALLOWED_HUMANS` | `0` | Max humans permitted on scale (`0` = strict rejection, `1` = allow driver, `null` = disable). |
 | `ALLOW_CAB_OCCUPANTS` | `true` | Ignores humans and painted artwork geometrically enclosed within vehicle boundaries, rejecting only external pedestrians. |
-| `REJECT_ON_MULTIPLE_VEHICLES` | `true` | Prevents incorrect tandem weighment when more than one 4-wheeler is detected in the field of view. |
-| `REJECT_ON_NO_VEHICLE` | `true` | Prevents running compute-heavy OCR when no qualifying vehicle (`car`, `truck`, `bus`) is present. |
+| `MAX_ALLOWED_VEHICLES` | `1` | Max 4-wheelers allowed on scale platform (`null` = disable multiple vehicle rejection). |
+| `MIN_ALLOWED_VEHICLES` | `1` | Min 4-wheelers required on scale platform (`0` = allow crop-only / disable check). |
 | `MIN_HUMAN_BOX_AREA_RATIO` | `0.005` | Ignores tiny background pedestrian noise smaller than 0.5% frame area to prevent false rejections. |
 | `MIN_VEHICLE_BOX_AREA_RATIO` | `0.01` | Ignores distant background vehicles smaller than 1.0% frame area. |
 | `MAX_CONCURRENT_INFERENCES` | `4` | Concurrency throttle for CPU/GPU worker threads. |

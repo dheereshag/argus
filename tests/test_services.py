@@ -72,14 +72,14 @@ def test_yolo_filter_human_detection_policy(
     mock_model.return_value = [mock_results]
     mock_get_model.return_value = mock_model
 
-    # Default policy: reject_on_human is True -> rejected
+    # Default policy: reject_on_human (MAX_ALLOWED_HUMANS = 0) -> rejected
     res_default = VehicleDetector().detect(sample_image_bytes)
     assert res_default.is_eligible is False
     assert res_default.status == RecognitionStatusEnum.REJECTED_HUMAN_DETECTED
     assert res_default.human_count == 1
 
-    # Explicit policy: reject_on_human is False -> eligible
-    monkeypatch.setattr(settings, "REJECT_ON_HUMAN_DETECTED", False)
+    # Explicit policy: MAX_ALLOWED_HUMANS is None -> human check disabled, eligible
+    monkeypatch.setattr(settings, "MAX_ALLOWED_HUMANS", None)
     res_allowed = VehicleDetector().detect(sample_image_bytes)
     assert res_allowed.is_eligible is True
     assert res_allowed.status is None
@@ -102,14 +102,14 @@ def test_yolo_filter_no_vehicle_policy(mock_get_model, sample_image_bytes, monke
     mock_model.return_value = [mock_results]
     mock_get_model.return_value = mock_model
 
-    # Default policy: reject_on_no_vehicle is True -> rejected
+    # Default policy: MIN_ALLOWED_VEHICLES = 1 -> rejected when vehicle count is 0
     res_default = VehicleDetector().detect(sample_image_bytes)
     assert res_default.is_eligible is False
     assert res_default.status == RecognitionStatusEnum.REJECTED_NO_FOUR_WHEELER
     assert res_default.vehicle_count == 0
 
-    # Explicit policy: reject_on_no_vehicle is False -> eligible for direct plate OCR
-    monkeypatch.setattr(settings, "REJECT_ON_NO_VEHICLE", False)
+    # Explicit policy: MIN_ALLOWED_VEHICLES = 0 -> eligible for direct plate OCR
+    monkeypatch.setattr(settings, "MIN_ALLOWED_VEHICLES", 0)
     res_allowed = VehicleDetector().detect(sample_image_bytes)
     assert res_allowed.is_eligible is True
     assert res_allowed.status is None
@@ -131,14 +131,14 @@ def test_yolo_filter_multiple_vehicles_policy(mock_get_model, sample_image_bytes
     mock_model.return_value = [mock_results]
     mock_get_model.return_value = mock_model
 
-    # Default policy: reject_on_multiple_vehicles is True -> rejected
+    # Default policy: MAX_ALLOWED_VEHICLES = 1 -> rejected
     res_default = VehicleDetector().detect(sample_image_bytes)
     assert res_default.is_eligible is False
     assert res_default.status == RecognitionStatusEnum.REJECTED_MULTIPLE_VEHICLES
     assert res_default.vehicle_count == 2
 
-    # Explicit policy: reject_on_multiple_vehicles is False -> eligible with primary vehicle
-    monkeypatch.setattr(settings, "REJECT_ON_MULTIPLE_VEHICLES", False)
+    # Explicit policy: MAX_ALLOWED_VEHICLES is None -> eligible with primary vehicle
+    monkeypatch.setattr(settings, "MAX_ALLOWED_VEHICLES", None)
     res_allowed = VehicleDetector().detect(sample_image_bytes)
     assert res_allowed.is_eligible is True
     assert res_allowed.status is None

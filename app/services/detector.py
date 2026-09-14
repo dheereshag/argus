@@ -229,9 +229,9 @@ class VehicleDetector:
             tuple[bool, RecognitionStatusEnum | None]: (is_eligible, status)
         """
         vehicle_count = len(vehicles)
-        human_limit = settings.MAX_ALLOWED_HUMANS if settings.REJECT_ON_HUMAN_DETECTED else None
-        vehicle_max = settings.MAX_ALLOWED_VEHICLES if settings.REJECT_ON_MULTIPLE_VEHICLES else None
-        vehicle_min = settings.MIN_ALLOWED_VEHICLES if settings.REJECT_ON_NO_VEHICLE else 0
+        human_limit = settings.MAX_ALLOWED_HUMANS
+        vehicle_max = settings.MAX_ALLOWED_VEHICLES
+        vehicle_min = settings.MIN_ALLOWED_VEHICLES
 
         if human_limit is not None and human_count > human_limit:
             logger.warning(
