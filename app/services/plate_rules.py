@@ -92,22 +92,31 @@ def _normalize_10_char(cand: str, st_corr: str) -> list[str]:
 
 
 def _normalize_9_char(cand: str, st_corr: str) -> list[str]:
-    """Normalize 9-character plate permutations (SS D AA NNNN or SS DD A NNNN)."""
+    """Normalize 9-character plate permutations (SS DD A NNNN, SS D AA NNNN, or SS DD AA NNN)."""
     configs = [
         (cand[2:4], CHAR_TO_DIGIT, cand[4:5], DIGIT_TO_CHAR, cand[5:9], CHAR_TO_DIGIT),
         (cand[2:3], CHAR_TO_DIGIT, cand[3:5], DIGIT_TO_CHAR, cand[5:9], CHAR_TO_DIGIT),
+        (cand[2:4], CHAR_TO_DIGIT, cand[4:6], DIGIT_TO_CHAR, cand[6:9], CHAR_TO_DIGIT),
     ]
-    return [
+    variants = [
         st_corr + _apply_char_map(d, d_map) + _apply_char_map(s, s_map) + _apply_char_map(n, n_map)
         for d, d_map, s, s_map, n, n_map in configs
     ]
+    for v in list(variants):
+        if len(v) == 9 and v[4] in ("I", "O"):
+            variants.append(v[:4] + ("J" if v[4] == "I" else "D") + v[5:])
+        ser2 = v[4:6]
+        if len(v) == 9 and ("I" in ser2 or "O" in ser2):
+            variants.append(v[:4] + ser2.replace("I", "J").replace("O", "D") + v[6:])
+    return variants
 
 
 def _normalize_8_char(cand: str, st_corr: str) -> list[str]:
-    """Normalize older 8-character plate permutations (SS D A NNNN, SS DD A NNN, or SS DD NNNN)."""
+    """Normalize older 8-character plate permutations (SS D A NNNN, SS DD A NNN, SS DD NNNN, or SS D AA NNN)."""
     configs = [
         (cand[2:3], CHAR_TO_DIGIT, cand[3:4], DIGIT_TO_CHAR, cand[4:8], CHAR_TO_DIGIT),
         (cand[2:4], CHAR_TO_DIGIT, cand[4:5], DIGIT_TO_CHAR, cand[5:8], CHAR_TO_DIGIT),
+        (cand[2:3], CHAR_TO_DIGIT, cand[3:5], DIGIT_TO_CHAR, cand[5:8], CHAR_TO_DIGIT),
     ]
     variants = [
         st_corr + _apply_char_map(d, d_map) + _apply_char_map(s, s_map) + _apply_char_map(n, n_map)
@@ -226,9 +235,12 @@ def parse_plate_info(raw_plate: str | None) -> dict[str, Any] | None:
             cleaned = cleaned[len(pfx) :]
             break
 
-    # Handle common West Bengal OCR misread prefix
-    if cleaned.startswith("W8"):
-        cleaned = "WB" + cleaned[2:]
+    # Handle state prefix OCR misreads (e.g. W8 -> WB, 0D -> OD, 7G -> TG)
+    prefix_2 = cleaned[:2]
+    if prefix_2 in STATE_PREFIX_CORRECTIONS:
+        candidate_fixed = STATE_PREFIX_CORRECTIONS[prefix_2] + cleaned[2:]
+        if INDIAN_PLATE_REGEX.fullmatch(candidate_fixed):
+            cleaned = candidate_fixed
 
     match = INDIAN_PLATE_REGEX.fullmatch(cleaned)
     if not match:

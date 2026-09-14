@@ -208,6 +208,18 @@ STATE_PREFIX_CORRECTIONS: dict[str, str] = {
     "T5": "TS",
     "7S": "TS",
     "7G": "TG",
+    "TC": "TG",
+    "OL": "DL",
+    "QL": "DL",
+    "1L": "DL",
+    "RA": "KA",
+    "NP": "MP",
+    "M0": "MP",
+    "PJ": "RJ",
+    "0P": "UP",
+    "OP": "UP",
+    "7N": "TN",
+    "1N": "TN",
 }
 
 # High-frequency text decals, manufacturer badges, and regulatory labels painted on commercial vehicles

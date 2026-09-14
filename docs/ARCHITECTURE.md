@@ -56,18 +56,20 @@ flowchart TD
 3. **Stage 2: Optical Character Recognition (OCR)** ([`app/services/ocr.py`](file:///Users/d/Downloads/argus/app/services/ocr.py)):
    - Executes RapidOCR (ONNX Runtime) on the vehicle crop.
    - If no candidate text is found, executes a fallback pass on the full image frame.
-   - Uses CLAHE (Contrast Limited Adaptive Histogram Equalization) and cubic interpolation if lighting or contrast is suboptimal.
+   - Uses accelerated, bounded CLAHE (Contrast Limited Adaptive Histogram Equalization) with linear interpolation if lighting or contrast is suboptimal.
 4. **Spatial Layout & Multi-Line Plate Clustering** ([`app/services/ocr.py`](file:///Users/d/Downloads/argus/app/services/ocr.py)):
    - Evaluates token bounding boxes and centroids.
    - Groups horizontally aligned tokens into lines using vertical bounding box overlap.
-   - Reconstructs stacked multi-line plates (common on Indian commercial trucks) using horizontal line concatenation and vertical stacking.
+   - Reconstructs stacked multi-line plates (common on Indian commercial trucks) using horizontal line concatenation and vertical stacking with top-to-bottom spatial precedence.
+   - Supports proximity pairing across intermediate decal or badge tokens.
 5. **Domain Validation & Normalization** ([`app/services/plate_rules.py`](file:///Users/d/Downloads/argus/app/services/plate_rules.py)):
    - Filters decal words and 10-digit driver mobile numbers.
    - Strips HSRP blue band `"IND"` prefixes fused to license plates.
-   - Applies optical character confusion heuristics across standard 8 to 11-character plates (including 3-letter series like `DL01CAA1234`).
+   - Applies optical character confusion heuristics across standard 8 to 11-character plates (including 3-letter series like `DL01CAA1234` and 3-digit registrations like `RJ09GA165`).
    - Normalizes Bharat Series (`BH`) with OCR confusion resilience.
    - Validates state codes (including 2024 Telangana `TG` update) against [`app/constants.py`](file:///Users/d/Downloads/argus/app/constants.py).
-6. **Structured Output Assembly** ([`app/schemas.py`](file:///Users/d/Downloads/argus/app/schemas.py)):
+6. **Structured Output Assembly & Coordinate Mapping** ([`app/schemas.py`](file:///Users/d/Downloads/argus/app/schemas.py), [`app/services/pipeline.py`](file:///Users/d/Downloads/argus/app/services/pipeline.py)):
+   - Translates plate bounding boxes from vehicle crop space back into global image frame coordinates.
    - Packages result into a typed [`RecognitionResponse`](file:///Users/d/Downloads/argus/app/schemas.py) model including execution latency, vehicle metadata, OCR confidence score, and plate bounding box coordinates.
 
 ---
@@ -152,6 +154,7 @@ argus/
 | Policy Setting | Default | Purpose |
 | :--- | :--- | :--- |
 | `REJECT_ON_HUMAN_DETECTED` | `true` | Prevents weighment if a driver/operator is standing on the scale (safety and weight tampering prevention). |
+| `ALLOW_CAB_OCCUPANTS` | `true` | Ignores humans and painted artwork geometrically enclosed within vehicle boundaries, rejecting only external pedestrians. |
 | `REJECT_ON_MULTIPLE_VEHICLES` | `true` | Prevents incorrect tandem weighment when more than one 4-wheeler is detected in the field of view. |
 | `REJECT_ON_NO_VEHICLE` | `true` | Prevents running compute-heavy OCR when no qualifying vehicle (`car`, `truck`, `bus`) is present. |
 | `MIN_HUMAN_BOX_AREA_RATIO` | `0.005` | Ignores tiny background pedestrian noise smaller than 0.5% frame area to prevent false rejections. |

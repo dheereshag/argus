@@ -101,18 +101,20 @@ class PlateRecognizer:
     @staticmethod
     def _enhance_contrast(img: Image.Image) -> Image.Image:
         """
-        Enhance image contrast and resolution using CLAHE and bicubic upscaling.
+        Enhance image contrast and resolution using CLAHE and bounded linear upscaling.
 
         Applied during second-pass OCR fallback when a vehicle crop is low-contrast,
         shadowed, dirty, or distant:
-          - Upscales small crops (< 600px) by 2.5x with bicubic interpolation.
+          - Upscales small crops (min edge < 300px) bounded by 640px with linear interpolation.
           - Applies CLAHE (clipLimit=3.5, tileGridSize=(4, 4)) to boost plate embossed text.
         """
         np_img = np.array(img)
         h, w = np_img.shape[:2]
 
-        if w < 600 or h < 600:
-            np_img = cv2.resize(np_img, (0, 0), fx=2.5, fy=2.5, interpolation=cv2.INTER_CUBIC)
+        if min(w, h) < 300:
+            scale = min(2.0, 640.0 / max(w, h, 1))
+            if scale > 1.05:
+                np_img = cv2.resize(np_img, (0, 0), fx=scale, fy=scale, interpolation=cv2.INTER_LINEAR)
 
         gray = cv2.cvtColor(np_img, cv2.COLOR_RGB2GRAY) if len(np_img.shape) == 3 else np_img
         clahe = cv2.createCLAHE(clipLimit=3.5, tileGridSize=(4, 4))
@@ -214,12 +216,15 @@ class PlateRecognizer:
                 if tok_a.cx is not None and tok_a.cy is not None and tok_b.cx is not None and tok_b.cy is not None:
                     dist = math.hypot(tok_a.cx - tok_b.cx, tok_a.cy - tok_b.cy)
                     y_mean = float((tok_a.cy + tok_b.cy) / 2.0)
+                    top_tok, bot_tok = (tok_a, tok_b) if tok_a.cy <= tok_b.cy else (tok_b, tok_a)
                 else:
                     dist = float(abs(i - j) * 100.0)
                     y_mean = tok_a.cy or tok_b.cy or 0.0
+                    top_tok, bot_tok = tok_a, tok_b
 
-                candidate_pairs.append((dist, tok_a.text + tok_b.text, y_mean, [tok_a, tok_b]))
-                candidate_pairs.append((dist + 0.1, tok_b.text + tok_a.text, y_mean, [tok_b, tok_a]))
+                candidate_pairs.append((dist, top_tok.text + bot_tok.text, y_mean, [top_tok, bot_tok]))
+                if abs((tok_a.cy or 0.0) - (tok_b.cy or 0.0)) < 10.0:
+                    candidate_pairs.append((dist + 0.1, bot_tok.text + top_tok.text, y_mean, [bot_tok, top_tok]))
 
         candidate_pairs.sort(key=lambda p: p[0])
         return candidate_pairs
@@ -278,6 +283,11 @@ class PlateRecognizer:
         for idx in range(len(lines) - 1):
             top, bottom = lines[idx], lines[idx + 1]
             _evaluate("".join(t.text for t in top) + "".join(t.text for t in bottom), top + bottom, top[0].cy or 0.0)
+            if idx + 2 < len(lines):
+                line_gap = (lines[idx + 2][0].cy or 0.0) - (lines[idx][0].cy or 0.0)
+                if line_gap < 120.0:
+                    third = lines[idx + 2]
+                    _evaluate("".join(t.text for t in top) + "".join(t.text for t in third), top + third, top[0].cy or 0.0)
 
         for _, pair_raw, y_pos, p_toks in pairs:
             _evaluate(pair_raw, p_toks, y_pos)
@@ -298,14 +308,18 @@ class PlateRecognizer:
         candidates = self._collect_candidates(clean_tokens, lines, pairs, raw_summary)
 
         if candidates:
-            # Sort order: exact match rank (0 > 1), full plate length (10 > 6 chars), higher confidence, lower bumper y_pos > roof y_pos
+            # Sort order: full 10/11-char plate preference, exact match rank, length, confidence, bumper y_pos
             candidates.sort(
-                key=lambda c: (-c.rank, len(c.info.get("plate", "")), c.confidence, c.y_pos),
+                key=lambda c: (
+                    len(c.info.get("plate", "")) >= 10,
+                    -c.rank,
+                    len(c.info.get("plate", "")),
+                    c.confidence,
+                    c.y_pos,
+                ),
                 reverse=True,
             )
             return [candidates[0].info]
-
-
 
         return [{"plate": "N/A", "state": "N/A", "raw_text": raw_summary, "confidence": None, "box": None}]
 

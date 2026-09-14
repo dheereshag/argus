@@ -265,6 +265,7 @@ Configure operational limits, model weights, and weighbridge gatekeeping policie
 | `HUMAN_CONF_THRESH` | `float` | `0.30` | Minimum confidence to register human presence. |
 | `VEHICLE_CONF_THRESH` | `float` | `0.35` | Minimum confidence to register a 4-wheeler vehicle. |
 | `REJECT_ON_HUMAN_DETECTED` | `bool` | `true` | Enforce weighbridge safety by rejecting pedestrian presence. |
+| `ALLOW_CAB_OCCUPANTS` | `bool` | `true` | Permit drivers/occupants and artwork enclosed inside vehicle body; rejects only external scale pedestrians. |
 | `MAX_ALLOWED_HUMANS` | `int` | `0` | Max humans permitted before rejection (e.g. `1` to allow driver, rejecting on >= 2). |
 | `REJECT_ON_MULTIPLE_VEHICLES` | `bool` | `true` | Prevent tandem weighment fraud by rejecting multi-vehicle frames. |
 | `MAX_ALLOWED_VEHICLES` | `int` | `1` | Max 4-wheeler vehicles permitted simultaneously on scale platform. |
@@ -272,6 +273,7 @@ Configure operational limits, model weights, and weighbridge gatekeeping policie
 | `MIN_ALLOWED_VEHICLES` | `int` | `1` | Min 4-wheeler vehicles required on scale (`0` allows close-up crop-only OCR). |
 | `MIN_HUMAN_BOX_AREA_RATIO` | `float` | `0.005` | Filter out distant background pedestrians (<0.5% frame area). |
 | `MIN_VEHICLE_BOX_AREA_RATIO` | `float` | `0.01` | Filter out distant background vehicles (<1.0% frame area). |
+| `DEFAULT_YOLO_IMGSZ` | `int` | `640` | Standardized YOLO inference resolution. |
 | `MAX_CONCURRENT_INFERENCES` | `int` | `4` | Concurrency semaphore throttle protecting CPU/GPU RAM. |
 | `MAX_UPLOAD_BYTES` | `int` | `8388608` | Maximum HTTP upload payload size (8 MB). |
 | `MAX_IMAGE_EDGE_PX` | `int` | `1920` | Max image dimension before automatic safety downscaling. |

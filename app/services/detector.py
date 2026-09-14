@@ -118,6 +118,19 @@ class VehicleDetector:
         )
 
 
+    @staticmethod
+    def _is_contained(inner: BoundingBox, outer: BoundingBox, threshold: float = 0.80) -> bool:
+        """Check if inner box is predominantly contained within outer box (e.g. cab occupant or artwork)."""
+        inter_x1 = max(inner[0], outer[0])
+        inter_y1 = max(inner[1], outer[1])
+        inter_x2 = min(inner[2], outer[2])
+        inter_y2 = min(inner[3], outer[3])
+        if inter_x2 <= inter_x1 or inter_y2 <= inter_y1:
+            return False
+        inter_area = (inter_x2 - inter_x1) * (inter_y2 - inter_y1)
+        inner_area = max(1, (inner[2] - inner[0]) * (inner[3] - inner[1]))
+        return (inter_area / inner_area) >= threshold
+
     def _parse_detections(
         self,
         cls_ids: np.ndarray,
@@ -129,7 +142,7 @@ class VehicleDetector:
         vehicle_conf_thresh: float,
     ) -> tuple[int, list[tuple[str, BoundingBox]]]:
         """Parse raw YOLO output arrays, clamp boxes, count humans, and sort vehicles."""
-        human_count = 0
+        human_candidates: list[BoundingBox] = []
         vehicles: list[tuple[int, str, BoundingBox]] = []
         total_frame_area = width * height
         min_human_area = settings.MIN_HUMAN_BOX_AREA_RATIO * total_frame_area
@@ -150,7 +163,7 @@ class VehicleDetector:
 
             if cls_id == PERSON_CLASS_ID and conf >= human_conf_thresh:
                 if area >= min_human_area:
-                    human_count += 1
+                    human_candidates.append(box)
                 continue
 
             if (
@@ -161,7 +174,16 @@ class VehicleDetector:
                 vehicles.append((area, FOUR_WHEELER_CLASS_NAMES[cls_id], box))
 
         vehicles.sort(key=lambda item: item[0], reverse=True)
-        return human_count, [(v_type, box) for _, v_type, box in vehicles]
+        sorted_vehicles = [(v_type, box) for _, v_type, box in vehicles]
+
+        if settings.ALLOW_CAB_OCCUPANTS and sorted_vehicles:
+            human_count = sum(
+                1 for h_box in human_candidates if not any(self._is_contained(h_box, v_box) for _, v_box in sorted_vehicles)
+            )
+        else:
+            human_count = len(human_candidates)
+
+        return human_count, sorted_vehicles
 
     def _run_detection(
         self,
@@ -179,7 +201,7 @@ class VehicleDetector:
         require(pil_img is not None, "_run_detection called with no image")
         width, height = pil_img.size
 
-        results = next(iter(self.get_model()(pil_img, verbose=False)))
+        results = next(iter(self.get_model()(pil_img, imgsz=settings.DEFAULT_YOLO_IMGSZ, verbose=False)))
         boxes = getattr(results, "boxes", None)
         if boxes is None or len(boxes) == 0 or not hasattr(boxes, "cls"):
             return 0, []
@@ -258,5 +280,6 @@ class VehicleDetector:
             human_count=human_count,
             vehicle_box=primary_box,
             crop=pil_img.crop(crop_box) if crop_box else None,
+            crop_box=crop_box,
         )
 

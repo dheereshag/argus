@@ -80,6 +80,7 @@ class DetectionResult:
     human_count: int = 0
     vehicle_box: tuple[int, int, int, int] | None = None
     crop: Any = None
+    crop_box: tuple[int, int, int, int] | None = None
 
 
 class RecognitionStatusEnum(str, Enum):

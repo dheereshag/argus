@@ -114,6 +114,24 @@ def _build_response(
     )
 
 
+def _adjust_crop_coordinates(
+    raw_results: list[dict[str, Any]],
+    crop_box: tuple[int, int, int, int] | None,
+) -> list[dict[str, Any]]:
+    """Translate plate bounding box coordinates from crop space to full image frame space."""
+    if not crop_box:
+        return raw_results
+    cx1, cy1, _, _ = crop_box
+    adjusted: list[dict[str, Any]] = []
+    for item in raw_results:
+        entry = dict(item)
+        box = entry.get("box")
+        if box and isinstance(box, (tuple, list)) and len(box) >= 4:
+            entry["box"] = (int(box[0] + cx1), int(box[1] + cy1), int(box[2] + cx1), int(box[3] + cy1))
+        adjusted.append(entry)
+    return adjusted
+
+
 def _run_stage2_ocr(detection: DetectionResult, image_bytes: bytes, filename: str) -> list[PlateResult]:
     """Execute RapidOCR on vehicle crop, falling back to full frame if needed."""
     logger.info(f"Running OCR on '{filename}'")
@@ -123,8 +141,11 @@ def _run_stage2_ocr(detection: DetectionResult, image_bytes: bytes, filename: st
         target = detection.crop if detection.crop is not None else image_bytes
         raw = recognizer.recognize(target, filename=filename)
 
-        if detection.crop is not None and not any(r.get("plate") and r.get("plate") != "N/A" for r in raw):
-            raw = recognizer.recognize(image_bytes, filename=filename)
+        if detection.crop is not None:
+            if any(r.get("plate") and r.get("plate") != "N/A" for r in raw):
+                raw = _adjust_crop_coordinates(raw, detection.crop_box)
+            else:
+                raw = recognizer.recognize(image_bytes, filename=filename)
     except (ANPRServiceError, ValueError, RuntimeError, OSError, KeyError, AttributeError) as exc:
         logger.error(f"OCR failed on '{filename}': {exc}")
 
