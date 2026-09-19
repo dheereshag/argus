@@ -12,150 +12,216 @@ This guide addresses physical edge security, device authentication, and anti-tam
 │ 1. Hardware Sensor & Camera Capture                    │
 │ 2. Argus ANPR Engine (YOLO26 + RapidOCR)               │
 │ 3. Ingestion Client (Compiled with Nuitka)             │
-│    Holds unique credentials (e.g., Device ID: pi-05)   │
+│    Credentials: EDGE_USERNAME + EDGE_PASSWORD          │
+│    Session: Managed via requests.Session()             │
 └──────────────────────────┬─────────────────────────────┘
-                           │ HTTPS POST /api/entries
+                           │ 1. POST /api/auth/login (Auth Session)
+                           │ 2. HTTPS POST /api/entries (Session Cookie)
                            ▼
 ┌────────────────────────────────────────────────────────┐
 │ Cloud / On-Prem Backend (Next.js)                      │
-│ - Reverse Proxy (Nginx / Caddy / Cloudflare)           │
-│ - Next.js Route Handlers (app/api/entries/route.ts)    │
-│ - Database (Stores device identities & scoped roles)   │
+│ - Session Auth Handler (app/api/auth/login/route.ts)   │
+│ - Next.js Ingestion Route (app/api/entries/route.ts)   │
+│ - Database (Stores user credentials & session states)  │
 └────────────────────────────────────────────────────────┘
 ```
 
 ### Key Context & Clarifications
-1. **Per-Device Credentials**: Each Raspberry Pi has its own **unique** Per-Device API Key (`x-device-id` + `x-device-key`). There is **no shared global master password or single token**.
-2. **Backend**: Built with **Next.js** (App Router Route Handlers / Middleware).
-3. **Domain Separation & Role Enforcement**: Devices are registered in a dedicated `Device` database table (distinct from human `User` accounts). Devices are scoped strictly to `POST /api/entries` and cannot read other records, query dashboards, or access administrative routes.
+1. **Credentials & Session Architecture**: Each Raspberry Pi edge ingestion client authenticates using a dedicated **Username & Password** account. Once authenticated, Next.js issues an authenticated session (via encrypted `HttpOnly` cookie or session token).
+2. **Session Persistence on Edge**: The Python client maintains state using `requests.Session()`, which stores the session cookie and automatically attaches it to subsequent requests.
+3. **Automated Session Resilience (4G Drops & Expiry)**: Unattended weighbridges frequently experience network disconnects, server restarts, or session timeouts. If `POST /api/entries` receives a `401 Unauthorized`, the client automatically re-authenticates via `POST /api/auth/login` and seamlessly retries the upload.
+4. **Backend**: Next.js App Router route handlers with encrypted session cookies (e.g., `iron-session`, NextAuth, or session database table).
+5. **Role Enforcement**: Edge service accounts have `role: "EDGE_DEVICE"`, scoped strictly to `POST /api/entries` and unable to access operator UI or administrative routes.
 
 ---
 
-## 2. Device Authentication in Next.js: Per-Device API Keys vs `device.crt` (mTLS)
+## 2. Device Authentication in Next.js: Username & Password with Session Management
 
-Since each Pi has its own unique API key, **the blast radius is strictly isolated**: if Pi #5 is compromised or stolen, you can revoke `pi-05` in your Next.js database without affecting Pi #1 through #4 or any user accounts.
+Using username and password paired with robust **session management** allows edge devices to securely authenticate against standard Next.js authentication stacks while maintaining high reliability in industrial IoT environments.
 
-### Why Username & Password Was Discarded for Edge Hardware
+### How Username/Password + Session Management Operates on Edge Devices
 
-Initially, traditional username/password authentication (with Argon2/bcrypt and JWT access/refresh rotation) might seem familiar from web applications. However, on unattended IoT edge devices, it is an anti-pattern:
-
-1. **Identical Physical Vulnerability**:
-   A static password stored in a file on the Raspberry Pi suffers from the *exact same physical extraction risk* as an API key. If an attacker mounts an unencrypted SD card or extracts strings from memory, they obtain the password just as easily. Passwords provide zero additional physical protection over an API key.
-2. **Statefulness & 4G Network Drops**:
-   At unattended weighbridges with intermittent connectivity, JWT access and refresh tokens expire during network drops. When connectivity returns, the device fails with `401 Unauthorized` and must run complex re-login and recovery routines before it can upload data. An API key is **100% stateless**—each request is self-contained.
-3. **Next.js Event Loop Starvation During Store-and-Forward Reconnection**:
-   Argus queues weighment readings locally during network outages. When 4G reconnects, the Pi flushes a burst of 50–200 queued records. If using passwords or sessions, incoming requests force CPU-intensive password hashing (**Argon2 / bcrypt**, taking ~100ms per verification). In single-threaded Node.js, this stalls the event loop. With Per-Device API Keys, Next.js verifies high-entropy keys using **SHA-256 in $0.005$ milliseconds (20,000x faster)**.
-4. **Domain Separation (Fleet Assets vs Human Accounts)**:
-   Hardware cameras should never be modeled as `User` records. They do not have email addresses, password reset flows, or MFA. Storing hardware in a dedicated `Device` table prevents fleet records from polluting human account tables.
-
----
-
-### Detailed Comparison: Production Ingestion Approaches
-
-| Criterion | Per-Device API Key (`x-device-id` + `x-device-key`) | Mutual TLS (`device.crt` / mTLS) | Hardware Asymmetric Key (TPM 2.0 / RFC 7523) |
-| :--- | :--- | :--- | :--- |
-| **Protocol Flow in Next.js** | Single-step: Pi sends `x-device-id` and `x-device-key` directly in HTTP request headers. | Handshake-level: Identity verified during TLS handshake before HTTP request begins. | Cryptographic: Pi signs request/JWT using hardware private key in TPM; verified against public key. |
-| **Operational Feasibility** | **Maximum**: Works out-of-the-box on managed platforms (Vercel, Railway, Node.js) with zero custom reverse proxy setup. | **High (with Proxy)**: Requires Nginx, Caddy, or Cloudflare API Shield to terminate raw client certs. | **Maximum Security**: Zero secrets stored on disk; private key permanently locked in silicon. |
-| **Next.js Server Load** | **Ultra-lightweight**: Fast SHA-256 hash ($0.005$ ms) on every request using constant-time equality. | Zero Node.js load: Reverse proxy drops unauthorized connections before touching Next.js. | Minimal: Public key signature verification ($<0.05$ ms) with no database secret lookups. |
-| **Edge Reliability on Network Drops** | **100% Stateless**: Automatically recovers and resumes posting instantly when network returns. Zero token refresh code. | Maximum: Connection level; no tokens or sessions to expire or maintain. | Highly robust: Signs requests on-the-fly using hardware clock; stateless. |
-| **Credential Entropy** | High: 256-bit CSPRNG cryptographic string (`argus_live_sec_...`). | Cryptographic: Asymmetric 2048-bit RSA or ECC P-256 keypair. | Cryptographic: Hardware-generated non-exportable ECC P-256 keypair. |
+1. **Initial Login**:
+   - The edge client reads `EDGE_USERNAME` and `EDGE_PASSWORD` from local configuration (`.env`).
+   - It sends a `POST /api/auth/login` request with `{ "username": "...", "password": "..." }`.
+   - Next.js verifies the credentials against the database (using password hashing like Argon2id or bcrypt) and sets an encrypted session cookie (`HttpOnly; Secure; SameSite=Lax`).
+2. **Amortizing CPU Cost (Event Loop Protection)**:
+   - Password hashing with Argon2/bcrypt is intentionally CPU-intensive (~100ms per verification).
+   - In single-threaded Node.js (Next.js), if the Pi had to transmit and verify a password on *every* weighment upload, bursting 50–100 queued records after a 4G reconnect would freeze the server's event loop for 5–10 seconds.
+   - **Session management completely solves this**: The heavy password hash runs **only once** on initial login. All subsequent requests validate the lightweight session cookie ($<0.01$ ms), keeping Next.js ultra-fast and responsive.
+3. **Session Auto-Recovery on Network Drops & Backend Restarts**:
+   - At unattended weighbridges with intermittent 4G connectivity, or when the Next.js server is redeployed, existing sessions may expire or be cleared.
+   - If an expired session is sent, Next.js responds with `401 Unauthorized`.
+   - The production Python client wraps API calls with an **automatic re-login guardrail**: when receiving a 401, it immediately re-authenticates via `login()` and transparently retries `post_entry()`.
+4. **Offline Store-and-Forward Integration**:
+   - While the network is down, readings are queued locally in RAM (or encrypted local spool).
+   - Once connectivity returns, the client logs in once, establishes an active session, and flushes all queued records without repeated login overhead.
 
 ---
 
-### Recommended Stateless Edge Python Ingestion Client
+### Production Edge Python Ingestion Client (`requests.Session()`)
 
-Because credentials are sent via headers, the edge ingestion code is simple, reliable, and immune to token expiration or session desynchronization:
+The edge ingestion client uses `requests.Session()` to persist cookies across requests, combined with an automatic re-login loop on `401 Unauthorized`:
 
 ```python
+import logging
 import requests
+from typing import Any
 
-class WeighbridgeDeviceClient:
-    """Stateless edge ingestion client using per-device API keys."""
+logger = logging.getLogger("argus.edge_client")
 
-    def __init__(self, base_url: str, device_id: str, device_key: str):
+class WeighbridgeSessionClient:
+    """
+    Production edge ingestion client using username/password with
+    automatic session management and 401 re-login recovery.
+    """
+
+    def __init__(self, base_url: str, username: str, password: str):
         self.base_url = base_url.rstrip("/")
-        self.headers = {
-            "x-device-id": device_id,
-            "x-device-key": device_key,
-            "Content-Type": "application/json",
-        }
+        self.username = username
+        self.password = password
+        self.session = requests.Session()
+        self._is_logged_in = False
 
-    def post_entry(self, entry_payload: dict) -> requests.Response:
+    def login(self) -> bool:
         """
-        Posts weighment entry to Next.js API.
-        Completely stateless: no login, no JWT refresh loops, no session expiry.
+        Authenticates against Next.js with username & password to establish a session.
+        Stores the resulting session cookie automatically in self.session.
         """
-        return requests.post(
-            f"{self.base_url}/api/entries",
-            json=entry_payload,
-            headers=self.headers,
-            timeout=10,
-        )
+        try:
+            resp = self.session.post(
+                f"{self.base_url}/api/auth/login",
+                json={"username": self.username, "password": self.password},
+                timeout=10,
+            )
+            if resp.status_code == 200:
+                self._is_logged_in = True
+                logger.info("Edge session established successfully with Next.js.")
+                return True
+
+            logger.error("Authentication failed: HTTP %s - %s", resp.status_code, resp.text)
+            return False
+        except requests.RequestException as exc:
+            logger.error("Network error during session login: %s", exc)
+            return False
+
+    def post_entry(self, entry_payload: dict[str, Any], retry_on_401: bool = True) -> requests.Response:
+        """
+        Posts a weighment entry to Next.js API using the active session.
+        If the session has expired (HTTP 401), automatically re-authenticates and retries.
+        """
+        if not self._is_logged_in:
+            if not self.login():
+                raise ConnectionError("Cannot post entry: initial edge authentication failed")
+
+        try:
+            resp = self.session.post(
+                f"{self.base_url}/api/entries",
+                json=entry_payload,
+                timeout=10,
+            )
+
+            # Auto-relogin on session expiration or backend restart
+            if resp.status_code == 401 and retry_on_401:
+                logger.warning("Session expired (HTTP 401). Re-authenticating...")
+                if self.login():
+                    return self.post_entry(entry_payload, retry_on_401=False)
+
+            return resp
+        except requests.RequestException as exc:
+            logger.error("Network error posting entry: %s", exc)
+            raise
 ```
 
 ---
 
 ### Next.js Route Handler Implementation
 
-The Next.js backend hashes the incoming `x-device-key` using SHA-256 and compares it against the stored hash in the database using `crypto.timingSafeEqual` to prevent timing attacks:
+#### 1. Login Route (`app/api/auth/login/route.ts`)
+Validates username and password, then sets an encrypted session cookie:
+
+```typescript
+// app/api/auth/login/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/lib/db";
+import bcrypt from "bcrypt";
+import { createSession } from "@/lib/session"; // iron-session, NextAuth, or custom cookie
+
+export async function POST(req: NextRequest) {
+  const { username, password } = await req.json();
+
+  if (!username || !password) {
+    return NextResponse.json(
+      { error: "Username and password required" },
+      { status: 400 }
+    );
+  }
+
+  // 1. Fetch user by username
+  const user = await db.user.findUnique({
+    where: { username },
+  });
+
+  if (!user || !user.isActive) {
+    return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+  }
+
+  // 2. Verify hashed password (Argon2 / bcrypt)
+  const isValid = await bcrypt.compare(password, user.passwordHash);
+  if (!isValid) {
+    return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+  }
+
+  // 3. Create encrypted session cookie (HttpOnly, Secure, SameSite=Lax)
+  const response = NextResponse.json({
+    success: true,
+    user: { id: user.id, username: user.username, role: user.role },
+  });
+
+  await createSession(response, {
+    userId: user.id,
+    role: user.role,
+    deviceId: user.deviceId,
+  });
+
+  return response;
+}
+```
+
+#### 2. Ingestion Route (`app/api/entries/route.ts`)
+Validates the active session cookie and ensures the user role is authorized:
 
 ```typescript
 // app/api/entries/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import crypto from "crypto";
+import { getSession } from "@/lib/session";
 
 export async function POST(req: NextRequest) {
-  const deviceId = req.headers.get("x-device-id");
-  const deviceKey = req.headers.get("x-device-key");
+  // 1. Validate session from request cookies
+  const session = await getSession(req);
 
-  if (!deviceId || !deviceKey) {
+  if (!session || !session.userId) {
     return NextResponse.json(
-      { error: "Missing device credentials" },
+      { error: "Unauthorized: Active session required" },
       { status: 401 }
     );
   }
 
-  // 1. Fetch device record from database
-  const device = await db.device.findUnique({
-    where: { id: deviceId },
-  });
-
-  if (!device || !device.isActive) {
+  // 2. Role-based access control: ensure edge account or admin
+  if (session.role !== "EDGE_DEVICE" && session.role !== "ADMIN") {
     return NextResponse.json(
-      { error: "Unauthorized or disabled device" },
+      { error: "Forbidden: Insufficient privileges for ingestion" },
       { status: 403 }
     );
   }
 
-  // 2. Constant-time SHA-256 verification to prevent timing attacks
-  const providedHash = crypto
-    .createHash("sha256")
-    .update(deviceKey)
-    .digest("hex");
-
-  const isMatch =
-    providedHash.length === device.hashedKey.length &&
-    crypto.timingSafeEqual(
-      Buffer.from(providedHash),
-      Buffer.from(device.hashedKey)
-    );
-
-  if (!isMatch) {
-    return NextResponse.json({ error: "Invalid device key" }, { status: 403 });
-  }
-
-  // 3. Update device last seen heartbeat
-  await db.device.update({
-    where: { id: device.id },
-    data: { lastSeenAt: new Date() },
-  });
-
-  // 4. Ingest weighment & plate entry
+  // 3. Ingest weighment & plate entry
   const payload = await req.json();
   const entry = await db.entry.create({
     data: {
-      deviceId: device.id,
+      deviceId: session.deviceId,
+      userId: session.userId,
       plate: payload.plate,
       vehicleType: payload.vehicleType,
       confidence: payload.confidence,
@@ -168,31 +234,27 @@ export async function POST(req: NextRequest) {
 
 ---
 
-### Data Modeling: `deviceId` vs Eliminating `type` ('automatic' vs 'manual')
+### Data Modeling: Accounts, Roles, & Devices
 
-Introducing `deviceId` to the `Entry` table enables cleaner database normalization and solves ambiguity between automated edge readings and human operator entries:
-
-#### 1. Why `deviceId` is Essential
-In multi-lane or multi-camera facilities, knowing that a reading was simply "automatic" is insufficient—you must record **which specific camera or weighbridge gate** captured the vehicle. This enables:
-- Per-lane OCR accuracy and misread tracking.
-- Immediate blast-radius queries if a camera goes out of alignment: `SELECT * FROM entries WHERE deviceId = 'lane-02'`.
-- Health monitoring and telemetry (`lastSeenAt`, firmware version) per gate.
-
-#### 2. Can You Eliminate the `type` Column?
-**Yes.** Instead of maintaining a redundant `type: 'automatic' | 'manual'` column that can drift out of sync with foreign keys, the source can be derived:
-- If `deviceId != null` $\rightarrow$ The entry was created automatically by edge hardware.
-- If `userId != null` (or `deviceId == null`) $\rightarrow$ The entry was typed manually by an operator.
+Using a unified `User` model with dedicated roles (`EDGE_DEVICE`, `OPERATOR`, `ADMIN`) provides full domain separation while keeping authentication uniform:
 
 ```prisma
 // Recommended Prisma Schema
-model Device {
-  id          String    @id // e.g. "pi-lane-01-inbound"
-  name        String
-  hashedKey   String    // SHA-256 hash of x-device-key
-  isActive    Boolean   @default(true)
-  lastSeenAt  DateTime?
-  entries     Entry[]
-  createdAt   DateTime  @default(now())
+model User {
+  id           String    @id @default(cuid())
+  username     String    @unique
+  passwordHash String
+  role         Role      @default(OPERATOR)
+  deviceId     String?   // Links edge account to physical gate (e.g. "pi-lane-01")
+  isActive     Boolean   @default(true)
+  entries      Entry[]
+  createdAt    DateTime  @default(now())
+}
+
+enum Role {
+  OPERATOR
+  ADMIN
+  EDGE_DEVICE
 }
 
 model Entry {
@@ -202,9 +264,9 @@ model Entry {
   confidence   Float?
 
   // Origin & Audit Trail
-  deviceId     String?   // Set if automated camera capture
-  device       Device?   @relation(fields: [deviceId], references: [id])
-  createdById  String?   // Set if created manually by a human operator
+  deviceId     String?   // e.g. "pi-lane-01"
+  userId       String?   // Ingested by edge user or operator
+  user         User?     @relation(fields: [userId], references: [id])
   verifiedById String?   // Set if an operator reviewed/corrected the plate
 
   createdAt    DateTime  @default(now())
@@ -212,40 +274,29 @@ model Entry {
 ```
 
 > [!TIP]
-> **Handling Operator Overrides**: In real weighbridge operations, a camera may automatically detect a plate (`deviceId: "pi-01"`), but a human operator might correct a misread character. Keeping `deviceId` (captured by) alongside `verifiedById` / `updatedById` (inspected or corrected by) provides a complete, legally compliant audit trail without needing an awkward boolean flag.
-
----
-
-### What About `device.crt` (mTLS)? When Should You Upgrade?
-
-While Per-Device API Keys are the pragmatic choice for managed platforms (Vercel, Railway), **mTLS** provides zero-trust network perimeter defense:
-- **How mTLS works with Next.js**:
-  Next.js itself does not terminate raw TLS certificates. You place **Nginx**, **Caddy**, or **Cloudflare API Shield** in front of Next.js:
-  1. The reverse proxy terminates TLS and checks `device.crt` against your internal Certificate Authority (CA).
-  2. If valid, the reverse proxy passes the verified device ID to Next.js via a trusted internal header (`x-forwarded-client-cert-cn: pi-05`).
-  3. If invalid or missing, the reverse proxy **terminates the connection immediately**—Next.js never processes unauthorized requests.
-- **Verdict**: Start with Per-Device API Keys (`x-device-id` + `x-device-key`). If company compliance requires mutual TLS, add an Nginx/Cloudflare reverse proxy in front of Next.js without needing to rewrite application logic.
+> **Handling Operator Overrides**: In real weighbridge operations, a camera automatically detects a plate under an edge session (`userId` of the Pi, `deviceId: "pi-01"`). If a human operator later corrects a character on their dashboard, setting `verifiedById` provides a complete, legally compliant audit trail without needing redundant status flags.
 
 ---
 
 ## 3. Challenge 2: The "Config File & Nuitka" Reality
 
-### Can you put device API keys or credentials in a config file when compiling with Nuitka?
+### Can you put credentials in a config file when compiling with Nuitka?
 
 > [!CAUTION]
 > **No.** Nuitka compiles Python code (`.py`) into native C/C++ machine code (`.so` or binary), but it **does not compile or encrypt external config files**.
 
-Both passwords and static API keys are **shared bearer secrets**. Storing either one in plaintext on an unencrypted SD card exposes them to identical physical extraction risks:
+Storing edge credentials (`EDGE_USERNAME` and `EDGE_PASSWORD`) in plaintext on an unencrypted SD card exposes them to physical extraction risks:
 
 1. **If credentials are in `.env` or `config.json`**:
    - The config file is an uncompiled, plain-text file stored on the disk.
-   - Anyone mounting the SD card on a PC can open `.env` in Notepad and read `PI_DEVICE_KEY=argus_live_sec_...`.
-   - The attacker can then use those credentials to send fabricated weighment records to your Next.js API from their own laptop.
+   - Anyone mounting the SD card on a PC can open `.env` in Notepad and read `EDGE_PASSWORD=...`.
+   - The attacker can then use those credentials to authenticate against your Next.js API from their own machine.
 2. **If credentials are hardcoded in Python before running Nuitka**:
    - String literals inside compiled binaries reside in the `.rodata` section.
-   - Running `strings my_compiled_app | grep -i sec_` or opening the binary in disassemblers (Ghidra, IDA Pro) or `nuitka-static-unpacker` will extract the credentials in seconds.
+   - Running `strings my_compiled_app | grep -i pass` or opening the binary in disassemblers (Ghidra, IDA Pro) will extract credentials in seconds.
 
 ### How to Mitigate This
+- **Restrict File Permissions**: Enforce `chmod 600 .env` owned by `root:root` so only the service process can read the credentials.
 - **Full Disk Encryption (LUKS)**: If the SD card / eMMC is encrypted, the config file cannot be read offline.
 - **Hardware-Sealed Keys (TPM 2.0 / ATECC608)**: Move beyond static symmetric secrets to asymmetric keys generated inside a secure element. The private key never exists as a file on disk and cannot be copied.
 
@@ -325,8 +376,8 @@ To protect both your code and credentials on the edge:
 │    keys burned into silicon fuses                      │
 ├────────────────────────────────────────────────────────┤
 │ 5. Next.js Perimeter Security                          │
-│    Reverse proxy mTLS or unique per-device API tokens  │
-│    scoped strictly to POST /api/entries                │
+│    Session-based auth with encrypted HttpOnly cookies, │
+│    strict role scoping (EDGE_DEVICE), and rate limits  │
 └────────────────────────────────────────────────────────┘
 ```
 
@@ -401,7 +452,7 @@ To ensure the encrypted disk decrypts automatically upon power-on without requir
 
 | Priority | Step | Description |
 | :--- | :--- | :--- |
-| **Immediate** | **Adopt Per-Device API Keys (`x-device-id` + `x-device-key`)** | Deploy stateless per-device API keys with SHA-256 verification in Next.js. Eliminates token expiry during 4G network drops and avoids CPU-heavy password hashing. |
+| **Immediate** | **Deploy Username/Password with Session Management** | Configure dedicated edge user accounts (`EDGE_DEVICE` role), `requests.Session()` with automatic 401 re-login recovery, and encrypted session cookies in Next.js. |
 | **Immediate** | **Compile Code with Nuitka** | Compile your Python ingestion script and Argus into native `.so` / ELF binaries. |
 | **Next Step** | **Deploy LUKS Full Disk Encryption** | Encrypt root partition using LUKS so that local `.env` and credential caches cannot be extracted offline. Unattended boot via Clevis/Tang or TPM 2.0 HAT. |
 | **Hardware** | **Enclosure Switch & Compute Module** | Enclose the hardware in a locked DIN-rail box with an NC tamper microswitch, and transition to a Compute Module (CM4/CM5 with eMMC). |
@@ -430,10 +481,10 @@ While the baseline architecture (Per-Device API Keys + Nuitka + LUKS) provides a
 
 ---
 
-### Alternative 1: Asymmetric "Private Key JWT" (RFC 7523) instead of Static API Keys
+### Alternative 1: Asymmetric "Private Key JWT" (RFC 7523) instead of Static Credentials
 
 #### The Limitation of Shared Static Secrets on Edge Devices
-Even though Per-Device API Keys are vastly superior to passwords in Next.js, an API key is still a static symmetric shared secret. If extracted from unencrypted storage or RAM, an attacker can authenticate from another machine. Furthermore, **a TPM cannot protect a symmetric secret**—TPM chips are designed specifically to protect asymmetric cryptographic keypairs.
+Any static credential (whether a password or API key) is a shared secret stored on the device. If extracted from unencrypted storage or RAM, an attacker can authenticate from another machine. Furthermore, **a TPM cannot protect a symmetric secret or password**—TPM chips are designed specifically to protect asymmetric cryptographic keypairs.
 
 #### The 2026 Solution: Private Key JWT (RFC 7523 / DPoP)
 Instead of a shared API key, each Raspberry Pi is assigned an **asymmetric keypair** (ECC NIST P-256 or Ed25519):
@@ -497,7 +548,7 @@ When deploying 20 or 50 weighbridges, manual provisioning requires flashing dist
 
 | Security Tier | Architecture Stack | Effort | Best Used For |
 | :--- | :--- | :--- | :--- |
-| **Tier 1: Practical Foundation** | **Per-Device API Keys + Nuitka + LUKS** | **Current** | **Production Baseline**: Zero session desync on 4G drops, fast SHA-256 Next.js verification, isolated blast radius per device. |
+| **Tier 1: Practical Foundation** | **Username/Password + Session Management + Nuitka + LUKS** | **Current** | **Production Baseline**: Authenticated session with auto-relogin on 401, amortized password hashing in Next.js, and encrypted storage on Pi. |
 | **Tier 2: Hardware Secret Lock** | **Private Key JWT via TPM 2.0 (RFC 7523)** | **Low–Med** | **Recommended Next**: Eliminates all static secrets from the Pi; locks identity into hardware silicon. |
 | **Tier 3: Network Stealth** | **Tailscale / Cloudflare Zero-Trust Tunnel** | **Low** | **Recommended Next**: Closes backend to the public internet; eliminates DDoS and public scraping. |
 | **Tier 4: Enterprise Appliance** | **CM4/CM5 + eMMC + `dm-verity` + FDO** | **High** | **Commercial Scale**: Tamper-proof, immutable appliance with zero-touch factory provisioning. |
