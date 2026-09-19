@@ -77,15 +77,28 @@ jobs:
           git config user.name "dheereshag"
           git config user.email "da11@iitbbs.ac.in"
 
-          # Switch to orphan deployment branch
+          # Stage release artifacts to a temporary location outside the repository
+          RELEASE_DIR=$(mktemp -d)
+          cp compiled_dist/app.*.so "${RELEASE_DIR}/"
+          cp main.py pyproject.toml uv.lock README.md .python-version "${RELEASE_DIR}/"
+          [ -f .env.example ] && cp .env.example "${RELEASE_DIR}/"
+          [ -f .gitignore ] && cp .gitignore "${RELEASE_DIR}/"
+          [ -f yolo26n.pt ] && cp yolo26n.pt "${RELEASE_DIR}/"
+
+          # Switch to orphan deployment branch and wipe tracked and untracked files
+          git branch -D release-arm64 2>/dev/null || true
           git checkout --orphan release-arm64
           git rm -rf .
+          git clean -fdx
 
-          # Copy compiled binary and runtime distribution files
-          cp compiled_dist/app.*.so ./
-          cp main.py pyproject.toml uv.lock .env.example yolo26n.pt README.md ./
+          # Restore only the release distribution files
+          cp -a "${RELEASE_DIR}/." ./
+          rm -rf "${RELEASE_DIR}"
 
-          # Commit and force push to release-arm64
-          git add app.*.so main.py pyproject.toml uv.lock .env.example yolo26n.pt README.md
-          git commit -m "build(arm64): release compiled binary for ${GITHUB_SHA::7} [skip ci]"
+          # Stage files (force add compiled .so in case .gitignore has *.so)
+          git add -f app.*.so
+          git add .
+
+          # Commit and force push to release-arm64 branch
+          git commit -m "build(arm64): release compiled binary for ${GITHUB_SHA:0:7} [skip ci]"
           git push -f origin release-arm64
