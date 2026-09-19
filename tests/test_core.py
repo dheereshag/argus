@@ -12,6 +12,7 @@ def test_settings_default_values():
     assert settings.VERSION  # non-empty — exact value varies with installed package
     assert settings.HUMAN_CONF_THRESH == 0.30
     assert settings.VEHICLE_CONF_THRESH == 0.35
+    assert settings.SERVER_HOST == "127.0.0.1"
 
 
 def test_anpr_service_error():

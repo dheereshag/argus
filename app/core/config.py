@@ -49,7 +49,7 @@ class Settings(BaseSettings):
     MAX_CONCURRENT_INFERENCES: int = 4  # Maximum concurrent requests processed in threadpool
 
     # Server & CORS Settings
-    SERVER_HOST: str = "0.0.0.0"
+    SERVER_HOST: str = "127.0.0.1"  # Loopback interface (isolates to localhost/co-located services)
     SERVER_PORT: int = 8000
     CORS_ORIGINS: list[str] = ["*"]
     CORS_ALLOW_CREDENTIALS: bool = True

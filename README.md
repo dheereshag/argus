@@ -138,8 +138,8 @@ Start the high-throughput REST microservice:
 # Development mode with hot-reload:
 uv run fastapi dev
 
-# Production deployment:
-uv run fastapi run --host 0.0.0.0 --port 8000
+# Production deployment (local loopback isolation for edge security):
+uv run fastapi run --host 127.0.0.1 --port 8000
 ```
 
 - **Interactive Swagger UI**: [http://localhost:8000/docs](http://localhost:8000/docs)
@@ -275,7 +275,7 @@ Configure operational limits, model weights, and weighbridge gatekeeping policie
 | `MAX_UPLOAD_BYTES` | `int` | `8388608` | Maximum HTTP upload payload size (8 MB). |
 | `MAX_IMAGE_EDGE_PX` | `int` | `1920` | Max image dimension before automatic safety downscaling. |
 | `MAX_IMAGE_PIXELS` | `int` | `50000000` | Decompression bomb protection ceiling (50 MP). |
-| `SERVER_HOST` | `str` | `0.0.0.0` | FastAPI server listening interface. |
+| `SERVER_HOST` | `str` | `127.0.0.1` | FastAPI server listening interface (`127.0.0.1` isolates to local/co-located services; use `0.0.0.0` for open LAN). |
 | `SERVER_PORT` | `int` | `8000` | FastAPI server HTTP listening port. |
 
 ---
