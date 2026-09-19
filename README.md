@@ -363,6 +363,24 @@ For weighbridge installations running on edge hardware (Raspberry Pi 5 / CM4 / C
 - **Native Binary Compilation**: Supports ahead-of-time compilation via **Nuitka** to protect intellectual property.
 - Read the **[Edge Hardening & Security Guide](docs/EDGE_SECURITY.md)** for full disk encryption (LUKS), TPM 2.0 HAT setup, and tamper-switch zeroization.
 
+### Raspberry Pi Deployment (Compiled ARM64 Branch)
+
+For unattended edge installations where **no Python source code** should reside on the Raspberry Pi:
+
+1. **GitHub Actions (`.github/workflows/nuitka-arm64.yml`)** compiles `app/` on native `ubuntu-26.04-arm` runners and pushes the compiled binary (`app.cpython-*.so`) to the `release-arm64` branch with all `.py` source files removed.
+2. **Setup on Raspberry Pi**:
+   ```bash
+   git clone -b release-arm64 https://github.com/<your-username>/argus.git /opt/argus
+   cd /opt/argus && cp .env.example .env && uv sync --no-dev
+   ```
+3. **Updating Raspberry Pi**:
+   ```bash
+   cd /opt/argus
+   git pull origin release-arm64
+   uv sync --no-dev
+   sudo systemctl restart argus
+   ```
+
 ---
 
 ## 🧪 Benchmarking & Verification
@@ -394,12 +412,17 @@ uv run pytest --cov=app --cov-report=term-missing
 
 ```
 argus/
+├── .github/                     # GitHub Actions CI/CD workflows
+│   └── workflows/
+│       └── nuitka-arm64.yml     # Automated ARM64 compilation and release-arm64 branch deployment
 ├── docs/                        # Technical documentation and visual assets
 │   ├── assets/                  # High-resolution SVG banners and diagrams
 │   │   ├── argus-banner.svg     # HUD optic precision vector banner
 │   │   └── pipeline-diagram.svg # Blueprint-style end-to-end pipeline diagram
 │   ├── ARCHITECTURE.md          # In-depth architectural & codebase guide
 │   └── EDGE_SECURITY.md         # Raspberry Pi edge hardening and IoT security guide
+├── scripts/                     # Operational and build scripts
+│   └── build_nuitka.py          # Local Nuitka compilation and verification utility
 ├── app/                         # Production application source code
 │   ├── core/                    # Infrastructure & configuration
 │   │   ├── config.py            # Pydantic Settings environment configuration

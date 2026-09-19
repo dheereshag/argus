@@ -1,0 +1,91 @@
+name: Compile ARM64 & Publish Release Branch
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-26.04-arm
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Install System Compiler & ccache
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang ccache patchelf
+
+      - name: Cache Compiler State (ccache)
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ccache
+          key: ${{ runner.os }}-aarch64-ccache-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-aarch64-ccache-
+
+      - name: Setup uv Package Manager
+        uses: astral-sh/setup-uv@v10.1.0
+        with:
+          enable-cache: true
+
+      - name: Setup Python Runtime
+        uses: actions/setup-python@v7
+        with:
+          python-version-file: ".python-version"
+
+      - name: Install Dependencies
+        run: uv sync
+
+      - name: Run Nuitka Build (Application Code Only)
+        run: |
+          uv run python -m nuitka \
+            --module \
+            --include-package=app \
+            --nofollow-imports \
+            --remove-output \
+            --lto=yes \
+            --python-flag=no_docstrings \
+            --output-dir=compiled_dist \
+            app
+
+      - name: Verify Compiled Module Import
+        run: |
+          mkdir -p test_verify
+          cp compiled_dist/app.*.so test_verify/
+          cp main.py test_verify/
+          cd test_verify
+          uv run python -c "import app; print('SUCCESS: Native ARM64 app module loaded!')"
+
+      - name: Upload Artifact Backup
+        uses: actions/upload-artifact@v7
+        with:
+          name: argus-arm64-compiled
+          path: compiled_dist/app.*.so
+          retention-days: 14
+
+      - name: Deploy to release-arm64 Branch
+        run: |
+          git config user.name "dheereshag"
+          git config user.email "da11@iitbbs.ac.in"
+
+          # Switch to orphan deployment branch
+          git checkout --orphan release-arm64
+          git rm -rf .
+
+          # Copy compiled binary and runtime distribution files
+          cp compiled_dist/app.*.so ./
+          cp main.py pyproject.toml uv.lock .env.example yolo26n.pt README.md ./
+
+          # Commit and force push to release-arm64
+          git add app.*.so main.py pyproject.toml uv.lock .env.example yolo26n.pt README.md
+          git commit -m "build(arm64): release compiled binary for ${GITHUB_SHA::7} [skip ci]"
+          git push -f origin release-arm64

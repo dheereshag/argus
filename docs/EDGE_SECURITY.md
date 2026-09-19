@@ -249,6 +249,33 @@ Both passwords and static API keys are **shared bearer secrets**. Storing either
 - **Full Disk Encryption (LUKS)**: If the SD card / eMMC is encrypted, the config file cannot be read offline.
 - **Hardware-Sealed Keys (TPM 2.0 / ATECC608)**: Move beyond static symmetric secrets to asymmetric keys generated inside a secure element. The private key never exists as a file on disk and cannot be copied.
 
+### 3.1 Compiling Application Code with Nuitka (Zero Source on Edge)
+
+To prevent reverse-engineering of proprietary weighbridge business rules and plate normalization heuristics while keeping heavy dependencies uncompiled:
+
+1. **Compilation Strategy (`--nofollow-imports`)**:
+   - Heavy dependencies (`torch`, `ultralytics`, `rapidocr`, `onnxruntime`, `cv2`) are pre-compiled native C/C++ wheels. Recompiling them with Nuitka is slow, error-prone, and unnecessary.
+   - Nuitka is invoked with `--module --include-package=app --nofollow-imports --lto=yes --python-flag=no_docstrings`.
+   - Only `app/` is compiled into a single native shared object (`app.cpython-314-aarch64-linux-gnu.so`).
+
+2. **Automated `release-arm64` Deployment Branch**:
+   - GitHub Actions (`.github/workflows/nuitka-arm64.yml`) runs on native `ubuntu-26.04-arm`.
+   - It compiles `app/`, deletes all `app/**/*.py` source files, and force-pushes the compiled binary tree to an orphan `release-arm64` branch.
+
+3. **Raspberry Pi `git pull` Workflow**:
+   ```bash
+   # One-time setup on Pi:
+   git clone -b release-arm64 https://github.com/dheereshag/argus.git /opt/argus
+   cd /opt/argus && cp .env.example .env && uv sync --no-dev
+
+   # Updating Pi in production (zero .py source files downloaded):
+   cd /opt/argus
+   git pull origin release-arm64
+   uv sync --no-dev
+   sudo systemctl restart argus
+   ```
+   On the Pi, Python loads `app` directly from the native `.so` shared library. No `.py` source code resides on the device.
+
 ---
 
 ## 4. Challenge 3: Physical SD Card vs Soldering vs CM4/CM5
