@@ -10,7 +10,7 @@ This guide addresses physical edge security, device authentication, and anti-tam
 ┌────────────────────────────────────────────────────────┐
 │ Edge Device (Raspberry Pi at Weighbridge)              │
 │ 1. Hardware Sensor & Camera Capture                    │
-│ 2. Argus ANPR Engine (YOLO v11 + RapidOCR)             │
+│ 2. Argus ANPR Engine (YOLO26 + RapidOCR)               │
 │ 3. Ingestion Client (Compiled with Nuitka)             │
 │    Holds unique credentials (e.g., Device ID: pi-05)   │
 └──────────────────────────┬─────────────────────────────┘

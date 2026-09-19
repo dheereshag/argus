@@ -1,8 +1,8 @@
 """
-Stage 1: YOLO v11 Vehicle Detection, Occupancy Policy Gatekeeper, and Cropper.
+Stage 1: YOLO26 Vehicle Detection, Occupancy Policy Gatekeeper, and Cropper.
 
 This module is responsible for:
-  - Loading and caching the YOLO v11 object detection model.
+  - Loading and caching the YOLO26 object detection model.
   - Identifying 4-wheeler commercial and passenger vehicles (car, bus, truck) and persons.
   - Enforcing industrial weighbridge occupancy policies (e.g. single-vehicle constraint, no pedestrian presence).
   - Isolating and cropping the primary vehicle bounding box for Stage 2 OCR processing.
@@ -32,7 +32,7 @@ type BoundingBox = tuple[int, int, int, int]
 
 class VehicleDetector:
     """
-    Stage 1: YOLO v11 Vehicle Detection, Occupancy Policy Gatekeeper, and Cropper.
+    Stage 1: YOLO26 Vehicle Detection, Occupancy Policy Gatekeeper, and Cropper.
 
     Manages singleton YOLO weights, runs object detection inference on input images,
     filters detections according to weighbridge operational guidelines, and extracts
@@ -44,7 +44,7 @@ class VehicleDetector:
     @classmethod
     def get_model(cls) -> YOLO:
         """
-        Return the singleton YOLO v11 model instance, loading weights on first call.
+        Return the singleton YOLO26 model instance, loading weights on first call.
 
         Returns:
             YOLO: Initialized Ultralytics YOLO model.
@@ -53,7 +53,7 @@ class VehicleDetector:
             ContractViolation: If the model fails to initialize.
         """
         if cls._model is None:
-            target_model = settings.YOLO_MODEL_NAME if "11" in (settings.YOLO_MODEL_NAME or "") else "yolo11n.pt"
+            target_model = settings.YOLO_MODEL_NAME or "yolo26n.pt"
             logger.debug(f"Loading YOLO model weights: {target_model}")
             cls._model = YOLO(target_model)
         ensure(cls._model is not None, "YOLO model failed to initialise")

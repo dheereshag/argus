@@ -73,6 +73,7 @@ def test_yolo_filter_human_detection_policy(
     mock_get_model.return_value = mock_model
 
     # Default policy: reject_on_human (MAX_ALLOWED_HUMANS = 0) -> rejected
+    monkeypatch.setattr(settings, "MAX_ALLOWED_HUMANS", 0)
     res_default = VehicleDetector().detect(sample_image_bytes)
     assert res_default.is_eligible is False
     assert res_default.status == RecognitionStatusEnum.REJECTED_HUMAN_DETECTED
@@ -103,6 +104,7 @@ def test_yolo_filter_no_vehicle_policy(mock_get_model, sample_image_bytes, monke
     mock_get_model.return_value = mock_model
 
     # Default policy: MIN_ALLOWED_VEHICLES = 1 -> rejected when vehicle count is 0
+    monkeypatch.setattr(settings, "MIN_ALLOWED_VEHICLES", 1)
     res_default = VehicleDetector().detect(sample_image_bytes)
     assert res_default.is_eligible is False
     assert res_default.status == RecognitionStatusEnum.REJECTED_NO_FOUR_WHEELER
@@ -132,6 +134,7 @@ def test_yolo_filter_multiple_vehicles_policy(mock_get_model, sample_image_bytes
     mock_get_model.return_value = mock_model
 
     # Default policy: MAX_ALLOWED_VEHICLES = 1 -> rejected
+    monkeypatch.setattr(settings, "MAX_ALLOWED_VEHICLES", 1)
     res_default = VehicleDetector().detect(sample_image_bytes)
     assert res_default.is_eligible is False
     assert res_default.status == RecognitionStatusEnum.REJECTED_MULTIPLE_VEHICLES
@@ -296,6 +299,7 @@ def test_yolo_empty_boxes(mock_get_model, sample_image_bytes):
 
 
 def test_yolo_get_model_direct():
+    VehicleDetector._model = None
     model = VehicleDetector.get_model()
     assert model is not None
 
