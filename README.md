@@ -347,18 +347,20 @@ For weighbridge installations running on edge hardware (Raspberry Pi 5 / CM4 / C
 │ 1. Industrial Camera Capture                           │
 │ 2. Argus ANPR Engine (YOLO26 + RapidOCR ONNX)          │
 │ 3. Ingestion Client (Compiled with Nuitka)             │
-│    Unique API Key: x-device-id + x-device-key          │
+│    Credentials: EDGE_USERNAME + EDGE_PASSWORD          │
+│    Session: Managed via requests.Session()             │
 └──────────────────────────┬─────────────────────────────┘
-                           │ HTTPS POST /api/entries
+                           │ 1. POST /api/auth/login (Auth Session)
+                           │ 2. HTTPS POST /api/entries (Session Cookie)
                            ▼
 ┌────────────────────────────────────────────────────────┐
 │ Cloud / On-Prem Backend (Next.js App Router)           │
-│ - SHA-256 Constant-Time Verification (0.005ms)         │
-│ - Device Fleet Scoping (Isolated blast radius)         │
+│ - Encrypted HttpOnly Session Management                │
+│ - Role-Scoped Ingestion (EDGE_DEVICE role)             │
 └────────────────────────────────────────────────────────┘
 ```
 
-- **Stateless Reliability**: Hardware API keys eliminate JWT refresh loops and session expiration when 4G network drops occur.
+- **Session Management & Resilience**: Dedicated edge service account with automatic 401 re-login guardrails handling session expiration and 4G reconnects seamlessly.
 - **In-Memory Operation**: All image preprocessing, crops, and inferences execute in volatile RAM to prevent SD card wear.
 - **Native Binary Compilation**: Supports ahead-of-time compilation via **Nuitka** to protect intellectual property.
 - Read the **[Edge Hardening & Security Guide](docs/EDGE_SECURITY.md)** for full disk encryption (LUKS), TPM 2.0 HAT setup, and tamper-switch zeroization.
