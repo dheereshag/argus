@@ -15,7 +15,6 @@ def _sample_response():
         success=True,
         rejected=False,
         status=RecognitionStatusEnum.SUCCESS,
-        vehicle_count=1,
         human_count=0,
         filename="test.jpg",
         results=[],

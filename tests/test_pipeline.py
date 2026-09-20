@@ -12,7 +12,6 @@ def test_recognize_rejected_human(mock_yolo, sample_image_bytes):
         is_eligible=False,
         status=RecognitionStatusEnum.REJECTED_HUMAN_DETECTED,
         vehicles=[DetectedVehicle(vehicle_type="car", box=(10, 10, 90, 90))],
-        vehicle_count=1,
         human_count=1,
     )
     response = recognize_plate_image(sample_image_bytes, filename="car_human.jpg")
@@ -28,13 +27,11 @@ def test_recognize_rejected_no_four_wheeler(mock_yolo, sample_image_bytes):
         is_eligible=False,
         status=RecognitionStatusEnum.REJECTED_NO_FOUR_WHEELER,
         vehicles=[],
-        vehicle_count=0,
         human_count=0,
     )
     response = recognize_plate_image(sample_image_bytes, filename="scenery.jpg")
     assert response.success is False
     assert response.status == RecognitionStatusEnum.REJECTED_NO_FOUR_WHEELER
-    assert response.vehicle_count == 0
 
 
 @patch("app.services.pipeline.VehicleDetector.detect")
@@ -46,13 +43,11 @@ def test_recognize_rejected_multiple_vehicles(mock_yolo, sample_image_bytes):
             DetectedVehicle(vehicle_type="car", box=(10, 10, 50, 50)),
             DetectedVehicle(vehicle_type="truck", box=(50, 50, 90, 90)),
         ],
-        vehicle_count=2,
         human_count=0,
     )
     response = recognize_plate_image(sample_image_bytes, filename="two_cars.jpg")
     assert response.success is False
     assert response.status == RecognitionStatusEnum.REJECTED_MULTIPLE_VEHICLES
-    assert response.vehicle_count == 2
     assert response.results == []
 
 
@@ -63,7 +58,6 @@ def test_recognize_success(mock_yolo, mock_ocr_cls, sample_image_bytes):
         is_eligible=True,
         status=None,
         vehicles=[DetectedVehicle(vehicle_type="car", box=(10, 10, 90, 90))],
-        vehicle_count=1,
         human_count=0,
     )
 
@@ -74,7 +68,6 @@ def test_recognize_success(mock_yolo, mock_ocr_cls, sample_image_bytes):
     response = recognize_plate_image(sample_image_bytes, filename="car.jpg")
     assert response.success is True
     assert response.status == RecognitionStatusEnum.SUCCESS
-    assert response.vehicle_count == 1
     assert len(response.results) == 1
     assert response.results[0].plate == "RJ09GA0165"
     assert response.results[0].state == "Rajasthan"
@@ -96,7 +89,6 @@ def test_recognize_vehicle_cropped(mock_yolo, mock_ocr_cls, sample_image_bytes):
                 crop_box=(10, 10, 80, 80),
             )
         ],
-        vehicle_count=1,
         human_count=0,
     )
 
@@ -120,7 +112,6 @@ def test_recognize_no_vehicle_detected(mock_yolo, mock_ocr_cls, sample_image_byt
         is_eligible=True,
         status=None,
         vehicles=[],
-        vehicle_count=0,
         human_count=0,
     )
 
@@ -131,7 +122,6 @@ def test_recognize_no_vehicle_detected(mock_yolo, mock_ocr_cls, sample_image_byt
     response = recognize_plate_image(sample_image_bytes, filename="plate_crop.jpg")
     assert response.success is True
     assert response.status == RecognitionStatusEnum.SUCCESS
-    assert response.vehicle_count == 0
     assert len(response.results) == 1
     assert response.results[0].plate == "DL01AB1234"
     assert response.results[0].vehicle_type is None
@@ -190,7 +180,6 @@ def test_ocr_crop_fallback_and_error_handling(mock_yolo, mock_ocr_cls, sample_im
                 crop_box=(0, 0, 50, 50),
             )
         ],
-        vehicle_count=1,
         human_count=0,
     )
     mock_yolo.return_value = detection
@@ -238,7 +227,6 @@ def test_recognize_multiple_vehicles_success(mock_yolo, mock_ocr_cls, sample_ima
                 crop_box=(100, 100, 180, 180),
             ),
         ],
-        vehicle_count=2,
         human_count=0,
     )
 
@@ -252,7 +240,6 @@ def test_recognize_multiple_vehicles_success(mock_yolo, mock_ocr_cls, sample_ima
     response = recognize_plate_image(sample_image_bytes, filename="multi_vehicles.jpg")
     assert response.success is True
     assert response.status == RecognitionStatusEnum.SUCCESS
-    assert response.vehicle_count == 2
     assert len(response.results) == 2
     assert response.results[0].plate == "DL01AB1234"
     assert response.results[0].vehicle_type == "car"

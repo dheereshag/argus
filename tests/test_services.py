@@ -48,7 +48,6 @@ def test_yolo_filter_detection_flow(mock_get_model, sample_image_bytes):
 
     result = VehicleDetector().detect(sample_image_bytes)
     assert result.is_eligible is True
-    assert result.vehicle_count == 1
     assert result.human_count == 0
     assert len(result.vehicles) == 1
     assert result.vehicles[0].vehicle_type == "car"
@@ -86,7 +85,7 @@ def test_yolo_filter_human_detection_policy(
     assert res_allowed.is_eligible is True
     assert res_allowed.status is None
     assert res_allowed.human_count == 1
-    assert res_allowed.vehicle_count == 1
+    assert len(res_allowed.vehicles) == 1
 
 
 @patch("app.services.detector.VehicleDetector.get_model")
@@ -109,14 +108,14 @@ def test_yolo_filter_no_vehicle_policy(mock_get_model, sample_image_bytes, monke
     res_default = VehicleDetector().detect(sample_image_bytes)
     assert res_default.is_eligible is False
     assert res_default.status == RecognitionStatusEnum.REJECTED_NO_FOUR_WHEELER
-    assert res_default.vehicle_count == 0
+    assert len(res_default.vehicles) == 0
 
     # Explicit policy: MIN_ALLOWED_VEHICLES = 0 -> eligible for direct plate OCR
     monkeypatch.setattr(settings, "MIN_ALLOWED_VEHICLES", 0)
     res_allowed = VehicleDetector().detect(sample_image_bytes)
     assert res_allowed.is_eligible is True
     assert res_allowed.status is None
-    assert res_allowed.vehicle_count == 0
+    assert len(res_allowed.vehicles) == 0
 
 
 @patch("app.services.detector.VehicleDetector.get_model")
@@ -139,14 +138,13 @@ def test_yolo_filter_multiple_vehicles_policy(mock_get_model, sample_image_bytes
     res_default = VehicleDetector().detect(sample_image_bytes)
     assert res_default.is_eligible is False
     assert res_default.status == RecognitionStatusEnum.REJECTED_MULTIPLE_VEHICLES
-    assert res_default.vehicle_count == 2
+    assert len(res_default.vehicles) == 2
 
     # Explicit policy: MAX_ALLOWED_VEHICLES is None -> eligible with primary vehicle
     monkeypatch.setattr(settings, "MAX_ALLOWED_VEHICLES", None)
     res_allowed = VehicleDetector().detect(sample_image_bytes)
     assert res_allowed.is_eligible is True
     assert res_allowed.status is None
-    assert res_allowed.vehicle_count == 2
     assert len(res_allowed.vehicles) == 2
     assert {v.vehicle_type for v in res_allowed.vehicles} == {"car", "truck"}
 
@@ -220,7 +218,7 @@ def test_yolo_filter_vehicle_threshold_policies(
     res_2v = VehicleDetector().detect(sample_image_bytes)
     assert res_2v.is_eligible is True
     assert res_2v.status is None
-    assert res_2v.vehicle_count == 2
+    assert len(res_2v.vehicles) == 2
 
     # 3 vehicles with MAX_ALLOWED_VEHICLES = 2 -> rejected
     mock_box_3v = MagicMock()
@@ -235,7 +233,7 @@ def test_yolo_filter_vehicle_threshold_policies(
     res_3v = VehicleDetector().detect(sample_image_bytes)
     assert res_3v.is_eligible is False
     assert res_3v.status == RecognitionStatusEnum.REJECTED_MULTIPLE_VEHICLES
-    assert res_3v.vehicle_count == 3
+    assert len(res_3v.vehicles) == 3
 
     # 0 vehicles with MIN_ALLOWED_VEHICLES = 0 -> allowed
     mock_box_0v = MagicMock()
@@ -251,7 +249,7 @@ def test_yolo_filter_vehicle_threshold_policies(
     res_0v = VehicleDetector().detect(sample_image_bytes)
     assert res_0v.is_eligible is True
     assert res_0v.status is None
-    assert res_0v.vehicle_count == 0
+    assert len(res_0v.vehicles) == 0
 
 
 def test_normalize_candidate_strings():
@@ -298,7 +296,7 @@ def test_yolo_empty_boxes(mock_get_model, sample_image_bytes):
     mock_get_model.return_value = mock_model
 
     result = VehicleDetector().detect(sample_image_bytes)
-    assert result.vehicle_count == 0
+    assert len(result.vehicles) == 0
 
 
 def test_yolo_get_model_direct():
@@ -322,7 +320,7 @@ def test_yolo_unclamped_degenerate_box_skipped(mock_get_model, sample_image_byte
     mock_get_model.return_value = mock_model
 
     result = VehicleDetector().detect(sample_image_bytes)
-    assert result.vehicle_count == 0
+    assert len(result.vehicles) == 0
 
 
 def test_inspect_image_unsupported_format_and_bomb():

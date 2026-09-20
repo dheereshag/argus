@@ -26,7 +26,6 @@ def test_recognition_response_valid():
     resp = RecognitionResponse(
         success=True,
         status=RecognitionStatusEnum.SUCCESS,
-        vehicle_count=1,
         human_count=0,
         filename="test.jpg",
         results=[PlateResult(plate="RJ09GA0165", vehicle_type="car", state="Rajasthan")],
@@ -34,7 +33,6 @@ def test_recognition_response_valid():
     )
     assert resp.success is True
     assert resp.status == RecognitionStatusEnum.SUCCESS
-    assert resp.vehicle_count == 1
     assert resp.human_count == 0
     assert len(resp.results) == 1
     assert resp.results[0].plate == "RJ09GA0165"
@@ -46,12 +44,10 @@ def test_detection_result_valid():
         is_eligible=True,
         status=None,
         vehicles=[DetectedVehicle(vehicle_type="car", box=(10, 10, 50, 50))],
-        vehicle_count=1,
         human_count=0,
     )
     assert det.is_eligible is True
     assert det.status is None
-    assert det.vehicle_count == 1
     assert det.human_count == 0
     assert len(det.vehicles) == 1
     assert det.vehicles[0].vehicle_type == "car"

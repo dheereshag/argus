@@ -71,7 +71,7 @@ flowchart TD
 6. **Structured Output Assembly & Coordinate Mapping** ([`app/schemas.py`](file:///Users/d/Downloads/argus/app/schemas.py), [`app/services/pipeline.py`](file:///Users/d/Downloads/argus/app/services/pipeline.py)):
    - Translates plate bounding boxes from vehicle crop space back into global image frame coordinates.
    - Associates each recognized plate with its corresponding detected vehicle category (`PlateResult.vehicle_type`).
-   - Packages result into a typed [`RecognitionResponse`](file:///Users/d/Downloads/argus/app/schemas.py) model including execution latency, vehicle counts, and extracted `PlateResult` items in `results`.
+   - Packages result into a typed [`RecognitionResponse`](file:///Users/d/Downloads/argus/app/schemas.py) model including execution latency, human occupancy count, and extracted `PlateResult` items in `results`.
 
 ---
 

@@ -296,7 +296,6 @@ class VehicleDetector:
             is_eligible=is_eligible,
             status=status,
             vehicles=detected_vehicles,
-            vehicle_count=len(vehicles),
             human_count=human_count,
         )
 

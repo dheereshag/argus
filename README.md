@@ -113,7 +113,6 @@ Sample JSON CLI output:
   "success": true,
   "rejected": false,
   "status": "success",
-  "vehicle_count": 1,
   "human_count": 0,
   "filename": "tests/1.jpg",
   "results": [
@@ -192,7 +191,6 @@ curl -X POST "http://localhost:8000/recognize" \
   "success": true,
   "rejected": false,
   "status": "success",
-  "vehicle_count": 1,
   "human_count": 0,
   "filename": "1.jpg",
   "results": [
@@ -215,7 +213,6 @@ curl -X POST "http://localhost:8000/recognize" \
   "success": false,
   "rejected": true,
   "status": "rejected_human_detected",
-  "vehicle_count": 1,
   "human_count": 2,
   "filename": "weighbridge_frame.jpg",
   "results": [],

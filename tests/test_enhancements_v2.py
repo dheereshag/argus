@@ -69,7 +69,7 @@ def test_cab_occupant_ignored_when_policy_enabled(mock_get_model, sample_image_b
     assert res.is_eligible is True
     assert res.status is None
     assert res.human_count == 0
-    assert res.vehicle_count == 1
+    assert len(res.vehicles) == 1
 
 
 @patch("app.services.detector.VehicleDetector.get_model")

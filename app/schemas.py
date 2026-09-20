@@ -82,14 +82,12 @@ class DetectionResult:
         is_eligible: True if the frame passes all pre-screening policies and should proceed to OCR.
         status: Specific rejection or success status code enum.
         vehicles: List of all detected 4-wheeler vehicles meeting confidence and size thresholds.
-        vehicle_count: Total number of valid 4-wheeler detections meeting the confidence threshold.
         human_count: Total number of valid human detections meeting the confidence threshold.
     """
 
     is_eligible: bool
     status: RecognitionStatusEnum | None
     vehicles: list[DetectedVehicle] = field(default_factory=list)
-    vehicle_count: int = 0
     human_count: int = 0
 
 
@@ -143,7 +141,6 @@ class RecognitionResponse(BaseModel):
     status: RecognitionStatusEnum = Field(
         description="Detailed status enum for pre-screening and recognition outcome"
     )
-    vehicle_count: int = Field(0, description="Total number of 4-wheeler vehicles detected in the frame")
     human_count: int = Field(0, description="Total number of humans detected in the frame")
     filename: str = Field(description="Name of the processed image file")
     results: list[PlateResult] = Field(default_factory=list, description="Extracted license plate details")

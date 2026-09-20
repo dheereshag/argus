@@ -113,7 +113,6 @@ def _build_response(
         success=success,
         rejected=rejected,
         status=status,
-        vehicle_count=detection.vehicle_count,
         human_count=detection.human_count,
         filename=filename,
         results=results or [],
