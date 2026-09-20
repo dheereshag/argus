@@ -23,7 +23,7 @@ uv sync
 uv run fastapi dev
 
 # Production:
-uv run fastapi run --host 127.0.0.1 --port 8000
+uv run fastapi run --host 127.0.0.1
 ```
 
 Interactive API documentation is available at [http://localhost:8000/docs](http://localhost:8000/docs).
