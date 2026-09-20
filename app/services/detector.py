@@ -23,7 +23,7 @@ from app.constants import (
 from app.core.config import settings
 from app.core.contracts import bounded, ensure, require
 from app.core.logging import logger
-from app.schemas import DetectionResult, RecognitionStatusEnum
+from app.schemas import DetectedVehicle, DetectionResult, RecognitionStatusEnum
 from app.services.image_processing import ImageInput, load_rgb
 
 # Bounding box coordinates: (x_min, y_min, x_max, y_max)
@@ -249,9 +249,30 @@ class VehicleDetector:
 
         return True, None
 
+    @classmethod
+    def _build_detected_vehicles(
+        cls,
+        vehicles: list[tuple[str, BoundingBox]],
+        pil_img: Image.Image,
+    ) -> list[DetectedVehicle]:
+        """Crop and encapsulate detected vehicles with their bounding boxes."""
+        detected: list[DetectedVehicle] = []
+        for v_type, box in vehicles:
+            crop_box = cls._pad_box(box, pil_img.width, pil_img.height)
+            v_crop = pil_img.crop(crop_box)
+            detected.append(
+                DetectedVehicle(
+                    vehicle_type=v_type,
+                    box=box,
+                    crop=v_crop,
+                    crop_box=crop_box,
+                )
+            )
+        return detected
+
     def detect(self, image_input: ImageInput) -> DetectionResult:
         """
-        Execute Stage 1: Detect 4-wheeler vehicles, verify weighbridge occupancy, and extract vehicle crop.
+        Execute Stage 1: Detect 4-wheeler vehicles, verify weighbridge occupancy, and extract vehicle crops.
 
         Evaluates weighbridge business rules in strict priority:
           1. Human Presence: Reject if any person is in the frame (safety & fraud prevention).
@@ -262,24 +283,20 @@ class VehicleDetector:
             image_input: Input image as file path, raw bytes, PIL Image, or NumPy array.
 
         Returns:
-            DetectionResult: Comprehensive stage 1 outcome with eligibility flag and primary crop.
+            DetectionResult: Comprehensive stage 1 outcome with eligibility flag and vehicle entities.
         """
         pil_img = load_rgb(image_input)
         human_count, vehicles = self._run_detection(
             pil_img, settings.HUMAN_CONF_THRESH, settings.VEHICLE_CONF_THRESH
         )
         is_eligible, status = self._evaluate_occupancy(human_count, vehicles)
-        primary_box = vehicles[0][1] if vehicles else None
-        crop_box = self._pad_box(primary_box, pil_img.width, pil_img.height) if primary_box else None
+        detected_vehicles = self._build_detected_vehicles(vehicles, pil_img)
 
         return DetectionResult(
             is_eligible=is_eligible,
             status=status,
-            vehicle_type=vehicles[0][0] if vehicles else None,
+            vehicles=detected_vehicles,
             vehicle_count=len(vehicles),
             human_count=human_count,
-            vehicle_box=primary_box,
-            crop=pil_img.crop(crop_box) if crop_box else None,
-            crop_box=crop_box,
         )
 

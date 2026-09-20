@@ -54,8 +54,9 @@ def test_models() -> None:
         t_yolo_start = time.time()
         yolo_res = detector.detect(img_bytes)
         t_yolo = round((time.time() - t_yolo_start) * 1000, 2)
+        v_types = [v.vehicle_type for v in yolo_res.vehicles]
         print(
-            f"[YOLO26 Prescreening] ({t_yolo:>7.2f} ms): vehicle={yolo_res.vehicle_type}, count={yolo_res.vehicle_count}"
+            f"[YOLO26 Prescreening] ({t_yolo:>7.2f} ms): vehicles={v_types}, count={yolo_res.vehicle_count}"
         )
 
         # ----------------------------------------------------------------------

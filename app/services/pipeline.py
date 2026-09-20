@@ -18,6 +18,7 @@ from pydantic import ValidationError
 from app.core.exceptions import ANPRServiceError, InvalidImageError
 from app.core.logging import logger
 from app.schemas import (
+    DetectedVehicle,
     DetectionResult,
     PlateResult,
     RecognitionResponse,
@@ -28,7 +29,10 @@ from app.services.image_processing import decode_and_downscale
 from app.services.ocr import PlateRecognizer
 
 
-def validate_plate_results(raw_results: Any) -> list[PlateResult]:
+def validate_plate_results(
+    raw_results: Any,
+    vehicle_type: str | None = None,
+) -> list[PlateResult]:
     """
     Validate and convert raw dictionary outputs into PlateResult Pydantic schemas.
 
@@ -36,6 +40,7 @@ def validate_plate_results(raw_results: Any) -> list[PlateResult]:
 
     Args:
         raw_results: Raw list of plate dictionaries returned by OCR recognizer.
+        vehicle_type: Optional detected vehicle type to assign to results.
 
     Returns:
         list[PlateResult]: Verified PlateResult model instances.
@@ -45,8 +50,11 @@ def validate_plate_results(raw_results: Any) -> list[PlateResult]:
     validated: list[PlateResult] = []
     for item in raw_results:
         if isinstance(item, dict):
+            entry = dict(item)
+            if vehicle_type is not None and "vehicle_type" not in entry:
+                entry["vehicle_type"] = vehicle_type
             try:
-                validated.append(PlateResult.model_validate(item))
+                validated.append(PlateResult.model_validate(entry))
             except ValidationError:
                 continue
     return validated
@@ -105,7 +113,6 @@ def _build_response(
         success=success,
         rejected=rejected,
         status=status,
-        vehicle_type=detection.vehicle_type,
         vehicle_count=detection.vehicle_count,
         human_count=detection.human_count,
         filename=filename,
@@ -132,24 +139,46 @@ def _adjust_crop_coordinates(
     return adjusted
 
 
+def _ocr_single_vehicle(
+    recognizer: PlateRecognizer,
+    vehicle: DetectedVehicle,
+    image_bytes: bytes,
+    filename: str,
+    allow_fallback: bool = False,
+) -> list[PlateResult]:
+    """Execute RapidOCR on a single vehicle crop with coordinate translation and fallback."""
+    target = vehicle.crop if vehicle.crop is not None else image_bytes
+    raw = recognizer.recognize(target, filename=filename)
+
+    if vehicle.crop is not None:
+        if any(r.get("plate") and r.get("plate") != "N/A" for r in raw):
+            raw = _adjust_crop_coordinates(raw, vehicle.crop_box)
+        elif allow_fallback:
+            raw = recognizer.recognize(image_bytes, filename=filename)
+
+    return validate_plate_results(raw, vehicle_type=vehicle.vehicle_type)
+
+
 def _run_stage2_ocr(detection: DetectionResult, image_bytes: bytes, filename: str) -> list[PlateResult]:
-    """Execute RapidOCR on vehicle crop, falling back to full frame if needed."""
+    """Execute RapidOCR across detected vehicles, falling back to full frame if needed."""
     logger.info(f"Running OCR on '{filename}'")
-    raw: list[dict[str, Any]] = []
     try:
         recognizer = PlateRecognizer()
-        target = detection.crop if detection.crop is not None else image_bytes
-        raw = recognizer.recognize(target, filename=filename)
+        if not detection.vehicles:
+            raw = recognizer.recognize(image_bytes, filename=filename)
+            return validate_plate_results(raw, vehicle_type=None)
 
-        if detection.crop is not None:
-            if any(r.get("plate") and r.get("plate") != "N/A" for r in raw):
-                raw = _adjust_crop_coordinates(raw, detection.crop_box)
-            else:
-                raw = recognizer.recognize(image_bytes, filename=filename)
+        results: list[PlateResult] = []
+        allow_fallback = len(detection.vehicles) == 1
+        for vehicle in detection.vehicles:
+            res = _ocr_single_vehicle(recognizer, vehicle, image_bytes, filename, allow_fallback)
+            results.extend(res)
+
+        valid = [r for r in results if r.plate != "N/A"]
+        return valid if valid else results
     except (ANPRServiceError, ValueError, RuntimeError, OSError, KeyError, AttributeError) as exc:
         logger.error(f"OCR failed on '{filename}': {exc}")
-
-    return validate_plate_results(raw)
+        return []
 
 
 def recognize_plate_image(

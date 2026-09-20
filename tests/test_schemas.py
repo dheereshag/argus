@@ -1,4 +1,5 @@
 from app.schemas import (
+    DetectedVehicle,
     DetectionResult,
     PlateResult,
     RecognitionResponse,
@@ -15,8 +16,9 @@ def test_recognition_status_enum():
 
 
 def test_plate_result_valid():
-    res = PlateResult(plate="RJ09GA0165", state="Rajasthan")
+    res = PlateResult(plate="RJ09GA0165", vehicle_type="car", state="Rajasthan")
     assert res.plate == "RJ09GA0165"
+    assert res.vehicle_type == "car"
     assert res.state == "Rajasthan"
 
 
@@ -24,11 +26,10 @@ def test_recognition_response_valid():
     resp = RecognitionResponse(
         success=True,
         status=RecognitionStatusEnum.SUCCESS,
-        vehicle_type="car",
         vehicle_count=1,
         human_count=0,
         filename="test.jpg",
-        results=[PlateResult(plate="RJ09GA0165", state="Rajasthan")],
+        results=[PlateResult(plate="RJ09GA0165", vehicle_type="car", state="Rajasthan")],
         execution_time_ms=123.45,
     )
     assert resp.success is True
@@ -37,13 +38,14 @@ def test_recognition_response_valid():
     assert resp.human_count == 0
     assert len(resp.results) == 1
     assert resp.results[0].plate == "RJ09GA0165"
+    assert resp.results[0].vehicle_type == "car"
 
 
 def test_detection_result_valid():
     det = DetectionResult(
         is_eligible=True,
         status=None,
-        vehicle_type="car",
+        vehicles=[DetectedVehicle(vehicle_type="car", box=(10, 10, 50, 50))],
         vehicle_count=1,
         human_count=0,
     )
@@ -51,3 +53,6 @@ def test_detection_result_valid():
     assert det.status is None
     assert det.vehicle_count == 1
     assert det.human_count == 0
+    assert len(det.vehicles) == 1
+    assert det.vehicles[0].vehicle_type == "car"
+    assert det.vehicles[0].box == (10, 10, 50, 50)

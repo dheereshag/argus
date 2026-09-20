@@ -52,10 +52,10 @@ flowchart TD
 2. **Stage 1: Vehicle Detection & Weighbridge Gatekeeping** ([`app/services/detector.py`](file:///Users/d/Downloads/argus/app/services/detector.py)):
    - Runs Ultralytics YOLO26 (`yolo26n.pt`) inference to identify `person`, `car`, `bus`, and `truck` bounding boxes.
    - Enforces configurable rejection policies (`MAX_ALLOWED_HUMANS`, `MAX_ALLOWED_VEHICLES`, `MIN_ALLOWED_VEHICLES`).
-   - Selects the primary vehicle (largest bounding box) and extracts a padded crop.
-3. **Stage 2: Optical Character Recognition (OCR)** ([`app/services/ocr.py`](file:///Users/d/Downloads/argus/app/services/ocr.py)):
-   - Executes RapidOCR (ONNX Runtime) on the vehicle crop.
-   - If no candidate text is found, executes a fallback pass on the full image frame.
+   - Extracts padded bounding box crops for all detected vehicles (`DetectedVehicle`).
+3. **Stage 2: Optical Character Recognition (OCR)** ([`app/services/ocr.py`](file:///Users/d/Downloads/argus/app/services/ocr.py), [`app/services/pipeline.py`](file:///Users/d/Downloads/argus/app/services/pipeline.py)):
+   - Executes RapidOCR (ONNX Runtime) across detected vehicle crops (or full frame if no vehicles detected).
+   - If a single vehicle's crop yields no candidate text, executes a fallback pass on the full image frame.
    - Uses accelerated, bounded CLAHE (Contrast Limited Adaptive Histogram Equalization) with linear interpolation if lighting or contrast is suboptimal.
 4. **Spatial Layout & Multi-Line Plate Clustering** ([`app/services/ocr.py`](file:///Users/d/Downloads/argus/app/services/ocr.py)):
    - Evaluates token bounding boxes and centroids.
@@ -70,7 +70,8 @@ flowchart TD
    - Validates state codes (including 2024 Telangana `TG` update) against [`app/constants.py`](file:///Users/d/Downloads/argus/app/constants.py).
 6. **Structured Output Assembly & Coordinate Mapping** ([`app/schemas.py`](file:///Users/d/Downloads/argus/app/schemas.py), [`app/services/pipeline.py`](file:///Users/d/Downloads/argus/app/services/pipeline.py)):
    - Translates plate bounding boxes from vehicle crop space back into global image frame coordinates.
-   - Packages result into a typed [`RecognitionResponse`](file:///Users/d/Downloads/argus/app/schemas.py) model including execution latency, vehicle metadata, OCR confidence score, and plate bounding box coordinates.
+   - Associates each recognized plate with its corresponding detected vehicle category (`PlateResult.vehicle_type`).
+   - Packages result into a typed [`RecognitionResponse`](file:///Users/d/Downloads/argus/app/schemas.py) model including execution latency, vehicle counts, and extracted `PlateResult` items in `results`.
 
 ---
 
@@ -144,7 +145,7 @@ argus/
 - **[`app/core/contracts.py`](file:///Users/d/Downloads/argus/app/core/contracts.py)**:
   Provides defensive programming primitives (`require`, `ensure`, `bounded`) to enforce runtime contracts and invariants without silent failures.
 - **[`app/schemas.py`](file:///Users/d/Downloads/argus/app/schemas.py)**:
-  Defines all data contracts (`RecognitionResponse`, `PlateResult`, `DetectionResult`, `APIErrorResponse`).
+  Defines all data contracts (`RecognitionResponse`, `PlateResult`, `DetectedVehicle`, `DetectionResult`, `APIErrorResponse`).
 
 ---
 

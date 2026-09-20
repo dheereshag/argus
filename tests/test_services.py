@@ -48,11 +48,12 @@ def test_yolo_filter_detection_flow(mock_get_model, sample_image_bytes):
 
     result = VehicleDetector().detect(sample_image_bytes)
     assert result.is_eligible is True
-    assert result.vehicle_type == "car"
     assert result.vehicle_count == 1
     assert result.human_count == 0
-    assert result.vehicle_box == (10, 10, 50, 50)
-    assert result.crop is not None
+    assert len(result.vehicles) == 1
+    assert result.vehicles[0].vehicle_type == "car"
+    assert result.vehicles[0].box == (10, 10, 50, 50)
+    assert result.vehicles[0].crop is not None
 
 
 @patch("app.services.detector.VehicleDetector.get_model")
@@ -146,6 +147,8 @@ def test_yolo_filter_multiple_vehicles_policy(mock_get_model, sample_image_bytes
     assert res_allowed.is_eligible is True
     assert res_allowed.status is None
     assert res_allowed.vehicle_count == 2
+    assert len(res_allowed.vehicles) == 2
+    assert {v.vehicle_type for v in res_allowed.vehicles} == {"car", "truck"}
 
 
 @patch("app.services.detector.VehicleDetector.get_model")

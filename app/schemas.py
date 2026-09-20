@@ -7,7 +7,7 @@ This module defines:
   - Enumerations for pre-screening and recognition status outcomes.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
@@ -38,15 +38,12 @@ class OCRToken:
 @dataclass(slots=True)
 class PlateCandidate:
     """
-    Slotted candidate plate match paired with spatial position and ranking priority.
-
-    Used when sorting competing plate interpretations.
-    Lower rank index indicates higher precedence in regex normalization heuristics.
+    Scored candidate license plate generated during spatial pairing and OCR analysis.
 
     Attributes:
-        y_pos: Vertical position (centroid Y) in the image frame for top-to-bottom spatial ordering.
-        rank: Priority rank from normalization heuristics (0 = exact/primary match).
-        info: Parsed plate metadata dictionary containing 'plate', 'state', and 'raw_text'.
+        y_pos: Vertical centroid in pixels (used for positional prioritization).
+        rank: Rule-based score reflecting plate syntax validity (higher is better).
+        info: Structured metadata dictionary parsed from plate string.
         confidence: Average OCR confidence score for candidate tokens [0.0 - 1.0].
         box: Bounding box (x1, y1, x2, y2) enclosing the candidate tokens.
     """
@@ -59,6 +56,24 @@ class PlateCandidate:
 
 
 @dataclass(slots=True)
+class DetectedVehicle:
+    """
+    Stage 1 detected vehicle entity.
+
+    Attributes:
+        vehicle_type: Category of 4-wheeler ('car', 'bus', 'truck').
+        box: Clamped (x1, y1, x2, y2) bounding box in original image space.
+        crop: Cropped PIL RGB Image containing only this vehicle area, or None.
+        crop_box: Padded (x1, y1, x2, y2) bounding box used for crop, or None.
+    """
+
+    vehicle_type: str
+    box: tuple[int, int, int, int]
+    crop: Any = None
+    crop_box: tuple[int, int, int, int] | None = None
+
+
+@dataclass(slots=True)
 class DetectionResult:
     """
     Stage 1 Result: YOLO26 vehicle detection, occupancy verification, and vehicle cropping.
@@ -66,21 +81,16 @@ class DetectionResult:
     Attributes:
         is_eligible: True if the frame passes all pre-screening policies and should proceed to OCR.
         status: Specific rejection or success status code enum.
-        vehicle_type: Name of the primary vehicle category ('car', 'bus', 'truck') or None.
+        vehicles: List of all detected 4-wheeler vehicles meeting confidence and size thresholds.
         vehicle_count: Total number of valid 4-wheeler detections meeting the confidence threshold.
         human_count: Total number of valid human detections meeting the confidence threshold.
-        vehicle_box: Clamped (x1, y1, x2, y2) bounding box of the primary vehicle crop.
-        crop: Cropped PIL RGB Image containing only the primary vehicle area, or None.
     """
 
     is_eligible: bool
     status: RecognitionStatusEnum | None
-    vehicle_type: str | None
-    vehicle_count: int
+    vehicles: list[DetectedVehicle] = field(default_factory=list)
+    vehicle_count: int = 0
     human_count: int = 0
-    vehicle_box: tuple[int, int, int, int] | None = None
-    crop: Any = None
-    crop_box: tuple[int, int, int, int] | None = None
 
 
 class RecognitionStatusEnum(str, Enum):
@@ -98,6 +108,11 @@ class PlateResult(BaseModel):
 
     plate: str = Field(
         description="Normalized Indian vehicle registration number (e.g., RJ09GA0165)", examples=["RJ09GA0165"]
+    )
+    vehicle_type: str | None = Field(
+        None,
+        description="Specific type of 4-wheeler vehicle detected (e.g., 'car', 'bus', 'truck')",
+        examples=["car"],
     )
     state: str | None = Field(
         None, description="State or Union Territory full name (e.g., Rajasthan)", examples=["Rajasthan"]
@@ -127,9 +142,6 @@ class RecognitionResponse(BaseModel):
     )
     status: RecognitionStatusEnum = Field(
         description="Detailed status enum for pre-screening and recognition outcome"
-    )
-    vehicle_type: str | None = Field(
-        None, description="Specific type of 4-wheeler vehicle detected (e.g., 'car', 'bus', 'truck')", examples=["car"]
     )
     vehicle_count: int = Field(0, description="Total number of 4-wheeler vehicles detected in the frame")
     human_count: int = Field(0, description="Total number of humans detected in the frame")

@@ -113,13 +113,13 @@ Sample JSON CLI output:
   "success": true,
   "rejected": false,
   "status": "success",
-  "vehicle_type": "car",
   "vehicle_count": 1,
   "human_count": 0,
   "filename": "tests/1.jpg",
   "results": [
     {
       "plate": "RJ09GA0165",
+      "vehicle_type": "car",
       "state": "Rajasthan",
       "raw_text": "RJ09 GA 0165",
       "confidence": 0.98,
@@ -192,13 +192,13 @@ curl -X POST "http://localhost:8000/recognize" \
   "success": true,
   "rejected": false,
   "status": "success",
-  "vehicle_type": "car",
   "vehicle_count": 1,
   "human_count": 0,
   "filename": "1.jpg",
   "results": [
     {
       "plate": "RJ09GA0165",
+      "vehicle_type": "car",
       "state": "Rajasthan",
       "raw_text": "RJ09 GA 0165",
       "confidence": 0.98,
@@ -215,7 +215,6 @@ curl -X POST "http://localhost:8000/recognize" \
   "success": false,
   "rejected": true,
   "status": "rejected_human_detected",
-  "vehicle_type": "truck",
   "vehicle_count": 1,
   "human_count": 2,
   "filename": "weighbridge_frame.jpg",
