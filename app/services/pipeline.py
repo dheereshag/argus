@@ -3,7 +3,7 @@ End-to-End Two-Stage ANPR Pipeline Orchestrator.
 
 Coordinates:
   1. Input resolution and safety downscaling.
-  2. Stage 1 (VehicleDetector): YOLO26 vehicle detection, weighbridge occupancy policies,
+  2. Stage 1 (VehicleDetector): YOLO11 vehicle detection, weighbridge occupancy policies,
      and primary vehicle bounding box crop.
   3. Stage 2 (PlateRecognizer): RapidOCR text recognition on vehicle crop, with automatic
      full-frame fallback if the crop yields no valid plate candidate.
@@ -185,7 +185,7 @@ def recognize_plate_image(
     filename: str = "image.jpg",
 ) -> RecognitionResponse:
     """
-    Execute the Two-Stage ANPR Pipeline (YOLO26 detection + RapidOCR) on an input image.
+    Execute the Two-Stage ANPR Pipeline (YOLO11 detection + RapidOCR) on an input image.
 
     Args:
         image_input: File path (str) or binary image bytes.

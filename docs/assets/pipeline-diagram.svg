@@ -84,14 +84,14 @@
     <animate attributeName="stroke-dashoffset" values="0;-11" dur="0.9s" repeatCount="indefinite"/>
   </path>
 
-  <!-- ================= STAGE 1: YOLO26 GATEKEEPER ================= -->
+  <!-- ================= STAGE 1: YOLO v11 GATEKEEPER ================= -->
   <g transform="translate(230, 80)">
     <rect width="180" height="230" rx="8" fill="url(#gateGrad)" stroke="#818CF8" stroke-width="1.5"/>
     <rect x="0" y="0" width="180" height="28" rx="8" fill="#272B45"/>
-    <text x="12" y="18" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" font-weight="700" fill="#A5B4FC">STAGE 1: YOLO26</text>
+    <text x="12" y="18" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" font-weight="700" fill="#A5B4FC">STAGE 1: YOLO v11</text>
     
     <text x="12" y="46" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" font-weight="600" fill="#F8FAFC">Weighbridge Gatekeeper</text>
-    <text x="12" y="60" font-family="'JetBrains Mono', monospace" font-size="9" fill="#94A3B8">Model: yolo26n.pt</text>
+    <text x="12" y="60" font-family="'JetBrains Mono', monospace" font-size="9" fill="#94A3B8">Model: yolo11n.pt</text>
     <text x="12" y="74" font-family="'JetBrains Mono', monospace" font-size="9" fill="#94A3B8">Classes: car, bus, truck</text>
 
     <line x1="12" y1="85" x2="168" y2="85" stroke="#334155" stroke-width="0.8"/>

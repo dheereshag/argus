@@ -23,7 +23,7 @@ Argus operates as a **two-stage AI pipeline** with domain-driven validation:
 ```mermaid
 flowchart TD
     A[Input Image / HTTP Upload] --> B[Input Ingestion & Safety Downscaling<br/><code>app/services/image_processing.py</code>]
-    B --> C[Stage 1: YOLO26 Detection & Gatekeeping<br/><code>app/services/detector.py</code>]
+    B --> C[Stage 1: YOLO11 Detection & Gatekeeping<br/><code>app/services/detector.py</code>]
     
     C -- Pedestrian Detected --> R1[Reject: Human Detected in Frame]
     C -- Multiple Vehicles --> R2[Reject: Multiple Vehicles on Scale]
@@ -50,7 +50,7 @@ flowchart TD
    - Checks image dimensions against maximum edge constraints (`MAX_IMAGE_EDGE_PX`, `MAX_IMAGE_PIXELS`).
    - Normalizes EXIF orientation and downscales large camera inputs while preserving aspect ratio.
 2. **Stage 1: Vehicle Detection & Weighbridge Gatekeeping** ([`app/services/detector.py`](file:///Users/d/Downloads/argus/app/services/detector.py)):
-   - Runs Ultralytics YOLO26 (`yolo26n.pt`) inference to identify `person`, `car`, `bus`, and `truck` bounding boxes.
+   - Runs Ultralytics YOLO11 (`yolo11n.pt`) inference to identify `person`, `car`, `bus`, and `truck` bounding boxes.
    - Enforces configurable rejection policies (`MAX_ALLOWED_HUMANS`, `MAX_ALLOWED_VEHICLES`, `MIN_ALLOWED_VEHICLES`).
    - Extracts padded bounding box crops for all detected vehicles (`DetectedVehicle`).
 3. **Stage 2: Optical Character Recognition (OCR)** ([`app/services/ocr.py`](file:///Users/d/Downloads/argus/app/services/ocr.py), [`app/services/pipeline.py`](file:///Users/d/Downloads/argus/app/services/pipeline.py)):
@@ -90,7 +90,7 @@ argus/
 │   │   └── logging.py           # Structured Loguru logger setup
 │   ├── services/                # Core domain and AI services
 │   │   ├── pipeline.py          # Two-stage pipeline orchestrator (recognize_plate_image)
-│   │   ├── detector.py          # Stage 1: YOLO26 model and weighbridge policies
+│   │   ├── detector.py          # Stage 1: YOLO11 model and weighbridge policies
 │   │   ├── image_processing.py  # Image loading, EXIF fix, cropping, resizing
 │   │   ├── ocr.py               # Stage 2: RapidOCR ONNX inference & spatial clustering
 │   │   └── plate_rules.py       # Indian plate regex, normalization, character disambiguation
@@ -114,7 +114,7 @@ argus/
 ├── README.md                    # Project landing page, quickstart, and configuration
 ├── pyproject.toml               # Python project configuration, dependencies, and entrypoints
 ├── uv.lock                      # Deterministic uv dependency lockfile
-└── yolo26n.pt                   # Local YOLO26 nano weights
+└── yolo11n.pt                   # Local YOLO11 nano weights
 ```
 
 ---
@@ -131,7 +131,7 @@ argus/
 - **[`app/services/pipeline.py`](file:///Users/d/Downloads/argus/app/services/pipeline.py)**:
   The orchestrator function `recognize_plate_image()` brings together Stage 1 detection, cropping, Stage 2 OCR, and fallback handling.
 - **[`app/services/detector.py`](file:///Users/d/Downloads/argus/app/services/detector.py)**:
-  Encapsulates the YOLO26 model (`VehicleDetector`). Evaluates class IDs against `FOUR_WHEELER_CLASS_NAMES` (`car`, `bus`, `truck`) and `PERSON_CLASS_ID`. Applies weighbridge occupancy rules.
+  Encapsulates the YOLO11 model (`VehicleDetector`). Evaluates class IDs against `FOUR_WHEELER_CLASS_NAMES` (`car`, `bus`, `truck`) and `PERSON_CLASS_ID`. Applies weighbridge occupancy rules.
 - **[`app/services/image_processing.py`](file:///Users/d/Downloads/argus/app/services/image_processing.py)**:
   Safely loads images via Pillow, strips EXIF orientation tags, validates byte and pixel limits, and crops bounding boxes with safety bounds checks to prevent index errors.
 - **[`app/services/ocr.py`](file:///Users/d/Downloads/argus/app/services/ocr.py)**:

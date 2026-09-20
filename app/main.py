@@ -33,7 +33,7 @@ def main() -> None:
     # Pre-warm YOLO model & verify OCR engine before executing pipeline
     try:
         VehicleDetector.get_model()
-        logger.info("YOLO26 model loaded successfully.")
+        logger.info("YOLO11 model loaded successfully.")
     except (RuntimeError, ValueError, OSError, AttributeError) as e:
         logger.warning(f"Warning loading YOLO model: {e}")
 

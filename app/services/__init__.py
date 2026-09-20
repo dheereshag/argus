@@ -2,7 +2,7 @@
 Argus ANPR core computer vision and inference services.
 
 Exports:
-  - VehicleDetector: Stage 1 YOLO26 vehicle detection and occupancy gatekeeper.
+  - VehicleDetector: Stage 1 YOLO11 vehicle detection and occupancy gatekeeper.
   - PlateRecognizer: Stage 2 RapidOCR engine with 2D spatial candidate pairing.
 """
 

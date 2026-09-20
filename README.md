@@ -4,13 +4,13 @@
 
 <p align="center">
   <strong>Enterprise-Grade Automatic Number Plate Recognition &amp; Weighbridge Gatekeeper</strong><br>
-  Built with Ultralytics YOLO26, RapidOCR (ONNX Runtime), and Domain-Driven Indian Plate Disambiguation.
+  Built with Ultralytics YOLO11, RapidOCR (ONNX Runtime), and Domain-Driven Indian Plate Disambiguation.
 </p>
 
 <p align="center">
   <a href="https://python.org"><img src="https://img.shields.io/badge/Python-3.14+-38BDF8?style=flat-square&logo=python&logoColor=white" alt="Python Version"></a>
   <a href="https://fastapi.tiangolo.com"><img src="https://img.shields.io/badge/FastAPI-0.141+-818CF8?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI"></a>
-  <a href="https://github.com/ultralytics/ultralytics"><img src="https://img.shields.io/badge/YOLO-26n-818CF8?style=flat-square&logo=yolo&logoColor=white" alt="YOLO26"></a>
+  <a href="https://github.com/ultralytics/ultralytics"><img src="https://img.shields.io/badge/YOLO-11n-818CF8?style=flat-square&logo=yolo&logoColor=white" alt="YOLO11"></a>
   <a href="https://github.com/RapidAI/RapidOCR"><img src="https://img.shields.io/badge/OCR-RapidOCR_ONNX-22C55E?style=flat-square" alt="RapidOCR"></a>
   <a href="tests"><img src="https://img.shields.io/badge/Tests-100%25_Passing-22C55E?style=flat-square&logo=pytest&logoColor=white" alt="Pytest Passing"></a>
   <a href="AGENTS.md"><img src="https://img.shields.io/badge/Code_Style-Ruff_%26_Ty-F59E0B?style=flat-square" alt="Ruff & Ty Verified"></a>
@@ -24,7 +24,7 @@
 
 **Argus** is an industrial-grade Automatic Number Plate Recognition (ANPR) microservice and CLI designed specifically for automated weighbridges, toll gates, and freight security checkpoints.
 
-In high-throughput logistics hubs, standard OCR is insufficient. Fraudulent double-loading, tandem weighment, and driver interference require strict operational policies. Argus combines **YOLO26 computer vision** with **RapidOCR ONNX Runtime** to deliver sub-50ms vehicle pre-screening, intelligent vehicle cropping, automated weighbridge occupancy enforcement, and positional character correction tailored to Indian vehicle registration standards.
+In high-throughput logistics hubs, standard OCR is insufficient. Fraudulent double-loading, tandem weighment, and driver interference require strict operational policies. Argus combines **YOLO11 computer vision** with **RapidOCR ONNX Runtime** to deliver sub-50ms vehicle pre-screening, intelligent vehicle cropping, automated weighbridge occupancy enforcement, and positional character correction tailored to Indian vehicle registration standards.
 
 ---
 
@@ -32,7 +32,7 @@ In high-throughput logistics hubs, standard OCR is insufficient. Fraudulent doub
 
 | Capability | Technical Implementation | Operational Benefit |
 | :--- | :--- | :--- |
-| **Stage 1: Vehicle Prescreening** | Ultralytics YOLO26 (`yolo26n.pt`) evaluating `car`, `bus`, and `truck` | Guarantees that only valid 4-wheeler motor vehicles proceed to OCR; ignores bikes, animals, and background noise. |
+| **Stage 1: Vehicle Prescreening** | Ultralytics YOLO11 (`yolo11n.pt`) evaluating `car`, `bus`, and `truck` | Guarantees that only valid 4-wheeler motor vehicles proceed to OCR; ignores bikes, animals, and background noise. |
 | **Occupancy Gatekeeping** | Pedestrian detection (`PERSON_CLASS_ID = 0`) & multi-vehicle count thresholding | Prevents scale fraud by rejecting frames where ground operators or multiple vehicles occupy the scale. |
 | **Stage 2: RapidOCR ONNX** | Quantized ONNX Runtime with CLAHE contrast enhancement & cubic upscaling, run on the YOLO vehicle crop with automatic full-frame fallback | Typically 300–850ms per frame on CPU, depending on plate/decal text density. |
 | **2D Spatial Clustering** | Centroid tracking and vertical line bounding box overlap grouping | Accurately reconstructs stacked two-line commercial plates (e.g. `RJ 09` / `GA 0165`). |
@@ -54,7 +54,7 @@ Argus executes a pipelined, two-stage artificial intelligence flow with domain v
 ```mermaid
 flowchart TD
     A[Input Image: HTTP Upload / CLI / SDK] --> B[Input Ingestion & Safety Downscaling<br/><code>app/services/image_processing.py</code>]
-    B --> C[Stage 1: YOLO26 Pre-screening<br/><code>app/services/detector.py</code>]
+    B --> C[Stage 1: YOLO11 Pre-screening<br/><code>app/services/detector.py</code>]
     
     C -- Pedestrian Detected --> R1[Reject: rejected_human_detected]
     C -- Multiple Vehicles on Scale --> R2[Reject: rejected_multiple_vehicles]
@@ -256,7 +256,7 @@ Configure operational limits, model weights, and weighbridge gatekeeping policie
 
 | Variable | Type | Default | Operational Description |
 | :--- | :--- | :--- | :--- |
-| `YOLO_MODEL_NAME` | `str` | `yolo26n.pt` | Ultralytics YOLO26 model weights path. |
+| `YOLO_MODEL_NAME` | `str` | `yolo11n.pt` | Ultralytics YOLO11 model weights path. |
 | `YOLO_CONFIG_DIR` | `str` | `.cache/ultralytics` | Ultralytics cache directory for model downloads. |
 | `HUMAN_CONF_THRESH` | `float` | `0.30` | Minimum confidence to register human presence. |
 | `VEHICLE_CONF_THRESH` | `float` | `0.35` | Minimum confidence to register a 4-wheeler vehicle. |
@@ -333,7 +333,7 @@ State Prefix Misreads:                 W8 -> WB, 7G -> TG, RT -> RJ, D1 -> DL, 0
 ## 🛡️ Raspberry Pi Edge IoT Deployment
 
 > [!NOTE]
-> Argus itself ships only the ANPR engine (YOLO26 + RapidOCR) and this REST API. The device-auth / cloud-ingestion layer below is a **reference architecture**, not code included in this repository — see [`docs/EDGE_SECURITY.md`](docs/EDGE_SECURITY.md) for the full design.
+> Argus itself ships only the ANPR engine (YOLO11 + RapidOCR) and this REST API. The device-auth / cloud-ingestion layer below is a **reference architecture**, not code included in this repository — see [`docs/EDGE_SECURITY.md`](docs/EDGE_SECURITY.md) for the full design.
 
 For weighbridge installations running on edge hardware (Raspberry Pi 5 / CM4 / CM5):
 
@@ -341,7 +341,7 @@ For weighbridge installations running on edge hardware (Raspberry Pi 5 / CM4 / C
 ┌────────────────────────────────────────────────────────┐
 │ Edge Gateway (Raspberry Pi at Weighbridge)             │
 │ 1. Industrial Camera Capture                           │
-│ 2. Argus ANPR Engine (YOLO26 + RapidOCR ONNX)          │
+│ 2. Argus ANPR Engine (YOLO11 + RapidOCR ONNX)          │
 │ 3. Ingestion Client (Compiled with Nuitka)             │
 │    Credentials: EDGE_USERNAME + EDGE_PASSWORD          │
 │    Session: Managed via requests.Session()             │
@@ -384,7 +384,7 @@ For unattended edge installations where **no Python source code** should reside 
 ## 🧪 Benchmarking & Verification
 
 ### Run Direct Pipeline Benchmark
-Benchmark YOLO26 detection and RapidOCR latency sequentially across all bundled sample images:
+Benchmark YOLO11 detection and RapidOCR latency sequentially across all bundled sample images:
 
 ```bash
 uv run python test_direct.py
@@ -429,7 +429,7 @@ argus/
 │   │   └── logging.py           # Structured Loguru logging configuration
 │   ├── services/                # Core AI & domain services
 │   │   ├── pipeline.py          # End-to-end pipeline orchestrator
-│   │   ├── detector.py          # Stage 1: YOLO26 model & weighbridge policies
+│   │   ├── detector.py          # Stage 1: YOLO11 model & weighbridge policies
 │   │   ├── image_processing.py  # Image loading, EXIF fix, cropping, downscaling
 │   │   ├── ocr.py               # Stage 2: RapidOCR ONNX inference & spatial clustering
 │   │   └── plate_rules.py       # Indian license plate normalization & regex parser
@@ -453,7 +453,7 @@ argus/
 ├── AGENTS.md                    # Behavioral guidelines and verification gates
 ├── README.md                    # Project documentation and landing portal
 ├── pyproject.toml               # Python package configuration and dependencies
-└── yolo26n.pt                   # Local YOLO26 nano weights
+└── yolo11n.pt                   # Local YOLO11 nano weights
 ```
 
 ---
