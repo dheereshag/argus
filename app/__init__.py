@@ -1,5 +1,5 @@
 """
-Argus: Production Indian Automatic Number Plate Recognition (ANPR) Python Library & CLI.
+Argus: Production Indian Automatic Number Plate Recognition (ANPR) Python Library & Service.
 """
 
 from app.schemas import (

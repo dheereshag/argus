@@ -9,7 +9,6 @@ Usage:
     uv run python test_direct.py
 """
 
-import argparse
 import os
 import time
 
@@ -27,9 +26,6 @@ def test_models() -> None:
     Discovers all JPEG and PNG images in TESTS_DIR, loads and downscales each image,
     and reports execution times for YOLO detection and RapidOCR separately.
     """
-    parser = argparse.ArgumentParser(description="ANPR Direct Testing CLI")
-    parser.parse_args()
-
     # Discover and sort test image files
     image_paths = [
         os.path.join(TESTS_DIR, f) for f in os.listdir(TESTS_DIR) if f.lower().endswith((".jpg", ".jpeg", ".png"))

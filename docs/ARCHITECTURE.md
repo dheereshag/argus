@@ -1,42 +1,30 @@
-# Argus Architecture & Codebase Guide
+# Argus Architecture Guide
 
-Welcome to the **Argus** codebase! This guide is designed for developers, architects, and contributors who want to understand the design, component interactions, and execution flow of the Argus Automatic Number Plate Recognition (ANPR) engine.
-
----
-
-## 1. System Overview
-
-**Argus** is a high-throughput, industrial-grade ANPR microservice and CLI designed specifically for automated weighbridge and logistics gate operations. 
-
-In weighbridge environments, accuracy is not merely reading characters; it requires strict operational policies:
-- **Vehicle Prescreening**: Verifying that a legitimate 4-wheeler (car, truck, or bus) is present on the scale.
-- **Occupancy Enforcement**: Preventing fraudulent double-loading by rejecting frames with multiple vehicles.
-- **Safety Compliance**: Rejecting operations if pedestrians or ground operators are detected in the active weighing zone.
-- **Region-Specific Plate Recognition**: Handling both standard single-line and stacked two-line Indian license plates with OCR character correction and state code validation.
+Argus is an Automatic Number Plate Recognition (ANPR) microservice and library designed for automated weighbridge gatekeeping. It couples deep learning vehicle pre-screening with optical character recognition and domain-specific validation.
 
 ---
 
-## 2. End-to-End Pipeline Architecture
+## 1. Pipeline Architecture
 
-Argus operates as a **two-stage AI pipeline** with domain-driven validation:
+Argus executes a two-stage artificial intelligence flow with gatekeeping validation:
 
 ```mermaid
 flowchart TD
-    A[Input Image / HTTP Upload] --> B[Input Ingestion & Safety Downscaling<br/><code>app/services/image_processing.py</code>]
+    A[Input Image / HTTP Upload] --> B[Input Ingestion & Downscaling<br/><code>app/services/image_processing.py</code>]
     B --> C[Stage 1: YOLO11 Detection & Gatekeeping<br/><code>app/services/detector.py</code>]
     
-    C -- Pedestrian Detected --> R1[Reject: Human Detected in Frame]
-    C -- Multiple Vehicles --> R2[Reject: Multiple Vehicles on Scale]
-    C -- No 4-Wheeler --> R3[Reject: No 4-Wheeler Detected]
+    C -- Pedestrian Detected --> R1[Reject: rejected_human_detected]
+    C -- Multiple Vehicles --> R2[Reject: rejected_multiple_vehicles]
+    C -- No 4-Wheeler --> R3[Reject: rejected_no_four_wheeler]
     
     C -- Single 4-Wheeler Verified --> D[Primary Vehicle Crop<br/><code>app/services/image_processing.py</code>]
     
     D --> E[Stage 2: RapidOCR Text Recognition<br/><code>app/services/ocr.py</code>]
-    E -- No Candidate on Crop --> E2[Fallback: Full Frame OCR]
-    E --> F[2D Spatial Layout & Two-Line Pairing<br/><code>app/services/ocr.py</code>]
+    E -- No Plate on Crop --> E2[Fallback: Full Frame OCR]
+    E --> F[2D Spatial Clustering & Multi-Line Pairing<br/><code>app/services/ocr.py</code>]
     E2 --> F
     
-    F --> G[Character Disambiguation & Regex Parsing<br/><code>app/services/plate_rules.py</code>]
+    F --> G[Domain Normalization & State Validation<br/><code>app/services/plate_rules.py</code>]
     G --> H[Response Serialization<br/><code>app/schemas.py</code>]
     
     R1 --> H
@@ -44,148 +32,63 @@ flowchart TD
     R3 --> H
 ```
 
-### Pipeline Flow Breakdown
+---
 
-1. **Input Ingestion & Preprocessing** ([`app/services/image_processing.py`](file:///Users/d/Downloads/argus/app/services/image_processing.py)):
-   - Checks image dimensions against maximum edge constraints (`MAX_IMAGE_EDGE_PX`, `MAX_IMAGE_PIXELS`).
-   - Normalizes EXIF orientation and downscales large camera inputs while preserving aspect ratio.
-2. **Stage 1: Vehicle Detection & Weighbridge Gatekeeping** ([`app/services/detector.py`](file:///Users/d/Downloads/argus/app/services/detector.py)):
-   - Runs Ultralytics YOLO11 (`yolo11n.pt`) inference to identify `person`, `car`, `bus`, and `truck` bounding boxes.
-   - Enforces configurable rejection policies (`MAX_ALLOWED_HUMANS`, `MAX_ALLOWED_VEHICLES`, `MIN_ALLOWED_VEHICLES`).
-   - Extracts padded bounding box crops for all detected vehicles (`DetectedVehicle`).
-3. **Stage 2: Optical Character Recognition (OCR)** ([`app/services/ocr.py`](file:///Users/d/Downloads/argus/app/services/ocr.py), [`app/services/pipeline.py`](file:///Users/d/Downloads/argus/app/services/pipeline.py)):
-   - Executes RapidOCR (ONNX Runtime) across detected vehicle crops (or full frame if no vehicles detected).
-   - If a single vehicle's crop yields no candidate text, executes a fallback pass on the full image frame.
-   - Uses accelerated, bounded CLAHE (Contrast Limited Adaptive Histogram Equalization) with linear interpolation if lighting or contrast is suboptimal.
-4. **Spatial Layout & Multi-Line Plate Clustering** ([`app/services/ocr.py`](file:///Users/d/Downloads/argus/app/services/ocr.py)):
-   - Evaluates token bounding boxes and centroids.
-   - Groups horizontally aligned tokens into lines using vertical bounding box overlap.
-   - Reconstructs stacked multi-line plates (common on Indian commercial trucks) using horizontal line concatenation and vertical stacking with top-to-bottom spatial precedence.
-   - Supports proximity pairing across intermediate decal or badge tokens.
-5. **Domain Validation & Normalization** ([`app/services/plate_rules.py`](file:///Users/d/Downloads/argus/app/services/plate_rules.py)):
-   - Filters decal words and 10-digit driver mobile numbers.
-   - Strips HSRP blue band `"IND"` prefixes fused to license plates.
-   - Applies optical character confusion heuristics across standard 8 to 11-character plates (including 3-letter series like `DL01CAA1234` and 3-digit registrations like `RJ09GA165`).
-   - Normalizes Bharat Series (`BH`) with OCR confusion resilience.
-   - Validates state codes (including 2024 Telangana `TG` update) against [`app/constants.py`](file:///Users/d/Downloads/argus/app/constants.py).
-6. **Structured Output Assembly & Coordinate Mapping** ([`app/schemas.py`](file:///Users/d/Downloads/argus/app/schemas.py), [`app/services/pipeline.py`](file:///Users/d/Downloads/argus/app/services/pipeline.py)):
-   - Translates plate bounding boxes from vehicle crop space back into global image frame coordinates.
-   - Associates each recognized plate with its corresponding detected vehicle category (`PlateResult.vehicle_type`).
-   - Packages result into a typed [`RecognitionResponse`](file:///Users/d/Downloads/argus/app/schemas.py) model including execution latency, human occupancy count, and extracted `PlateResult` items in `results`.
+## 2. Pipeline Execution Stages
+
+1. **Input Ingestion & Safety Validation** ([`app/services/image_processing.py`](../app/services/image_processing.py)):
+   - Verifies payload size and image dimensions against configured bounds (`MAX_UPLOAD_BYTES`, `MAX_IMAGE_EDGE_PX`, `MAX_IMAGE_PIXELS`).
+   - Normalizes EXIF orientation and downscales large images while preserving aspect ratio.
+
+2. **Stage 1: Vehicle Detection & Gatekeeping** ([`app/services/detector.py`](../app/services/detector.py)):
+   - Runs Ultralytics YOLO11 (`yolo11n.pt`) inference to identify `car`, `bus`, `truck`, and `person`.
+   - Evaluates weighbridge occupancy rules (`MAX_ALLOWED_HUMANS`, `MAX_ALLOWED_VEHICLES`, `MIN_ALLOWED_VEHICLES`).
+   - When `ALLOW_CAB_OCCUPANTS=true`, pedestrians located geometrically inside a vehicle's bounding box are ignored to prevent false rejections from drivers or cabin artwork.
+   - Extracts bounding box crops for all qualified 4-wheelers.
+
+3. **Stage 2: Optical Character Recognition (OCR)** ([`app/services/ocr.py`](../app/services/ocr.py), [`app/services/pipeline.py`](../app/services/pipeline.py)):
+   - Runs RapidOCR (ONNX Runtime) over the primary vehicle crop.
+   - If no valid license plate candidate is found in the vehicle crop, falls back to OCR across the full image frame.
+   - Applies CLAHE (Contrast Limited Adaptive Histogram Equalization) if low-contrast text is encountered.
+
+4. **2D Spatial Clustering & Multi-Line Pairing** ([`app/services/ocr.py`](../app/services/ocr.py)):
+   - Groups horizontally aligned OCR tokens into lines using vertical overlap analysis.
+   - Pairs stacked two-line plates (standard on Indian commercial trucks) using horizontal proximity and vertical precedence.
+
+5. **Domain Validation & Normalization** ([`app/services/plate_rules.py`](../app/services/plate_rules.py)):
+   - Strips fused HSRP `"IND"` prefixes.
+   - Filters out common decals (`GOODS CARRIER`, `TATA`, driver mobile numbers).
+   - Applies positional character substitution rules (e.g., `0/D` $\leftrightarrow$ `0`, `I/L` $\leftrightarrow$ `1`, `W8` $\to$ `WB`).
+   - Validates state prefix codes against [`app/constants.py`](../app/constants.py).
 
 ---
 
-## 3. Repository Directory Layout
+## 3. Component Responsibilities
 
-```
-argus/
-├── docs/                        # Architecture and technical documentation
-│   ├── ARCHITECTURE.md          # This architecture guide
-│   └── EDGE_SECURITY.md         # Raspberry Pi edge hardening and physical security guide
-├── app/                         # Production application source code
-│   ├── core/                    # Infrastructure and cross-cutting concerns
-│   │   ├── config.py            # Environment settings via Pydantic Settings
-│   │   ├── contracts.py         # Design-by-Contract assertions (require, ensure, bounded)
-│   │   ├── exceptions.py        # Centralized domain exception hierarchy
-│   │   └── logging.py           # Structured Loguru logger setup
-│   ├── services/                # Core domain and AI services
-│   │   ├── pipeline.py          # Two-stage pipeline orchestrator (recognize_plate_image)
-│   │   ├── detector.py          # Stage 1: YOLO11 model and weighbridge policies
-│   │   ├── image_processing.py  # Image loading, EXIF fix, cropping, resizing
-│   │   ├── ocr.py               # Stage 2: RapidOCR ONNX inference & spatial clustering
-│   │   └── plate_rules.py       # Indian plate regex, normalization, character disambiguation
-│   ├── constants.py             # Indian state codes, vehicle classes, regex patterns
-│   ├── schemas.py               # Pydantic V2 request, response, and domain models
-│   ├── server.py                # FastAPI HTTP REST microservice and endpoints
-│   └── main.py                  # CLI command line interface
-├── tests/                       # Automated test suite
-│   ├── conftest.py              # Pytest fixtures and mock setups
-│   ├── test_api_recognition.py  # API endpoint integration tests
-│   ├── test_api_root.py         # Health check and root endpoint tests
-│   ├── test_core.py             # Configuration and contract tests
-│   ├── test_hardening.py        # Edge cases, corrupted images, memory bounds
-│   ├── test_ocr.py              # RapidOCR integration and unit tests
-│   ├── test_pipeline.py         # End-to-end pipeline orchestrator tests
-│   ├── test_plate_regex.py      # Indian license plate regex and character correction tests
-│   ├── test_schemas.py          # Schema serialization and validation tests
-│   ├── test_services.py         # Detector and image processing service tests
-│   └── test_upload_limits.py    # Request size and dimension boundary tests
-├── AGENTS.md                    # Behavioral guidelines and verification rules for AI agents
-├── README.md                    # Project landing page, quickstart, and configuration
-├── pyproject.toml               # Python project configuration, dependencies, and entrypoints
-├── uv.lock                      # Deterministic uv dependency lockfile
-└── yolo11n.pt                   # Local YOLO11 nano weights
-```
-
----
-
-## 4. Key Components & Responsibilities
-
-### Web & Interface Layer
-- **[`app/server.py`](file:///Users/d/Downloads/argus/app/server.py)**:
-  Exposes the FastAPI application. Provides `GET /` (health and metadata) and `POST /recognize` (multipart file upload). Implements request timing middleware, custom exception handlers, CORS, and an `asynccontextmanager` lifespan to warm up AI models at startup.
-- **[`app/main.py`](file:///Users/d/Downloads/argus/app/main.py)**:
-  CLI runner supporting direct file execution: `uv run python -m app.main path/to/image.jpg`.
-
-### AI & Domain Services Layer
-- **[`app/services/pipeline.py`](file:///Users/d/Downloads/argus/app/services/pipeline.py)**:
-  The orchestrator function `recognize_plate_image()` brings together Stage 1 detection, cropping, Stage 2 OCR, and fallback handling.
-- **[`app/services/detector.py`](file:///Users/d/Downloads/argus/app/services/detector.py)**:
-  Encapsulates the YOLO11 model (`VehicleDetector`). Evaluates class IDs against `FOUR_WHEELER_CLASS_NAMES` (`car`, `bus`, `truck`) and `PERSON_CLASS_ID`. Applies weighbridge occupancy rules.
-- **[`app/services/image_processing.py`](file:///Users/d/Downloads/argus/app/services/image_processing.py)**:
-  Safely loads images via Pillow, strips EXIF orientation tags, validates byte and pixel limits, and crops bounding boxes with safety bounds checks to prevent index errors.
-- **[`app/services/ocr.py`](file:///Users/d/Downloads/argus/app/services/ocr.py)**:
-  Integrates RapidOCR ONNX inference (`PlateRecognizer`). Handles token filtering, CLAHE contrast adjustments, and spatial clustering to join multi-line plates.
-- **[`app/services/plate_rules.py`](file:///Users/d/Downloads/argus/app/services/plate_rules.py)**:
-  Contains the Indian ANPR rule engine. Normalizes strings, corrects OCR visual character substitutions, and parses license plates into state code, district RTO, series, and unique registration number.
-
-### Core Utilities Layer
-- **[`app/core/config.py`](file:///Users/d/Downloads/argus/app/core/config.py)**:
-  Loads settings from `.env` or system environment using Pydantic's `BaseSettings`.
-- **[`app/core/contracts.py`](file:///Users/d/Downloads/argus/app/core/contracts.py)**:
-  Provides defensive programming primitives (`require`, `ensure`, `bounded`) to enforce runtime contracts and invariants without silent failures.
-- **[`app/schemas.py`](file:///Users/d/Downloads/argus/app/schemas.py)**:
-  Defines all data contracts (`RecognitionResponse`, `PlateResult`, `DetectedVehicle`, `DetectionResult`, `APIErrorResponse`).
-
----
-
-## 5. Domain Rules & Policies
-
-### 1. Weighbridge Operational Policies
-| Policy Setting | Default | Purpose |
+| Component | Path | Responsibility |
 | :--- | :--- | :--- |
-| `MAX_ALLOWED_HUMANS` | `0` | Max humans permitted on scale (`0` = strict rejection, `1` = allow driver, `null` = disable). |
-| `ALLOW_CAB_OCCUPANTS` | `true` | Ignores humans and painted artwork geometrically enclosed within vehicle boundaries, rejecting only external pedestrians. |
-| `MAX_ALLOWED_VEHICLES` | `1` | Max 4-wheelers allowed on scale platform (`null` = disable multiple vehicle rejection). |
-| `MIN_ALLOWED_VEHICLES` | `1` | Min 4-wheelers required on scale platform (`0` = allow crop-only / disable check). |
-| `MIN_HUMAN_BOX_AREA_RATIO` | `0.005` | Ignores tiny background pedestrian noise smaller than 0.5% frame area to prevent false rejections. |
-| `MIN_VEHICLE_BOX_AREA_RATIO` | `0.01` | Ignores distant background vehicles smaller than 1.0% frame area. |
-| `MAX_CONCURRENT_INFERENCES` | `4` | Concurrency throttle for CPU/GPU worker threads. |
-
-### 2. Indian License Plate Syntax & Disambiguation
-Indian vehicle registration marks follow strict conventions:
-- **Format**: `^([A-Z]{2})[ -]?(?:0[1-9]|[1-9]\d|[1-9])[ -]?([A-Za-z]{1,3})[ -]?(\d{3,4})$` or Bharat series `^(\d{2})[ -]?(BH)[ -]?(\d{4})[ -]?([A-Za-z]{1,2})$`
-- **Positional Disambiguation**:
-  - The first two characters represent the State/Union Territory code (e.g., `MH`, `DL`, `TG`, `KA`). Numbers like `0` or `1` in these positions are corrected to `O` or `I`, and known prefixes (e.g. `W8` $\to$ `WB`, `7G` $\to$ `TG`, `M4` $\to$ `MH`) are corrected.
-  - HSRP `"IND"` national stamps fused to the start of plates are stripped prior to normalization.
-  - The trailing characters represent the registration number (digits `0001` to `9999`). Letters like `O`, `D`, or `B` in numeric positions are corrected to `0`, `0`, `8`.
-  - Both single-line and stacked two-line plates (common on trucks and two-wheelers) are parsed via horizontal line clustering and vertical stacking.
+| **REST Server** | [`app/server.py`](../app/server.py) | FastAPI routes (`GET /`, `POST /recognize`), request timing middleware, lifespan model warmup. |
+| **Pipeline Orchestrator** | [`app/services/pipeline.py`](../app/services/pipeline.py) | Coordinates Stage 1 detection, cropping, Stage 2 OCR, fallback passes, and coordinate mapping. |
+| **Vehicle Detector** | [`app/services/detector.py`](../app/services/detector.py) | Encapsulates YOLO11 model inference, class filtering, and weighbridge gatekeeping logic. |
+| **Image Processing** | [`app/services/image_processing.py`](../app/services/image_processing.py) | In-memory image loading, EXIF correction, dimension guards, and safe bounded cropping. |
+| **Plate Recognizer** | [`app/services/ocr.py`](../app/services/ocr.py) | RapidOCR ONNX inference, line grouping, and 2D spatial clustering for stacked plates. |
+| **Plate Rules** | [`app/services/plate_rules.py`](../app/services/plate_rules.py) | Indian plate regex parsers, positional character disambiguation, and state code validation. |
+| **Data Models** | [`app/schemas.py`](../app/schemas.py) | Pydantic V2 domain models: [`RecognitionResponse`](../app/schemas.py), [`PlateResult`](../app/schemas.py), [`DetectionResult`](../app/schemas.py). |
+| **Configuration** | [`app/core/config.py`](../app/core/config.py) | Strongly-typed environment configuration via `pydantic-settings`. |
+| **Runtime Contracts** | [`app/core/contracts.py`](../app/core/contracts.py) | Defensive programming assertions (`require`, `ensure`, `bounded`). |
 
 ---
 
-## 6. Developer & Verification Workflows
+## 4. Coordinate Translation & Data Contracts
 
-Per [`AGENTS.md`](file:///Users/d/Downloads/argus/AGENTS.md), all modifications must pass the 3 mandatory quality gates:
+- **Crop to Frame Mapping**: OCR is executed within the vehicle bounding box crop for speed and precision. Detected plate coordinates `[crop_x1, crop_y1, crop_x2, crop_y2]` are automatically translated back to global image frame coordinates:
+  $$\text{box}_{\text{global}} = [x_1 + \text{crop}_{x1}, y_1 + \text{crop}_{y1}, x_2 + \text{crop}_{x1}, y_2 + \text{crop}_{y1}]$$
+- **Typed Response**: Output is serialized through [`RecognitionResponse`](../app/schemas.py), containing policy rejection status (`rejected`), human count (`human_count`), execution time (`execution_time_ms`), and a list of detected [`PlateResult`](../app/schemas.py) items with plate string, vehicle category, confidence, state origin, and bounding box.
 
-```bash
-# 1. Lint and code formatting
-uv run ruff check --fix
+---
 
-# 2. Static type checking
-uv run ty check
+## 5. Concurrency & Performance Model
 
-# 3. Test suite execution
-uv run pytest
-```
-
-Whenever adding or modifying features, APIs, configuration, or architecture patterns, **always update both this guide (`docs/ARCHITECTURE.md`) and [`README.md`](file:///Users/d/Downloads/argus/README.md)**.
+- **Threadpool Offloading**: YOLO and RapidOCR perform synchronous CPU/GPU inference. FastAPI handlers execute inference via `starlette.concurrency.run_in_threadpool` to avoid blocking the asyncio event loop.
+- **Concurrency Throttling**: Inferences are bounded by an `asyncio.Semaphore(MAX_CONCURRENT_INFERENCES)` to prevent out-of-memory errors on constrained hardware.
+- **Zero Disk Writes**: Ingestion, cropping, and inference occur entirely in RAM, preventing flash/SD card wear on edge deployments.

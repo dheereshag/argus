@@ -61,7 +61,6 @@ jobs:
         run: |
           mkdir -p test_verify
           cp compiled_dist/app.*.so test_verify/
-          cp main.py test_verify/
           cd test_verify
           uv run python -c "import app; print('SUCCESS: Native ARM64 app module loaded!')"
 
@@ -80,10 +79,10 @@ jobs:
           # Stage release artifacts to a temporary location outside the repository
           RELEASE_DIR=$(mktemp -d)
           cp compiled_dist/app.*.so "${RELEASE_DIR}/"
-          cp main.py pyproject.toml uv.lock README.md .python-version "${RELEASE_DIR}/"
+          cp pyproject.toml uv.lock README.md .python-version "${RELEASE_DIR}/"
           [ -f .env.example ] && cp .env.example "${RELEASE_DIR}/"
           [ -f .gitignore ] && cp .gitignore "${RELEASE_DIR}/"
-          [ -f yolo26n.pt ] && cp yolo26n.pt "${RELEASE_DIR}/"
+          [ -f yolo11n.pt ] && cp yolo11n.pt "${RELEASE_DIR}/"
 
           # Switch to orphan deployment branch and wipe tracked and untracked files
           git branch -D release-arm64 2>/dev/null || true

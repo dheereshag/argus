@@ -190,6 +190,7 @@ def test_no_dead_or_orphaned_modules():
     forbidden_paths = [
         app_root / "api",
         app_root / "eval",
+        app_root / "main.py",
         app_root / "schemas" / "error.py",
         app_root / "schemas" / "plate.py",
         app_root / "services" / "constants.py",
@@ -204,7 +205,6 @@ def test_no_dead_or_orphaned_modules():
     expected_active_files = {
         "__init__.py",
         "constants.py",
-        "main.py",
         "schemas.py",
         "server.py",
         "core/__init__.py",
