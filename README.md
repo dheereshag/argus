@@ -139,6 +139,8 @@ Operational thresholds and model settings are configured via environment variabl
 | `DEFAULT_YOLO_IMGSZ` | `int` | `640` | YOLO inference image size. |
 | `FALLBACK_OCR_ON_NO_VEHICLE` | `bool` | `true` | Attempt full-frame OCR when YOLO misses vehicle body (half-in-frame / bumper). |
 | `MAX_CONCURRENT_INFERENCES` | `int` | `4` | Semaphore concurrency limit for model execution. |
+| `ONNX_NUM_THREADS` | `int` | `4` | Intra-op thread count for ONNX Runtime (Cortex-A76 quad-core). |
+| `IMAGE_RESAMPLE_FILTER` | `str` | `BILINEAR` | Downsampling filter (`BILINEAR` for fast ARM SIMD, `BICUBIC`, `LANCZOS`). |
 | `MAX_UPLOAD_BYTES` | `int` | `8388608` | Max HTTP upload payload size (8 MB). |
 | `MAX_IMAGE_EDGE_PX` | `int` | `1920` | Max dimension before automatic downscaling. |
 | `MAX_IMAGE_PIXELS` | `int` | `50000000` | Max pixel threshold for decompression bomb protection. |
@@ -181,4 +183,5 @@ uv run pytest
 ## Documentation
 
 - **[Architecture & Pipeline Guide](docs/ARCHITECTURE.md)**: Detailed breakdown of the two-stage pipeline, spatial clustering, data contracts, and concurrency model.
+- **[Raspberry Pi 5 Optimization Guide](docs/RASPBERRY_PI_5_OPTIMIZATION.md)**: Hardware tuning, Python 3.14 free-threading, ONNX thread affinity, and Hailo-8 NPU acceleration.
 - **[Edge Security & Hardening Guide](docs/EDGE_SECURITY.md)**: Deployment guidelines for Raspberry Pi edge devices, Nuitka compilation, and physical security.

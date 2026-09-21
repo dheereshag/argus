@@ -2,8 +2,6 @@
 Tests for payload budgets, downscaling, pixel caps, and HTTP timeouts.
 """
 
-import io
-
 import pytest
 from PIL import Image
 
@@ -46,16 +44,18 @@ def test_pixel_budget_is_enforced(monkeypatch):
 
 def test_large_image_is_downscaled():
     out = decode_and_downscale(_jpeg(4000, 3000))
-    assert max(Image.open(io.BytesIO(out)).size) <= settings.MAX_IMAGE_EDGE_PX
+    assert isinstance(out, Image.Image)
+    assert max(out.size) <= settings.MAX_IMAGE_EDGE_PX
 
 
 def test_downscaled_output_fits_plate_recognizer_ceiling():
-    assert len(decode_and_downscale(_jpeg(4000, 3000))) < 3.5 * 1024 * 1024
+    out = decode_and_downscale(_jpeg(4000, 3000))
+    assert out.width * out.height <= settings.MAX_IMAGE_EDGE_PX * settings.MAX_IMAGE_EDGE_PX
 
 
 def test_small_image_is_not_upscaled():
     out = decode_and_downscale(_jpeg(320, 240))
-    assert Image.open(io.BytesIO(out)).size == (320, 240)
+    assert out.size == (320, 240)
 
 
 def test_undecodable_bytes_raise_invalid_image():

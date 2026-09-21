@@ -3,12 +3,13 @@
 from app.core.config import settings
 from app.core.logging import logger
 from app.schemas import DetectionResult, PlateResult, RecognitionStatusEnum
+from app.services.image_processing import ImageInput
 from app.services.pipeline.stages import _run_stage2_ocr
 
 
 def _attempt_zero_vehicle_fallback(
     detection: DetectionResult,
-    image_bytes: bytes,
+    image_input: ImageInput,
     resolved_filename: str,
 ) -> list[PlateResult] | None:
     """Attempt full-frame OCR when YOLO misses a vehicle (e.g. half-in-frame / tight crop)."""
@@ -19,7 +20,7 @@ def _attempt_zero_vehicle_fallback(
         logger.info(
             f"No 4-wheeler detected on '{resolved_filename}', attempting fallback OCR..."
         )
-        plate_results = _run_stage2_ocr(detection, image_bytes, resolved_filename)
+        plate_results = _run_stage2_ocr(detection, image_input, resolved_filename)
         if any(r.plate != "N/A" for r in plate_results):
             logger.info(f"Fallback OCR succeeded for '{resolved_filename}' without vehicle bbox")
             return plate_results

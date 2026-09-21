@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     MAX_UPLOAD_BYTES: int = 8 * 1024 * 1024  # Reject incoming request body larger than 8 MB
     MAX_IMAGE_PIXELS: int = 50_000_000  # Guard against decompression bomb attacks (w * h)
     MAX_IMAGE_EDGE_PX: int = 1920  # Downscale longest image edge to this before inference
+    IMAGE_RESAMPLE_FILTER: str = "BILINEAR"  # Downsampling filter: BILINEAR (fast on ARM), BICUBIC, or LANCZOS
 
     # Pre-screening Rejection Policies & Thresholds (e.g., Weighbridge occupancy rules)
     MAX_ALLOWED_HUMANS: int | None = 0  # Max humans permitted on scale (0 = strict rejection, 1 = allow driver, None = disable)
@@ -46,8 +47,9 @@ class Settings(BaseSettings):
     DEFAULT_YOLO_IMGSZ: int = 640  # Inference resolution for YOLO detector
     FALLBACK_OCR_ON_NO_VEHICLE: bool = True  # Attempt full-frame OCR when YOLO misses vehicle (e.g. half-in-frame / close-up)
 
-    # Concurrency Settings
+    # Concurrency & Engine Settings
     MAX_CONCURRENT_INFERENCES: int = 4  # Maximum concurrent requests processed in threadpool
+    ONNX_NUM_THREADS: int = 4  # Intra-op thread count for ONNX Runtime (tuned for Cortex-A76 quad-core)
 
     # Server & CORS Settings
     SERVER_HOST: str = "127.0.0.1"  # Loopback interface (isolates to localhost/co-located services)

@@ -1,6 +1,4 @@
-"""Image downscaling and JPEG serialization."""
-
-import io
+"""In-memory image downscaling and boundary validation."""
 
 from PIL import Image
 
@@ -11,15 +9,8 @@ from app.services.image_processing.loader import load_rgb
 from app.services.image_processing.security import probe_image
 
 
-def _to_jpeg_bytes(img: Image.Image, quality: int = 90) -> bytes:
-    """Encode a PIL Image into compressed JPEG bytes."""
-    with io.BytesIO() as buf:
-        img.save(buf, format="JPEG", quality=quality)
-        return buf.getvalue()
-
-
-def decode_and_downscale(image_bytes: bytes, max_edge: int | None = None) -> bytes:
-    """Validate an uploaded image and return downscaled JPEG bytes bounded by max_edge."""
+def decode_and_downscale(image_bytes: bytes, max_edge: int | None = None) -> Image.Image:
+    """Validate an uploaded image and return downscaled in-memory PIL Image bounded by max_edge."""
     max_edge = max_edge or settings.MAX_IMAGE_EDGE_PX
     require(max_edge > 0, f"max_edge must be positive, got {max_edge}")
 
@@ -32,8 +23,10 @@ def decode_and_downscale(image_bytes: bytes, max_edge: int | None = None) -> byt
 
     pil_img = load_rgb(image_bytes)
     if max(pil_img.size) > max_edge:
-        pil_img.thumbnail((max_edge, max_edge), Image.Resampling.LANCZOS)
+        resample = getattr(Image.Resampling, settings.IMAGE_RESAMPLE_FILTER, Image.Resampling.BILINEAR)
+        pil_img.thumbnail((max_edge, max_edge), resample)
 
     ensure(min(pil_img.size) > 0, "downscaled image collapsed to zero size")
     ensure(max(pil_img.size) <= max_edge, f"downscale failed to bound edge to {max_edge}")
-    return _to_jpeg_bytes(pil_img)
+    return pil_img
+
