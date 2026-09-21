@@ -1,4 +1,4 @@
-"""Stage 1: YOLO11 Vehicle Detection, Occupancy Policy Gatekeeper, and Cropper."""
+"""Stage 1: YOLO26 Vehicle Detection, Occupancy Policy Gatekeeper, and Cropper."""
 
 from ultralytics import YOLO
 

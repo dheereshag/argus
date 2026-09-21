@@ -11,7 +11,7 @@ Argus executes a two-stage artificial intelligence flow with gatekeeping validat
 ```mermaid
 flowchart TD
     A[Input Image / HTTP Upload] --> B[Input Ingestion & Downscaling<br/><code>app/services/image_processing/</code>]
-    B --> C[Stage 1: YOLO11 Detection & Gatekeeping<br/><code>app/services/detector/</code>]
+    B --> C[Stage 1: YOLO26 Detection & Gatekeeping<br/><code>app/services/detector/</code>]
     
     C -- Pedestrian Detected --> R1[Reject: rejected_human_detected]
     C -- Multiple Vehicles --> R2[Reject: rejected_multiple_vehicles]
@@ -43,7 +43,7 @@ flowchart TD
    - Normalizes EXIF orientation and downscales large images while preserving aspect ratio.
 
 2. **Stage 1: Vehicle Detection & Gatekeeping** ([`app/services/detector/`](../app/services/detector/)):
-   - Runs Ultralytics YOLO11 (`yolo11n.pt`) inference to identify `car`, `bus`, `truck`, and `person`.
+   - Runs Ultralytics YOLO26 (`yolo26n.pt`) inference to identify `car`, `bus`, `truck`, and `person`.
    - Evaluates weighbridge occupancy rules (`MAX_ALLOWED_HUMANS`, `MAX_ALLOWED_VEHICLES`, `MIN_ALLOWED_VEHICLES`).
    - When `ALLOW_CAB_OCCUPANTS=true`, pedestrians located geometrically inside a vehicle's bounding box are ignored to prevent false rejections from drivers or cabin artwork.
    - Extracts bounding box crops for all qualified 4-wheelers.
@@ -74,7 +74,7 @@ All service domains in `app/services/` strictly follow **NASA JPL Rule 4** (Holz
 | :--- | :--- | :--- |
 | **REST Server** | [`app/server.py`](../app/server.py) | FastAPI routes (`GET /`, `POST /recognize`), request timing middleware, lifespan model warmup. |
 | **Pipeline Orchestrator** | [`app/services/pipeline/`](../app/services/pipeline/) | `orchestrator.py`, `stages.py`, `fallback.py`, `helpers.py`, `response.py`: Coordinates detection, OCR passes, fallbacks, coordinate adjustments, and response packaging. |
-| **Vehicle Detector** | [`app/services/detector/`](../app/services/detector/) | `detector.py`, `geometry.py`, `occupancy.py`, `parser.py`: YOLO11 model singleton, coordinate clamping/containment, and weighbridge gatekeeping. |
+| **Vehicle Detector** | [`app/services/detector/`](../app/services/detector/) | `detector.py`, `geometry.py`, `occupancy.py`, `parser.py`: YOLO26 model singleton, coordinate clamping/containment, and weighbridge gatekeeping. |
 | **Image Processing** | [`app/services/image_processing/`](../app/services/image_processing/) | `loader.py`, `security.py`, `transformer.py`: Polymorphic image decoding, EXIF orientation, decompression bomb defense, and zero-copy in-memory downscaling. |
 | **Plate Recognizer** | [`app/services/ocr/`](../app/services/ocr/) | `recognizer.py`, `engine.py`, `enhancer.py`, `extractor.py`, `geometry.py`, `pairing.py`, `spatial.py`, `tokens.py`, `candidates.py`: RapidOCR ONNX inference, CLAHE enhancement, 2D token pairing, and candidate selection. |
 | **Plate Rules** | [`app/services/plate_rules/`](../app/services/plate_rules/) | `parser.py`, `normalizers.py`, `expander.py`, `filters.py`, `bh_series.py`, `char_maps.py`: Indian registration plate validation, positional OCR character substitution, decal filtering, and BH-series parsing. |

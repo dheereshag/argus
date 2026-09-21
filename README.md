@@ -1,6 +1,6 @@
 # Argus
 
-Automatic Number Plate Recognition (ANPR) microservice and Python library designed for weighbridge gatekeeping and vehicle access control. Combines **Ultralytics YOLO11** for vehicle localization and human detection with **RapidOCR (ONNX Runtime)** for Indian license plate reading and character disambiguation.
+Automatic Number Plate Recognition (ANPR) microservice and Python library designed for weighbridge gatekeeping and vehicle access control. Combines **Ultralytics YOLO26** for vehicle localization and human detection with **RapidOCR (ONNX Runtime)** for Indian license plate reading and character disambiguation.
 
 ---
 
@@ -126,7 +126,7 @@ Operational thresholds and model settings are configured via environment variabl
 
 | Variable | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `YOLO_MODEL_NAME` | `str` | `yolo11n.pt` | Path or name of YOLO11 model weights. |
+| `YOLO_MODEL_NAME` | `str` | `yolo26n.pt` | Path or name of YOLO26 model weights. |
 | `YOLO_CONFIG_DIR` | `str` | `.cache/ultralytics` | Ultralytics cache directory for model downloads. |
 | `HUMAN_CONF_THRESH` | `float` | `0.30` | Minimum confidence threshold for pedestrian detection. |
 | `VEHICLE_CONF_THRESH` | `float` | `0.35` | Minimum confidence threshold for 4-wheeler detection. |

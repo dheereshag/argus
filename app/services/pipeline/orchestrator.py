@@ -29,7 +29,7 @@ def recognize_plate_image(
     image_input: str | bytes,
     filename: str = "image.jpg",
 ) -> RecognitionResponse:
-    """Execute the Two-Stage ANPR Pipeline (YOLO11 detection + RapidOCR) on an input image."""
+    """Execute the Two-Stage ANPR Pipeline (YOLO26 detection + RapidOCR) on an input image."""
     start_time = time.time()
     resolved_filename = filename or (image_input if isinstance(image_input, str) else "image.jpg")
     prepared_img = decode_and_downscale(_resolve_bytes(image_input))

@@ -76,7 +76,7 @@ class DetectedVehicle:
 @dataclass(slots=True)
 class DetectionResult:
     """
-    Stage 1 Result: YOLO11 vehicle detection, occupancy verification, and vehicle cropping.
+    Stage 1 Result: YOLO26 vehicle detection, occupancy verification, and vehicle cropping.
 
     Attributes:
         is_eligible: True if the frame passes all pre-screening policies and should proceed to OCR.

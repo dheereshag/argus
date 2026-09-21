@@ -75,7 +75,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     """
     logger.info(f"Starting {settings.PROJECT_NAME} v{settings.VERSION}...")
     try:
-        # Pre-warm YOLO11 model weights and verify RapidOCR engine
+        # Pre-warm YOLO26 model weights and verify RapidOCR engine
         VehicleDetector.get_model()
         PlateRecognizer.check_engine()
         logger.info("AI models initialized and verified successfully.")

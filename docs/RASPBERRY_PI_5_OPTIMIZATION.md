@@ -121,4 +121,4 @@ For high-speed multi-lane weighbridges requiring 30–60+ FPS ANPR:
    dtparam=pciex1
    dtparam=pciex1_gen=3
    ```
-3. **Offloading**: Export YOLO11 weights to Hailo HEF format (`yolo11n.hef`) using the Hailo Dataflow Compiler. Offloading Stage 1 detection to the NPU frees 100% of the Cortex-A76 CPU cores for OCR and plate parsing.
+3. **Offloading**: Export YOLO26 weights to Hailo HEF format (`yolo26n.hef`) using the Hailo Dataflow Compiler. Offloading Stage 1 detection to the NPU frees 100% of the Cortex-A76 CPU cores for OCR and plate parsing.

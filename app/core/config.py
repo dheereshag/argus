@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     VERSION: str = _PKG_VERSION
 
     # YOLO Model Settings
-    YOLO_MODEL_NAME: str = "yolo11n.pt"  # Pre-trained weights file or model identifier
+    YOLO_MODEL_NAME: str = "yolo26n.pt"  # Pre-trained YOLO26 weights file or model identifier
     YOLO_CONFIG_DIR: str = ".cache/ultralytics"  # Local storage directory for Ultralytics cache
     HUMAN_CONF_THRESH: float = 0.30  # Minimum confidence to flag a person presence
     VEHICLE_CONF_THRESH: float = 0.35  # Minimum confidence to recognize a 4-wheeler (car, bus, truck)

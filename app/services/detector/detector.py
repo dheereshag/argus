@@ -1,4 +1,4 @@
-"""Stage 1: YOLO11 Vehicle Detection, Occupancy Policy Gatekeeper, and Cropper."""
+"""Stage 1: YOLO26 Vehicle Detection, Occupancy Policy Gatekeeper, and Cropper."""
 
 import numpy as np
 from PIL import Image
@@ -14,7 +14,7 @@ from app.services.image_processing import ImageInput, load_rgb
 
 
 class VehicleDetector:
-    """Stage 1: YOLO11 Vehicle Detection and Weighbridge Occupancy Gatekeeper."""
+    """Stage 1: YOLO26 Vehicle Detection and Weighbridge Occupancy Gatekeeper."""
 
     _model: YOLO | None = None
 
@@ -26,11 +26,11 @@ class VehicleDetector:
 
     @classmethod
     def get_model(cls) -> YOLO:
-        """Return singleton YOLO11 model instance, loading weights on first access."""
+        """Return singleton YOLO26 model instance, loading weights on first access."""
         if cls._model is None:
             import app.services.detector as yf
 
-            cls._model = yf.YOLO(settings.YOLO_MODEL_NAME or "yolo11n.pt")
+            cls._model = yf.YOLO(settings.YOLO_MODEL_NAME or "yolo26n.pt")
         ensure(cls._model is not None, "YOLO model failed to initialise")
         return cls._model
 

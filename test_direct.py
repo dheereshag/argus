@@ -2,7 +2,7 @@
 Direct Model Benchmark & Testing Utility.
 
 Iterates over sample test images in the `tests/` directory and benchmarks:
-  1. YOLO11 Vehicle Pre-screening & Occupancy Filtering latency.
+  1. YOLO26 Vehicle Pre-screening & Occupancy Filtering latency.
   2. RapidOCR Text Recognition latency and plate candidate output.
 
 Usage:
@@ -42,24 +42,24 @@ def test_models() -> None:
         with open(img_path, "rb") as f:
             raw_bytes = f.read()
 
-        img_bytes = decode_and_downscale(raw_bytes)
+        prep_img = decode_and_downscale(raw_bytes)
 
         # ----------------------------------------------------------------------
-        # Benchmark 1: YOLO11 Pre-screening & Occupancy Check
+        # Benchmark 1: YOLO26 Pre-screening & Occupancy Check
         # ----------------------------------------------------------------------
         t_yolo_start = time.time()
-        yolo_res = detector.detect(img_bytes)
+        yolo_res = detector.detect(prep_img)
         t_yolo = round((time.time() - t_yolo_start) * 1000, 2)
         v_types = [v.vehicle_type for v in yolo_res.vehicles]
         print(
-            f"[YOLO11 Prescreening] ({t_yolo:>7.2f} ms): vehicles={v_types}"
+            f"[YOLO26 Prescreening] ({t_yolo:>7.2f} ms): vehicles={v_types}"
         )
 
         # ----------------------------------------------------------------------
         # Benchmark 2: RapidOCR Direct Recognition
         # ----------------------------------------------------------------------
         t0 = time.time()
-        result = engine.recognize(img_bytes)
+        result = engine.recognize(prep_img)
         t_exec = round((time.time() - t0) * 1000, 2)
         print(f"[RapidOCR             ] ({t_exec:>7.2f} ms): {result}")
 
