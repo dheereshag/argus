@@ -44,7 +44,9 @@ class Settings(BaseSettings):
     MIN_ALLOWED_VEHICLES: int = 1  # Minimum 4-wheelers required on scale platform (0 = allow crop-only / disable check)
     MIN_HUMAN_BOX_AREA_RATIO: float = 0.005  # Ignore background pedestrians smaller than 0.5% frame area
     MIN_VEHICLE_BOX_AREA_RATIO: float = 0.01  # Ignore distant background vehicles smaller than 1.0% frame area
+    VEHICLE_IOU_THRESH: float = 0.50  # Suppress duplicate vehicle bounding boxes with IoU above this
     DEFAULT_YOLO_IMGSZ: int = 640  # Inference resolution for YOLO detector
+    YOLO_AGNOSTIC_NMS: bool = True  # Suppress cross-class overlapping bounding boxes in YOLO
     FALLBACK_OCR_ON_NO_VEHICLE: bool = True  # Attempt full-frame OCR when YOLO misses vehicle (e.g. half-in-frame / close-up)
 
     # Concurrency & Engine Settings

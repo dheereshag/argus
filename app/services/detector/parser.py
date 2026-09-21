@@ -5,7 +5,19 @@ import numpy as np
 from app.constants import FOUR_WHEELER_CLASS_NAMES, MAX_DETECTIONS, PERSON_CLASS_ID
 from app.core.config import settings
 from app.core.contracts import bounded
-from app.services.detector.geometry import BoundingBox, clamp_box, is_contained
+from app.services.detector.geometry import BoundingBox, box_iou, clamp_box, is_contained
+
+
+def _dedup_vehicles(candidates: list[tuple[float, int, str, BoundingBox]]) -> list[tuple[str, BoundingBox]]:
+    """Deduplicate overlapping vehicles by confidence and spatial IoU."""
+    candidates.sort(key=lambda item: item[0], reverse=True)
+    deduped: list[tuple[str, BoundingBox]] = []
+    thresh = settings.VEHICLE_IOU_THRESH
+    for _, _, v_type, b in candidates:
+        if not any(box_iou(b, eb) > thresh or is_contained(b, eb, 0.70) or is_contained(eb, b, 0.70) for _, eb in deduped):
+            deduped.append((v_type, b))
+    deduped.sort(key=lambda item: (item[1][2] - item[1][0]) * (item[1][3] - item[1][1]), reverse=True)
+    return deduped
 
 
 def parse_detections(
@@ -19,7 +31,7 @@ def parse_detections(
 ) -> tuple[int, list[tuple[str, BoundingBox]]]:
     """Parse raw YOLO output arrays, clamp boxes, count humans, and sort vehicles."""
     human_candidates: list[BoundingBox] = []
-    vehicles: list[tuple[int, str, BoundingBox]] = []
+    vehicle_candidates: list[tuple[float, int, str, BoundingBox]] = []
     total_area = width * height
     min_h_area = settings.MIN_HUMAN_BOX_AREA_RATIO * total_area
     min_v_area = settings.MIN_VEHICLE_BOX_AREA_RATIO * total_area
@@ -35,14 +47,13 @@ def parse_detections(
         if cls_id == PERSON_CLASS_ID and conf >= human_conf_thresh and area >= min_h_area:
             human_candidates.append(box)
         elif cls_id in FOUR_WHEELER_CLASS_NAMES and conf >= vehicle_conf_thresh and area >= min_v_area:
-            vehicles.append((area, FOUR_WHEELER_CLASS_NAMES[cls_id], box))
+            vehicle_candidates.append((float(conf), area, FOUR_WHEELER_CLASS_NAMES[cls_id], box))
 
-    vehicles.sort(key=lambda item: item[0], reverse=True)
-    sorted_v = [(v_type, box) for _, v_type, box in vehicles]
-
-    if settings.ALLOW_CAB_OCCUPANTS and sorted_v:
-        human_count = sum(1 for hb in human_candidates if not any(is_contained(hb, vb) for _, vb in sorted_v))
+    vehicles = _dedup_vehicles(vehicle_candidates)
+    if settings.ALLOW_CAB_OCCUPANTS and vehicles:
+        human_count = sum(1 for hb in human_candidates if not any(is_contained(hb, vb) for _, vb in vehicles))
     else:
         human_count = len(human_candidates)
 
-    return human_count, sorted_v
+    return human_count, vehicles
+

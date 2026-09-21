@@ -37,7 +37,7 @@ class VehicleDetector:
     def _run_detection(self, img: Image.Image, h_conf: float, v_conf: float) -> tuple[int, list[tuple[str, BoundingBox]]]:
         require(img is not None, "_run_detection called with no image")
         w, h = img.size
-        res = next(iter(self.get_model()(img, imgsz=settings.DEFAULT_YOLO_IMGSZ, verbose=False)))
+        res = next(iter(self.get_model()(img, imgsz=settings.DEFAULT_YOLO_IMGSZ, agnostic_nms=settings.YOLO_AGNOSTIC_NMS, verbose=False)))
         boxes = getattr(res, "boxes", None)
         if boxes is None or len(boxes) == 0 or not hasattr(boxes, "cls"):
             return 0, []

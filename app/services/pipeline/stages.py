@@ -49,7 +49,11 @@ def _run_stage2_ocr(detection: DetectionResult, image_input: ImageInput, filenam
             results.extend(_ocr_single_vehicle(recognizer, vehicle, image_input, filename, allow_fallback))
 
         valid = [r for r in results if r.plate != "N/A"]
-        return valid if valid else results
+        dedup: list[PlateResult] = []
+        for p in valid:
+            if not any(p.plate == e.plate and p.box and e.box and max(abs(p.box[0] - e.box[0]), abs(p.box[1] - e.box[1])) < 30 for e in dedup):
+                dedup.append(p)
+        return dedup if dedup else results
     except (ANPRServiceError, ValueError, RuntimeError, OSError, KeyError, AttributeError) as exc:
         logger.error(f"OCR failed on '{filename}': {exc}")
         return []

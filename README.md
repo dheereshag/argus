@@ -136,7 +136,9 @@ Operational thresholds and model settings are configured via environment variabl
 | `MIN_ALLOWED_VEHICLES` | `int` | `1` | Min 4-wheelers required on scale (`0` = allow close-up crop OCR). |
 | `MIN_HUMAN_BOX_AREA_RATIO` | `float` | `0.005` | Minimum bbox area ratio to filter background pedestrian noise. |
 | `MIN_VEHICLE_BOX_AREA_RATIO` | `float` | `0.01` | Minimum bbox area ratio to filter distant background vehicles. |
+| `VEHICLE_IOU_THRESH` | `float` | `0.50` | Maximum IoU before suppressing duplicate overlapping vehicle bounding boxes. |
 | `DEFAULT_YOLO_IMGSZ` | `int` | `640` | YOLO inference image size. |
+| `YOLO_AGNOSTIC_NMS` | `bool` | `true` | Class-agnostic NMS to suppress cross-class vehicle duplicates (bus/truck). |
 | `FALLBACK_OCR_ON_NO_VEHICLE` | `bool` | `true` | Attempt full-frame OCR when YOLO misses vehicle body (half-in-frame / bumper). |
 | `MAX_CONCURRENT_INFERENCES` | `int` | `4` | Semaphore concurrency limit for model execution. |
 | `ONNX_NUM_THREADS` | `int` | `4` | Intra-op thread count for ONNX Runtime (Cortex-A76 quad-core). |
