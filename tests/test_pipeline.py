@@ -1,7 +1,9 @@
 from unittest.mock import MagicMock, patch
 
+import pytest
 from PIL import Image
 
+from app.core.config import settings
 from app.schemas import DetectedVehicle, DetectionResult, RecognitionStatusEnum
 from app.services.pipeline import recognize_plate_image
 
@@ -247,4 +249,94 @@ def test_recognize_multiple_vehicles_success(mock_yolo, mock_ocr_cls, sample_ima
     assert response.results[1].plate == "MH12CD5678"
     assert response.results[1].vehicle_type == "truck"
     assert response.results[1].box == (110, 110, 140, 125)
+
+
+@patch("app.services.pipeline.PlateRecognizer")
+@patch("app.services.pipeline.VehicleDetector.detect")
+def test_zero_vehicle_fallback_success(mock_yolo, mock_ocr_cls, sample_image_bytes, monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(settings, "FALLBACK_OCR_ON_NO_VEHICLE", True)
+    mock_yolo.return_value = DetectionResult(
+        is_eligible=False,
+        status=RecognitionStatusEnum.REJECTED_NO_FOUR_WHEELER,
+        vehicles=[],
+        human_count=0,
+    )
+    mock_ocr = MagicMock()
+    mock_ocr.recognize.return_value = [{"plate": "DL01AB1234", "state": "Delhi"}]
+    mock_ocr_cls.return_value = mock_ocr
+
+    response = recognize_plate_image(sample_image_bytes, filename="partial_car.jpg")
+    assert response.success is True
+    assert response.rejected is False
+    assert response.status == RecognitionStatusEnum.SUCCESS
+    assert len(response.results) == 1
+    assert response.results[0].plate == "DL01AB1234"
+    assert response.results[0].vehicle_type is None
+    mock_ocr.recognize.assert_called_once()
+
+
+@patch("app.services.pipeline.PlateRecognizer")
+@patch("app.services.pipeline.VehicleDetector.detect")
+def test_zero_vehicle_fallback_disabled(mock_yolo, mock_ocr_cls, sample_image_bytes, monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(settings, "FALLBACK_OCR_ON_NO_VEHICLE", False)
+    mock_yolo.return_value = DetectionResult(
+        is_eligible=False,
+        status=RecognitionStatusEnum.REJECTED_NO_FOUR_WHEELER,
+        vehicles=[],
+        human_count=0,
+    )
+    mock_ocr = MagicMock()
+    mock_ocr_cls.return_value = mock_ocr
+
+    response = recognize_plate_image(sample_image_bytes, filename="partial_car.jpg")
+    assert response.success is False
+    assert response.rejected is True
+    assert response.status == RecognitionStatusEnum.REJECTED_NO_FOUR_WHEELER
+    assert response.results == []
+    mock_ocr.recognize.assert_not_called()
+
+
+@patch("app.services.pipeline.PlateRecognizer")
+@patch("app.services.pipeline.VehicleDetector.detect")
+def test_zero_vehicle_fallback_no_plate(mock_yolo, mock_ocr_cls, sample_image_bytes, monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(settings, "FALLBACK_OCR_ON_NO_VEHICLE", True)
+    mock_yolo.return_value = DetectionResult(
+        is_eligible=False,
+        status=RecognitionStatusEnum.REJECTED_NO_FOUR_WHEELER,
+        vehicles=[],
+        human_count=0,
+    )
+    mock_ocr = MagicMock()
+    mock_ocr.recognize.return_value = []
+    mock_ocr_cls.return_value = mock_ocr
+
+    response = recognize_plate_image(sample_image_bytes, filename="empty_frame.jpg")
+    assert response.success is False
+    assert response.rejected is True
+    assert response.status == RecognitionStatusEnum.REJECTED_NO_FOUR_WHEELER
+    assert response.results == []
+    mock_ocr.recognize.assert_called_once()
+
+
+@patch("app.services.pipeline.PlateRecognizer")
+@patch("app.services.pipeline.VehicleDetector.detect")
+def test_zero_vehicle_fallback_human_safety_preserved(
+    mock_yolo, mock_ocr_cls, sample_image_bytes, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setattr(settings, "FALLBACK_OCR_ON_NO_VEHICLE", True)
+    mock_yolo.return_value = DetectionResult(
+        is_eligible=False,
+        status=RecognitionStatusEnum.REJECTED_HUMAN_DETECTED,
+        vehicles=[],
+        human_count=1,
+    )
+    mock_ocr = MagicMock()
+    mock_ocr_cls.return_value = mock_ocr
+
+    response = recognize_plate_image(sample_image_bytes, filename="pedestrian.jpg")
+    assert response.success is False
+    assert response.rejected is True
+    assert response.status == RecognitionStatusEnum.REJECTED_HUMAN_DETECTED
+    assert response.human_count == 1
+    mock_ocr.recognize.assert_not_called()
 

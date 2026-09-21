@@ -44,6 +44,7 @@ class Settings(BaseSettings):
     MIN_HUMAN_BOX_AREA_RATIO: float = 0.005  # Ignore background pedestrians smaller than 0.5% frame area
     MIN_VEHICLE_BOX_AREA_RATIO: float = 0.01  # Ignore distant background vehicles smaller than 1.0% frame area
     DEFAULT_YOLO_IMGSZ: int = 640  # Inference resolution for YOLO detector
+    FALLBACK_OCR_ON_NO_VEHICLE: bool = True  # Attempt full-frame OCR when YOLO misses vehicle (e.g. half-in-frame / close-up)
 
     # Concurrency Settings
     MAX_CONCURRENT_INFERENCES: int = 4  # Maximum concurrent requests processed in threadpool

@@ -137,6 +137,7 @@ Operational thresholds and model settings are configured via environment variabl
 | `MIN_HUMAN_BOX_AREA_RATIO` | `float` | `0.005` | Minimum bbox area ratio to filter background pedestrian noise. |
 | `MIN_VEHICLE_BOX_AREA_RATIO` | `float` | `0.01` | Minimum bbox area ratio to filter distant background vehicles. |
 | `DEFAULT_YOLO_IMGSZ` | `int` | `640` | YOLO inference image size. |
+| `FALLBACK_OCR_ON_NO_VEHICLE` | `bool` | `true` | Attempt full-frame OCR when YOLO misses vehicle body (half-in-frame / bumper). |
 | `MAX_CONCURRENT_INFERENCES` | `int` | `4` | Semaphore concurrency limit for model execution. |
 | `MAX_UPLOAD_BYTES` | `int` | `8388608` | Max HTTP upload payload size (8 MB). |
 | `MAX_IMAGE_EDGE_PX` | `int` | `1920` | Max dimension before automatic downscaling. |

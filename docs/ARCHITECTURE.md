@@ -15,14 +15,16 @@ flowchart TD
     
     C -- Pedestrian Detected --> R1[Reject: rejected_human_detected]
     C -- Multiple Vehicles --> R2[Reject: rejected_multiple_vehicles]
-    C -- No 4-Wheeler --> R3[Reject: rejected_no_four_wheeler]
+    C -- No 4-Wheeler & Fallback Disabled --> R3[Reject: rejected_no_four_wheeler]
+    C -- No 4-Wheeler & Fallback Enabled --> E2[Fallback: Full Frame OCR]
     
     C -- Single 4-Wheeler Verified --> D[Primary Vehicle Crop<br/><code>app/services/image_processing.py</code>]
     
     D --> E[Stage 2: RapidOCR Text Recognition<br/><code>app/services/ocr.py</code>]
-    E -- No Plate on Crop --> E2[Fallback: Full Frame OCR]
+    E -- No Plate on Crop --> E2
     E --> F[2D Spatial Clustering & Multi-Line Pairing<br/><code>app/services/ocr.py</code>]
-    E2 --> F
+    E2 -- Valid Plate Found --> F
+    E2 -- No Plate Found --> R3
     
     F --> G[Domain Normalization & State Validation<br/><code>app/services/plate_rules.py</code>]
     G --> H[Response Serialization<br/><code>app/schemas.py</code>]
@@ -49,6 +51,7 @@ flowchart TD
 3. **Stage 2: Optical Character Recognition (OCR)** ([`app/services/ocr.py`](../app/services/ocr.py), [`app/services/pipeline.py`](../app/services/pipeline.py)):
    - Runs RapidOCR (ONNX Runtime) over the primary vehicle crop.
    - If no valid license plate candidate is found in the vehicle crop, falls back to OCR across the full image frame.
+   - **Zero-Vehicle Fallback**: When YOLO misses a vehicle body (e.g. half-in-frame / bumper close-up) and `FALLBACK_OCR_ON_NO_VEHICLE=true`, full-frame OCR is attempted. If a valid plate is identified, the frame succeeds (`vehicle_type=None`); if no plate is found, it falls through to `rejected_no_four_wheeler`.
    - Applies CLAHE (Contrast Limited Adaptive Histogram Equalization) if low-contrast text is encountered.
 
 4. **2D Spatial Clustering & Multi-Line Pairing** ([`app/services/ocr.py`](../app/services/ocr.py)):

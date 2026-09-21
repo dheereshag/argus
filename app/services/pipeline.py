@@ -15,6 +15,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
+from app.core.config import settings
 from app.core.exceptions import ANPRServiceError, InvalidImageError
 from app.core.logging import logger
 from app.schemas import (
@@ -180,6 +181,26 @@ def _run_stage2_ocr(detection: DetectionResult, image_bytes: bytes, filename: st
         return []
 
 
+def _attempt_zero_vehicle_fallback(
+    detection: DetectionResult,
+    image_bytes: bytes,
+    resolved_filename: str,
+) -> list[PlateResult] | None:
+    """Attempt full-frame OCR when YOLO misses a vehicle (e.g. half-in-frame / tight crop)."""
+    if (
+        detection.status == RecognitionStatusEnum.REJECTED_NO_FOUR_WHEELER
+        and settings.FALLBACK_OCR_ON_NO_VEHICLE
+    ):
+        logger.info(
+            f"No 4-wheeler detected on '{resolved_filename}', attempting full-frame fallback OCR..."
+        )
+        plate_results = _run_stage2_ocr(detection, image_bytes, resolved_filename)
+        if any(r.plate != "N/A" for r in plate_results):
+            logger.info(f"Fallback OCR succeeded for '{resolved_filename}' without vehicle bbox")
+            return plate_results
+    return None
+
+
 def recognize_plate_image(
     image_input: str | bytes,
     filename: str = "image.jpg",
@@ -201,6 +222,18 @@ def recognize_plate_image(
     # Stage 1: Vehicle Detection & Occupancy Gatekeeping
     detection = VehicleDetector().detect(image_bytes)
     if not detection.is_eligible:
+        fallback_results = _attempt_zero_vehicle_fallback(detection, image_bytes, resolved_filename)
+        if fallback_results is not None:
+            return _build_response(
+                detection,
+                resolved_filename,
+                start_time,
+                success=True,
+                rejected=False,
+                status=RecognitionStatusEnum.SUCCESS,
+                results=fallback_results,
+            )
+
         logger.info(f"Image '{resolved_filename}' ineligible: status={detection.status}")
         return _build_response(
             detection,
@@ -225,3 +258,4 @@ def recognize_plate_image(
         status=final_status,
         results=plate_results,
     )
+
