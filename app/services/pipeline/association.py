@@ -1,26 +1,28 @@
 """Spatial association of full-frame OCR plates to detected vehicle bounding boxes."""
 
-from pydantic import ValidationError
-
 from app.schemas import DetectedVehicle, PlateResult
 from app.services.detector.geometry import is_contained
+from app.services.pipeline.helpers import validate_plate_results
 
 
-def _to_plate_result(raw: dict, vehicle_type: str | None) -> PlateResult | None:
-    plate = raw.get("plate")
-    if not plate or plate == "N/A":
-        return None
-    entry = {**raw, **({"vehicle_type": vehicle_type} if vehicle_type and "vehicle_type" not in raw else {})}
-    try:
-        return PlateResult.model_validate(entry)
-    except ValidationError:
-        return None
+def _bumper_match(b: tuple, v: DetectedVehicle) -> tuple[int, int] | None:
+    vx1, vy1, vx2, vy2 = v.box
+    ix = max(0, min(b[2], vx2) - max(b[0], vx1))
+    if (ix / max(1, b[2] - b[0])) >= 0.50 and b[1] >= vy1:
+        dy = max(0, b[1] - vy2)
+        if dy <= 0.80 * max(1, vy2 - vy1):
+            return (dy, -ix)
+    return None
 
 
 def _owner_vehicle(box: tuple | None, vehicles: list[DetectedVehicle]) -> DetectedVehicle | None:
     if not box:
         return vehicles[0] if len(vehicles) == 1 else None
-    return next((v for v in vehicles if is_contained(box, v.box, 0.50)), None)
+    direct = next((v for v in vehicles if is_contained(box, v.box, 0.50)), None)
+    if direct is not None:
+        return direct
+    cands = [(m, v) for v in vehicles if (m := _bumper_match(box, v)) is not None]
+    return min(cands, key=lambda c: c[0])[1] if cands else None
 
 
 def _dedup(results: list[PlateResult]) -> list[PlateResult]:
@@ -41,18 +43,14 @@ def associate_fullframe_plates(
     plated: set[int] | None = None,
 ) -> list[PlateResult]:
     """Merge full-frame OCR results with per-vehicle crop results via spatial association."""
-    plated_ids = set(plated) if plated is not None else {
-        id(v) for r in crop_results if r.plate for v in vehicles if r.vehicle_type == v.vehicle_type
-    }
+    plated_ids = set(plated) if plated is not None else {id(v) for r in crop_results if r.plate for v in vehicles if r.vehicle_type == v.vehicle_type}
     extra: list[PlateResult] = []
     for raw in full_frame_raw:
         veh = _owner_vehicle(raw.get("box"), vehicles)
-        result = _to_plate_result(raw, veh.vehicle_type if veh else None)
-        if result is None:
-            continue
-        if veh:
-            plated_ids.add(id(veh))
-        extra.append(result)
+        if res := validate_plate_results([raw], veh.vehicle_type if veh else None):
+            if veh:
+                plated_ids.add(id(veh))
+            extra.extend(res)
 
     combined = _dedup(list(crop_results) + extra)
     combined.extend(PlateResult(plate=None, vehicle_type=v.vehicle_type) for v in vehicles if id(v) not in plated_ids)

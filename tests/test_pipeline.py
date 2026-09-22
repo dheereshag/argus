@@ -406,4 +406,44 @@ def test_recognize_motorcycle_and_bicycle(mock_yolo, mock_ocr_cls, sample_image_
     assert resp.results[1].vehicle_type == "bicycle"
 
 
+@patch("app.services.pipeline.PlateRecognizer")
+@patch("app.services.pipeline.VehicleDetector.detect")
+def test_close_up_vehicle_bumper_plate_association(mock_yolo, mock_ocr_cls, sample_image_bytes):
+    """Test close-up vehicle (3.jpg scenario) where box cuts off above bumper but plate aligns in column."""
+    dummy_crop = Image.new("RGB", (1265, 534))
+    detection = DetectionResult(
+        vehicles=[
+            DetectedVehicle(
+                vehicle_type="truck",
+                box=(5, 0, 1270, 534),
+                crop=dummy_crop,
+                crop_box=(5, 0, 1270, 534),
+            )
+        ],
+        humans_outside=0,
+        humans_inside=0,
+    )
+    mock_yolo.return_value = detection
+
+    mock_ocr = MagicMock()
+    mock_ocr.recognize.side_effect = [
+        [],  # Pass A: Crop OCR terminates at y=534, bumper not in crop
+        [
+            {
+                "plate": "BP2A4904",
+                "state": "Police / Government Series",
+                "box": (471, 728, 840, 816),
+            }
+        ],  # Pass B: Full-frame OCR finds bumper plate
+    ]
+    mock_ocr_cls.return_value = mock_ocr
+
+    resp = recognize_plate_image(sample_image_bytes, filename="3.jpg")
+    assert len(resp.results) == 1
+    assert resp.results[0].plate == "BP2A4904"
+    assert resp.results[0].vehicle_type == "truck"
+    assert resp.results[0].box == (471, 728, 840, 816)
+
+
+
 
