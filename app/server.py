@@ -15,7 +15,7 @@ from datetime import UTC, datetime
 from typing import Annotated, Any
 
 from asyncer import asyncify
-from fastapi import FastAPI, File, Request, UploadFile
+from fastapi import FastAPI, File, Request, Response, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -97,10 +97,10 @@ def _register_middleware(app: FastAPI) -> None:
     )
 
     @app.middleware("http")
-    async def add_process_time_header(request: Request, call_next):
+    async def add_process_time_header(request: Request, call_next: Any) -> Response:
         """Measures total HTTP request roundtrip time and sets X-Process-Time-Ms header."""
         start_time = time.perf_counter()
-        response = await call_next(request)
+        response: Response = await call_next(request)
         response.headers["X-Process-Time-Ms"] = f"{(time.perf_counter() - start_time) * 1000:.2f}"
         return response
 

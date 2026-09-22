@@ -180,80 +180,79 @@ def test_no_bare_image_open_outside_the_helper():
 # ---------------------------------------------------------------------------
 
 
+_FORBIDDEN_SUBPATHS = [
+    "api",
+    "eval",
+    "main.py",
+    "schemas/error.py",
+    "schemas/plate.py",
+    "services/constants.py",
+    "services/strategies",
+    "services/base.py",
+    "services/yolo_filter.py",
+]
+
+_EXPECTED_ACTIVE_FILES = {
+    "__init__.py",
+    "constants.py",
+    "schemas.py",
+    "server.py",
+    "core/__init__.py",
+    "core/config.py",
+    "core/contracts.py",
+    "core/exceptions.py",
+    "core/logging.py",
+    "services/__init__.py",
+    "services/detector/__init__.py",
+    "services/detector/detector.py",
+    "services/detector/geometry.py",
+    "services/detector/occupancy.py",
+    "services/detector/parser.py",
+    "services/image_processing/__init__.py",
+    "services/image_processing/loader.py",
+    "services/image_processing/security.py",
+    "services/image_processing/transformer.py",
+    "services/ocr/__init__.py",
+    "services/ocr/candidates.py",
+    "services/ocr/engine.py",
+    "services/ocr/enhancer.py",
+    "services/ocr/extractor.py",
+    "services/ocr/geometry.py",
+    "services/ocr/pairing.py",
+    "services/ocr/recognizer.py",
+    "services/ocr/spatial.py",
+    "services/ocr/tokens.py",
+    "services/pipeline/__init__.py",
+    "services/pipeline/fallback.py",
+    "services/pipeline/helpers.py",
+    "services/pipeline/orchestrator.py",
+    "services/pipeline/response.py",
+    "services/pipeline/stages.py",
+    "services/plate_rules/__init__.py",
+    "services/plate_rules/bh_series.py",
+    "services/plate_rules/char_maps.py",
+    "services/plate_rules/expander.py",
+    "services/plate_rules/filters.py",
+    "services/plate_rules/normalizers.py",
+    "services/plate_rules/parser.py",
+}
+
+
 def test_no_dead_or_orphaned_modules():
     """Ensure obsolete modules and directories remain deleted and no orphan files exist in app/."""
     import pathlib
 
     app_root = pathlib.Path("app")
-
-    # 1. Obsolete paths that must NEVER be reintroduced
-    forbidden_paths = [
-        app_root / "api",
-        app_root / "eval",
-        app_root / "main.py",
-        app_root / "schemas" / "error.py",
-        app_root / "schemas" / "plate.py",
-        app_root / "services" / "constants.py",
-        app_root / "services" / "strategies",
-        app_root / "services" / "base.py",
-        app_root / "services" / "yolo_filter.py",
-    ]
-    for path in forbidden_paths:
+    for subpath in _FORBIDDEN_SUBPATHS:
+        path = app_root / subpath
         assert not path.exists(), f"Dead/obsolete code path was reintroduced: {path}"
-
-    # 2. Strict whitelist of active source files in app/
-    expected_active_files = {
-        "__init__.py",
-        "constants.py",
-        "schemas.py",
-        "server.py",
-        "core/__init__.py",
-        "core/config.py",
-        "core/contracts.py",
-        "core/exceptions.py",
-        "core/logging.py",
-        "services/__init__.py",
-        "services/detector/__init__.py",
-        "services/detector/detector.py",
-        "services/detector/geometry.py",
-        "services/detector/occupancy.py",
-        "services/detector/parser.py",
-        "services/image_processing/__init__.py",
-        "services/image_processing/loader.py",
-        "services/image_processing/security.py",
-        "services/image_processing/transformer.py",
-        "services/ocr/__init__.py",
-        "services/ocr/candidates.py",
-        "services/ocr/engine.py",
-        "services/ocr/enhancer.py",
-        "services/ocr/extractor.py",
-        "services/ocr/geometry.py",
-        "services/ocr/pairing.py",
-        "services/ocr/recognizer.py",
-        "services/ocr/spatial.py",
-        "services/ocr/tokens.py",
-        "services/pipeline/__init__.py",
-        "services/pipeline/fallback.py",
-        "services/pipeline/helpers.py",
-        "services/pipeline/orchestrator.py",
-        "services/pipeline/response.py",
-        "services/pipeline/stages.py",
-        "services/plate_rules/__init__.py",
-        "services/plate_rules/bh_series.py",
-        "services/plate_rules/char_maps.py",
-        "services/plate_rules/expander.py",
-        "services/plate_rules/filters.py",
-        "services/plate_rules/normalizers.py",
-        "services/plate_rules/parser.py",
-    }
 
     actual_files = {
         str(p.relative_to(app_root))
         for p in app_root.rglob("*.py")
         if "__pycache__" not in p.parts
     }
-
-    unexpected = actual_files - expected_active_files
+    unexpected = actual_files - _EXPECTED_ACTIVE_FILES
     assert not unexpected, f"Unexpected or dead files found in app/: {unexpected}"
 
 

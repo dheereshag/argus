@@ -1,7 +1,7 @@
 [project]
 name = "argus"
 version = "0.1.0"
-description = "Add your description here"
+description = "Production Automatic Number Plate Recognition (ANPR) microservice and Python library for weighbridge gatekeeping."
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
