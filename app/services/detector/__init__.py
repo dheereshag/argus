@@ -11,7 +11,7 @@ from app.services.detector.geometry import (
     is_contained,
     pad_box,
 )
-from app.services.detector.occupancy import evaluate_occupancy
+from app.services.detector.occupancy import partition_humans
 
 __all__ = [
     "YOLO",
@@ -19,9 +19,9 @@ __all__ = [
     "VehicleDetector",
     "box_iou",
     "clamp_box",
-    "evaluate_occupancy",
     "is_contained",
     "pad_box",
+    "partition_humans",
     "settings",
 ]
 

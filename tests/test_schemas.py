@@ -3,16 +3,7 @@ from app.schemas import (
     DetectionResult,
     PlateResult,
     RecognitionResponse,
-    RecognitionStatusEnum,
 )
-
-
-def test_recognition_status_enum():
-    assert RecognitionStatusEnum.SUCCESS.value == "success"
-    assert RecognitionStatusEnum.REJECTED_HUMAN_DETECTED.value == "rejected_human_detected"
-    assert RecognitionStatusEnum.REJECTED_NO_FOUR_WHEELER.value == "rejected_no_four_wheeler"
-    assert RecognitionStatusEnum.REJECTED_MULTIPLE_VEHICLES.value == "rejected_multiple_vehicles"
-    assert RecognitionStatusEnum.NO_PLATE_DETECTED.value == "no_plate_detected"
 
 
 def test_plate_result_valid():
@@ -22,18 +13,23 @@ def test_plate_result_valid():
     assert res.state == "Rajasthan"
 
 
+def test_plate_result_unread_vehicle():
+    res = PlateResult(plate=None, vehicle_type="truck")
+    assert res.plate is None
+    assert res.vehicle_type == "truck"
+
+
 def test_recognition_response_valid():
     resp = RecognitionResponse(
-        success=True,
-        status=RecognitionStatusEnum.SUCCESS,
-        human_count=0,
         filename="test.jpg",
+        humans_outside=1,
+        humans_inside=0,
         results=[PlateResult(plate="RJ09GA0165", vehicle_type="car", state="Rajasthan")],
         execution_time_ms=123.45,
     )
-    assert resp.success is True
-    assert resp.status == RecognitionStatusEnum.SUCCESS
-    assert resp.human_count == 0
+    assert resp.filename == "test.jpg"
+    assert resp.humans_outside == 1
+    assert resp.humans_inside == 0
     assert len(resp.results) == 1
     assert resp.results[0].plate == "RJ09GA0165"
     assert resp.results[0].vehicle_type == "car"
@@ -41,14 +37,12 @@ def test_recognition_response_valid():
 
 def test_detection_result_valid():
     det = DetectionResult(
-        is_eligible=True,
-        status=None,
         vehicles=[DetectedVehicle(vehicle_type="car", box=(10, 10, 50, 50))],
-        human_count=0,
+        humans_outside=2,
+        humans_inside=1,
     )
-    assert det.is_eligible is True
-    assert det.status is None
-    assert det.human_count == 0
+    assert det.humans_outside == 2
+    assert det.humans_inside == 1
     assert len(det.vehicles) == 1
     assert det.vehicles[0].vehicle_type == "car"
     assert det.vehicles[0].box == (10, 10, 50, 50)

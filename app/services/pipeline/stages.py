@@ -6,6 +6,7 @@ from app.core.exceptions import ANPRServiceError
 from app.core.logging import logger
 from app.schemas import DetectedVehicle, DetectionResult, PlateResult
 from app.services.image_processing import ImageInput
+from app.services.pipeline.fallback import run_full_frame_fallback
 from app.services.pipeline.helpers import (
     _adjust_crop_coordinates,
     validate_plate_results,
@@ -29,31 +30,31 @@ def _ocr_single_vehicle(
         elif allow_fallback:
             raw = recognizer.recognize(image_input, filename=filename)
 
-    return validate_plate_results(raw, vehicle_type=vehicle.vehicle_type)
+    valid_plates = validate_plate_results(raw, vehicle_type=vehicle.vehicle_type)
+    return valid_plates if valid_plates else [PlateResult(plate=None, vehicle_type=vehicle.vehicle_type)]
 
 
 def _run_stage2_ocr(detection: DetectionResult, image_input: ImageInput, filename: str) -> list[PlateResult]:
-    """Execute RapidOCR across detected vehicles, falling back to full frame if needed."""
+    """Execute RapidOCR across detected vehicles, or across the full frame if no vehicle."""
     logger.info(f"Running OCR on '{filename}'")
     try:
         import app.services.pipeline as pl
 
         recognizer = pl.PlateRecognizer()
         if not detection.vehicles:
-            raw = recognizer.recognize(image_input, filename=filename)
-            return validate_plate_results(raw, vehicle_type=None)
+            return run_full_frame_fallback(recognizer, image_input, filename)
 
         results: list[PlateResult] = []
         allow_fallback = len(detection.vehicles) == 1
         for vehicle in detection.vehicles:
             results.extend(_ocr_single_vehicle(recognizer, vehicle, image_input, filename, allow_fallback))
 
-        valid = [r for r in results if r.plate != "N/A"]
         dedup: list[PlateResult] = []
-        for p in valid:
-            if not any(p.plate == e.plate and p.box and e.box and max(abs(p.box[0] - e.box[0]), abs(p.box[1] - e.box[1])) < 30 for e in dedup):
+        for p in results:
+            if p.plate is None or not any(p.plate == e.plate and p.box and e.box and max(abs(p.box[0] - e.box[0]), abs(p.box[1] - e.box[1])) < 30 for e in dedup):
                 dedup.append(p)
-        return dedup if dedup else results
+        return dedup
     except (ANPRServiceError, ValueError, RuntimeError, OSError, KeyError, AttributeError) as exc:
         logger.error(f"OCR failed on '{filename}': {exc}")
         return []
+

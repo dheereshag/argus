@@ -62,14 +62,12 @@ curl -X POST "http://localhost:8000/recognize" \
   -F "file=@tests/1.jpg"
 ```
 
-**Success Response (`200 OK`):**
+**Response (`200 OK`):**
 ```json
 {
-  "success": true,
-  "rejected": false,
-  "status": "success",
-  "human_count": 0,
   "filename": "1.jpg",
+  "humans_outside": 0,
+  "humans_inside": 1,
   "results": [
     {
       "plate": "RJ09GA0165",
@@ -84,20 +82,9 @@ curl -X POST "http://localhost:8000/recognize" \
 }
 ```
 
-**Policy Rejection Response (`200 OK`):**
-```json
-{
-  "success": false,
-  "rejected": true,
-  "status": "rejected_human_detected",
-  "human_count": 2,
-  "filename": "frame.jpg",
-  "results": [],
-  "execution_time_ms": 14.82
-}
-```
-
-Rejection statuses include: `rejected_human_detected`, `rejected_multiple_vehicles`, and `rejected_no_four_wheeler`.
+- `humans_outside`: Count of pedestrians detected outside vehicle bounds.
+- `humans_inside`: Count of human occupants detected inside vehicle cabins.
+- `results`: Plate OCR results for each detected vehicle. If a vehicle is detected but no plate is found, `plate: null` is returned alongside `vehicle_type`. When no vehicle body is detected, full-frame OCR is run as fallback; if no plate is found, `results` is `[]`.
 
 ---
 
@@ -111,11 +98,12 @@ from app.services.pipeline import recognize_plate_image
 # Process an image file path or raw bytes
 response = recognize_plate_image("path/to/vehicle.jpg")
 
-if response.rejected:
-    print(f"Rejected: {response.status.value}")
-elif response.success:
-    for plate in response.results:
-        print(f"Plate: {plate.plate} ({plate.state}), Confidence: {plate.confidence:.2f}")
+print(f"Pedestrians: {response.humans_outside}, Cab Occupants: {response.humans_inside}")
+for res in response.results:
+    if res.plate:
+        print(f"Plate: {res.plate} ({res.state}), Vehicle: {res.vehicle_type}, Confidence: {res.confidence:.2f}")
+    else:
+        print(f"Vehicle: {res.vehicle_type}, Plate: Not detected")
 ```
 
 ---
@@ -130,16 +118,11 @@ Operational thresholds and model settings are configured via environment variabl
 | `YOLO_CONFIG_DIR` | `str` | `.cache/ultralytics` | Ultralytics cache directory for model downloads. |
 | `HUMAN_CONF_THRESH` | `float` | `0.30` | Minimum confidence threshold for pedestrian detection. |
 | `VEHICLE_CONF_THRESH` | `float` | `0.35` | Minimum confidence threshold for 4-wheeler detection. |
-| `MAX_ALLOWED_HUMANS` | `int \| null` | `0` | Max external pedestrians permitted (`0` = reject on human, `null` = disabled). |
-| `ALLOW_CAB_OCCUPANTS` | `bool` | `true` | Exclude occupants/artwork inside vehicle bounding box from rejection. |
-| `MAX_ALLOWED_VEHICLES` | `int \| null` | `1` | Max 4-wheelers allowed on scale (`null` = disabled). |
-| `MIN_ALLOWED_VEHICLES` | `int` | `1` | Min 4-wheelers required on scale (`0` = allow close-up crop OCR). |
 | `MIN_HUMAN_BOX_AREA_RATIO` | `float` | `0.005` | Minimum bbox area ratio to filter background pedestrian noise. |
 | `MIN_VEHICLE_BOX_AREA_RATIO` | `float` | `0.01` | Minimum bbox area ratio to filter distant background vehicles. |
 | `VEHICLE_IOU_THRESH` | `float` | `0.50` | Maximum IoU before suppressing duplicate overlapping vehicle bounding boxes. |
 | `DEFAULT_YOLO_IMGSZ` | `int` | `640` | YOLO inference image size. |
 | `YOLO_AGNOSTIC_NMS` | `bool` | `true` | Class-agnostic NMS to suppress cross-class vehicle duplicates (bus/truck). |
-| `FALLBACK_OCR_ON_NO_VEHICLE` | `bool` | `true` | Attempt full-frame OCR when YOLO misses vehicle body (half-in-frame / bumper). |
 | `MAX_CONCURRENT_INFERENCES` | `int` | `4` | Semaphore concurrency limit for model execution. |
 | `ONNX_NUM_THREADS` | `int` | `4` | Intra-op thread count for ONNX Runtime (Cortex-A76 quad-core). |
 | `IMAGE_RESAMPLE_FILTER` | `str` | `BILINEAR` | Downsampling filter (`BILINEAR` for fast ARM SIMD, `BICUBIC`, `LANCZOS`). |

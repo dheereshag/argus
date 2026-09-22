@@ -3,8 +3,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from app.constants import INDIAN_PLATE_REGEX, STATE_CODES
-from app.core.config import settings
-from app.schemas import RecognitionStatusEnum
 from app.services.detector import VehicleDetector
 from app.services.plate_rules import normalize_candidate_strings
 
@@ -47,8 +45,8 @@ def test_yolo_filter_detection_flow(mock_get_model, sample_image_bytes):
     mock_get_model.return_value = mock_model
 
     result = VehicleDetector().detect(sample_image_bytes)
-    assert result.is_eligible is True
-    assert result.human_count == 0
+    assert result.humans_outside == 0
+    assert result.humans_inside == 0
     assert len(result.vehicles) == 1
     assert result.vehicles[0].vehicle_type == "car"
     assert result.vehicles[0].box == (10, 10, 50, 50)
@@ -56,40 +54,28 @@ def test_yolo_filter_detection_flow(mock_get_model, sample_image_bytes):
 
 
 @patch("app.services.detector.VehicleDetector.get_model")
-def test_yolo_filter_human_detection_policy(
-    mock_get_model, sample_image_bytes, monkeypatch: pytest.MonkeyPatch
-):
+def test_yolo_detector_human_outside(mock_get_model, sample_image_bytes):
     mock_box_human = MagicMock()
     mock_box_human.__len__.return_value = 2
     mock_box_human.cls.cpu().numpy.return_value = [0, 2]  # Class 0 = person, 2 = car
     mock_box_human.conf.cpu().numpy.return_value = [0.85, 0.90]
-    mock_box_human.xyxy.cpu().numpy.return_value = [[5, 5, 15, 15], [10, 10, 90, 90]]
+    # Person at (5, 5, 15, 15) is outside car at (20, 20, 90, 90)
+    mock_box_human.xyxy.cpu().numpy.return_value = [[5, 5, 15, 15], [20, 20, 90, 90]]
 
     mock_results = MagicMock()
     mock_results.boxes = mock_box_human
-
     mock_model = MagicMock()
     mock_model.return_value = [mock_results]
     mock_get_model.return_value = mock_model
 
-    # Default policy: reject_on_human (MAX_ALLOWED_HUMANS = 0) -> rejected
-    monkeypatch.setattr(settings, "MAX_ALLOWED_HUMANS", 0)
-    res_default = VehicleDetector().detect(sample_image_bytes)
-    assert res_default.is_eligible is False
-    assert res_default.status == RecognitionStatusEnum.REJECTED_HUMAN_DETECTED
-    assert res_default.human_count == 1
-
-    # Explicit policy: MAX_ALLOWED_HUMANS is None -> human check disabled, eligible
-    monkeypatch.setattr(settings, "MAX_ALLOWED_HUMANS", None)
-    res_allowed = VehicleDetector().detect(sample_image_bytes)
-    assert res_allowed.is_eligible is True
-    assert res_allowed.status is None
-    assert res_allowed.human_count == 1
-    assert len(res_allowed.vehicles) == 1
+    res = VehicleDetector().detect(sample_image_bytes)
+    assert res.humans_outside == 1
+    assert res.humans_inside == 0
+    assert len(res.vehicles) == 1
 
 
 @patch("app.services.detector.VehicleDetector.get_model")
-def test_yolo_filter_no_vehicle_policy(mock_get_model, sample_image_bytes, monkeypatch: pytest.MonkeyPatch):
+def test_yolo_detector_no_vehicles(mock_get_model, sample_image_bytes):
     mock_box_empty = MagicMock()
     mock_box_empty.__len__.return_value = 0
     mock_box_empty.cls.cpu().numpy.return_value = []
@@ -98,28 +84,18 @@ def test_yolo_filter_no_vehicle_policy(mock_get_model, sample_image_bytes, monke
 
     mock_results = MagicMock()
     mock_results.boxes = mock_box_empty
-
     mock_model = MagicMock()
     mock_model.return_value = [mock_results]
     mock_get_model.return_value = mock_model
 
-    # Default policy: MIN_ALLOWED_VEHICLES = 1 -> rejected when vehicle count is 0
-    monkeypatch.setattr(settings, "MIN_ALLOWED_VEHICLES", 1)
-    res_default = VehicleDetector().detect(sample_image_bytes)
-    assert res_default.is_eligible is False
-    assert res_default.status == RecognitionStatusEnum.REJECTED_NO_FOUR_WHEELER
-    assert len(res_default.vehicles) == 0
-
-    # Explicit policy: MIN_ALLOWED_VEHICLES = 0 -> eligible for direct plate OCR
-    monkeypatch.setattr(settings, "MIN_ALLOWED_VEHICLES", 0)
-    res_allowed = VehicleDetector().detect(sample_image_bytes)
-    assert res_allowed.is_eligible is True
-    assert res_allowed.status is None
-    assert len(res_allowed.vehicles) == 0
+    res = VehicleDetector().detect(sample_image_bytes)
+    assert len(res.vehicles) == 0
+    assert res.humans_outside == 0
+    assert res.humans_inside == 0
 
 
 @patch("app.services.detector.VehicleDetector.get_model")
-def test_yolo_filter_multiple_vehicles_policy(mock_get_model, sample_image_bytes, monkeypatch: pytest.MonkeyPatch):
+def test_yolo_detector_multiple_vehicles(mock_get_model, sample_image_bytes):
     mock_box_multiple = MagicMock()
     mock_box_multiple.__len__.return_value = 2
     mock_box_multiple.cls.cpu().numpy.return_value = [2, 7]  # Class 2 = car, 7 = truck
@@ -128,128 +104,13 @@ def test_yolo_filter_multiple_vehicles_policy(mock_get_model, sample_image_bytes
 
     mock_results = MagicMock()
     mock_results.boxes = mock_box_multiple
-
     mock_model = MagicMock()
     mock_model.return_value = [mock_results]
     mock_get_model.return_value = mock_model
 
-    # Default policy: MAX_ALLOWED_VEHICLES = 1 -> rejected
-    monkeypatch.setattr(settings, "MAX_ALLOWED_VEHICLES", 1)
-    res_default = VehicleDetector().detect(sample_image_bytes)
-    assert res_default.is_eligible is False
-    assert res_default.status == RecognitionStatusEnum.REJECTED_MULTIPLE_VEHICLES
-    assert len(res_default.vehicles) == 2
-
-    # Explicit policy: MAX_ALLOWED_VEHICLES is None -> eligible with primary vehicle
-    monkeypatch.setattr(settings, "MAX_ALLOWED_VEHICLES", None)
-    res_allowed = VehicleDetector().detect(sample_image_bytes)
-    assert res_allowed.is_eligible is True
-    assert res_allowed.status is None
-    assert len(res_allowed.vehicles) == 2
-    assert {v.vehicle_type for v in res_allowed.vehicles} == {"car", "truck"}
-
-
-@patch("app.services.detector.VehicleDetector.get_model")
-def test_yolo_filter_human_threshold_policies(
-    mock_get_model, sample_image_bytes, monkeypatch: pytest.MonkeyPatch
-):
-    # 1 human + 1 car
-    mock_box_1h = MagicMock()
-    mock_box_1h.__len__.return_value = 2
-    mock_box_1h.cls.cpu().numpy.return_value = [0, 2]  # Class 0 = person, 2 = car
-    mock_box_1h.conf.cpu().numpy.return_value = [0.85, 0.90]
-    mock_box_1h.xyxy.cpu().numpy.return_value = [[5, 5, 15, 15], [10, 10, 90, 90]]
-
-    mock_res_1h = MagicMock()
-    mock_res_1h.boxes = mock_box_1h
-
-    mock_model = MagicMock()
-    mock_model.return_value = [mock_res_1h]
-    mock_get_model.return_value = mock_model
-
-    # MAX_ALLOWED_HUMANS = 1 allows driver
-    monkeypatch.setattr(settings, "MAX_ALLOWED_HUMANS", 1)
-    res_driver = VehicleDetector().detect(sample_image_bytes)
-    assert res_driver.is_eligible is True
-    assert res_driver.status is None
-    assert res_driver.human_count == 1
-
-    # 2 humans + 1 car with MAX_ALLOWED_HUMANS = 1 -> rejected
-    mock_box_2h = MagicMock()
-    mock_box_2h.__len__.return_value = 3
-    mock_box_2h.cls.cpu().numpy.return_value = [0, 0, 2]  # 2 persons, 1 car
-    mock_box_2h.conf.cpu().numpy.return_value = [0.85, 0.85, 0.90]
-    mock_box_2h.xyxy.cpu().numpy.return_value = [[5, 5, 15, 15], [6, 6, 16, 16], [10, 10, 90, 90]]
-    mock_res_2h = MagicMock()
-    mock_res_2h.boxes = mock_box_2h
-    mock_model.return_value = [mock_res_2h]
-
-    res_rejected = VehicleDetector().detect(sample_image_bytes)
-    assert res_rejected.is_eligible is False
-    assert res_rejected.status == RecognitionStatusEnum.REJECTED_HUMAN_DETECTED
-    assert res_rejected.human_count == 2
-
-    # 2 humans + 1 car with MAX_ALLOWED_HUMANS = 2 -> allowed
-    monkeypatch.setattr(settings, "MAX_ALLOWED_HUMANS", 2)
-    res_2h_allowed = VehicleDetector().detect(sample_image_bytes)
-    assert res_2h_allowed.is_eligible is True
-    assert res_2h_allowed.status is None
-    assert res_2h_allowed.human_count == 2
-
-
-@patch("app.services.detector.VehicleDetector.get_model")
-def test_yolo_filter_vehicle_threshold_policies(
-    mock_get_model, sample_image_bytes, monkeypatch: pytest.MonkeyPatch
-):
-    # 2 vehicles with MAX_ALLOWED_VEHICLES = 2 -> allowed
-    mock_box_2v = MagicMock()
-    mock_box_2v.__len__.return_value = 2
-    mock_box_2v.cls.cpu().numpy.return_value = [2, 7]  # car, truck
-    mock_box_2v.conf.cpu().numpy.return_value = [0.85, 0.90]
-    mock_box_2v.xyxy.cpu().numpy.return_value = [[10, 10, 50, 50], [50, 50, 90, 90]]
-    mock_res_2v = MagicMock()
-    mock_res_2v.boxes = mock_box_2v
-
-    mock_model = MagicMock()
-    mock_model.return_value = [mock_res_2v]
-    mock_get_model.return_value = mock_model
-
-    monkeypatch.setattr(settings, "MAX_ALLOWED_VEHICLES", 2)
-    res_2v = VehicleDetector().detect(sample_image_bytes)
-    assert res_2v.is_eligible is True
-    assert res_2v.status is None
-    assert len(res_2v.vehicles) == 2
-
-    # 3 vehicles with MAX_ALLOWED_VEHICLES = 2 -> rejected
-    mock_box_3v = MagicMock()
-    mock_box_3v.__len__.return_value = 3
-    mock_box_3v.cls.cpu().numpy.return_value = [2, 5, 7]  # car, bus, truck
-    mock_box_3v.conf.cpu().numpy.return_value = [0.85, 0.88, 0.90]
-    mock_box_3v.xyxy.cpu().numpy.return_value = [[10, 10, 30, 30], [35, 35, 60, 60], [65, 65, 90, 90]]
-    mock_res_3v = MagicMock()
-    mock_res_3v.boxes = mock_box_3v
-    mock_model.return_value = [mock_res_3v]
-
-    res_3v = VehicleDetector().detect(sample_image_bytes)
-    assert res_3v.is_eligible is False
-    assert res_3v.status == RecognitionStatusEnum.REJECTED_MULTIPLE_VEHICLES
-    assert len(res_3v.vehicles) == 3
-
-    # 0 vehicles with MIN_ALLOWED_VEHICLES = 0 -> allowed
-    mock_box_0v = MagicMock()
-    mock_box_0v.__len__.return_value = 0
-    mock_box_0v.cls.cpu().numpy.return_value = []
-    mock_box_0v.conf.cpu().numpy.return_value = []
-    mock_box_0v.xyxy.cpu().numpy.return_value = []
-    mock_res_0v = MagicMock()
-    mock_res_0v.boxes = mock_box_0v
-    mock_model.return_value = [mock_res_0v]
-
-    monkeypatch.setattr(settings, "MIN_ALLOWED_VEHICLES", 0)
-    res_0v = VehicleDetector().detect(sample_image_bytes)
-    assert res_0v.is_eligible is True
-    assert res_0v.status is None
-    assert len(res_0v.vehicles) == 0
+    res = VehicleDetector().detect(sample_image_bytes)
+    assert len(res.vehicles) == 2
+    assert {v.vehicle_type for v in res.vehicles} == {"car", "truck"}
 
 
 def test_normalize_candidate_strings():

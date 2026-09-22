@@ -9,11 +9,8 @@ Tests for ANPR system improvements:
 
 from unittest.mock import MagicMock, patch
 
-import pytest
 from PIL import Image
 
-from app.core.config import settings
-from app.schemas import RecognitionStatusEnum
 from app.services.detector import VehicleDetector
 from app.services.ocr import PlateRecognizer
 from app.services.pipeline import _adjust_crop_coordinates
@@ -48,8 +45,8 @@ def test_is_contained_geometric_evaluations():
 
 
 @patch("app.services.detector.VehicleDetector.get_model")
-def test_cab_occupant_ignored_when_policy_enabled(mock_get_model, sample_image_bytes):
-    """When ALLOW_CAB_OCCUPANTS is True, a person box fully inside vehicle is not a ground pedestrian."""
+def test_cab_occupant_partitioned_as_inside(mock_get_model, sample_image_bytes):
+    """A person box fully inside vehicle is counted as humans_inside."""
     mock_box = MagicMock()
     mock_box.__len__.return_value = 2
     mock_box.cls.cpu().numpy.return_value = [0, 7]  # person (0), truck (7)
@@ -66,22 +63,20 @@ def test_cab_occupant_ignored_when_policy_enabled(mock_get_model, sample_image_b
     detector = VehicleDetector()
     res = detector.detect(sample_image_bytes)
 
-    assert res.is_eligible is True
-    assert res.status is None
-    assert res.human_count == 0
+    assert res.humans_outside == 0
+    assert res.humans_inside == 1
     assert len(res.vehicles) == 1
 
 
 @patch("app.services.detector.VehicleDetector.get_model")
-def test_cab_occupant_counted_when_policy_disabled(mock_get_model, sample_image_bytes, monkeypatch: pytest.MonkeyPatch):
-    """When ALLOW_CAB_OCCUPANTS is False, a person box inside vehicle is counted."""
-    monkeypatch.setattr(settings, "ALLOW_CAB_OCCUPANTS", False)
-
+def test_pedestrian_partitioned_as_outside(mock_get_model, sample_image_bytes):
+    """A person box outside any vehicle is counted as humans_outside."""
     mock_box = MagicMock()
     mock_box.__len__.return_value = 2
     mock_box.cls.cpu().numpy.return_value = [0, 7]
     mock_box.conf.cpu().numpy.return_value = [0.85, 0.90]
-    mock_box.xyxy.cpu().numpy.return_value = [[30, 30, 50, 50], [10, 10, 90, 90]]
+    # Person (60..80, 60..80) is outside truck (10..50, 10..50) within 100x100 frame
+    mock_box.xyxy.cpu().numpy.return_value = [[60, 60, 80, 80], [10, 10, 50, 50]]
 
     mock_res = MagicMock()
     mock_res.boxes = mock_box
@@ -92,9 +87,9 @@ def test_cab_occupant_counted_when_policy_disabled(mock_get_model, sample_image_
     detector = VehicleDetector()
     res = detector.detect(sample_image_bytes)
 
-    assert res.is_eligible is False
-    assert res.status == RecognitionStatusEnum.REJECTED_HUMAN_DETECTED
-    assert res.human_count == 1
+    assert res.humans_outside == 1
+    assert res.humans_inside == 0
+    assert len(res.vehicles) == 1
 
 
 def test_crop_coordinate_adjustment():

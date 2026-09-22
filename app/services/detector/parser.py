@@ -28,8 +28,8 @@ def parse_detections(
     height: int,
     human_conf_thresh: float,
     vehicle_conf_thresh: float,
-) -> tuple[int, list[tuple[str, BoundingBox]]]:
-    """Parse raw YOLO output arrays, clamp boxes, count humans, and sort vehicles."""
+) -> tuple[list[BoundingBox], list[tuple[str, BoundingBox]]]:
+    """Parse raw YOLO output arrays, clamp boxes, filter candidates, and sort vehicles."""
     human_candidates: list[BoundingBox] = []
     vehicle_candidates: list[tuple[float, int, str, BoundingBox]] = []
     total_area = width * height
@@ -50,10 +50,5 @@ def parse_detections(
             vehicle_candidates.append((float(conf), area, FOUR_WHEELER_CLASS_NAMES[cls_id], box))
 
     vehicles = _dedup_vehicles(vehicle_candidates)
-    if settings.ALLOW_CAB_OCCUPANTS and vehicles:
-        human_count = sum(1 for hb in human_candidates if not any(is_contained(hb, vb) for _, vb in vehicles))
-    else:
-        human_count = len(human_candidates)
-
-    return human_count, vehicles
+    return human_candidates, vehicles
 

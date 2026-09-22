@@ -17,7 +17,7 @@ def validate_plate_results(
         return []
     validated: list[PlateResult] = []
     for item in raw_results:
-        if isinstance(item, dict):
+        if isinstance(item, dict) and item.get("plate") and item.get("plate") != "N/A":
             entry = dict(item)
             if vehicle_type is not None and "vehicle_type" not in entry:
                 entry["vehicle_type"] = vehicle_type

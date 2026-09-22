@@ -9,7 +9,6 @@ This module defines:
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -76,40 +75,30 @@ class DetectedVehicle:
 @dataclass(slots=True)
 class DetectionResult:
     """
-    Stage 1 Result: YOLO26 vehicle detection, occupancy verification, and vehicle cropping.
+    Stage 1 Result: YOLO26 vehicle detection and human localization.
 
     Attributes:
-        is_eligible: True if the frame passes all pre-screening policies and should proceed to OCR.
-        status: Specific rejection or success status code enum.
-        vehicles: List of all detected 4-wheeler vehicles meeting confidence and size thresholds.
-        human_count: Total number of valid human detections meeting the confidence threshold.
+        vehicles: List of detected 4-wheeler entities meeting confidence/size thresholds.
+        humans_outside: Total number of humans detected outside vehicles.
+        humans_inside: Total number of humans detected inside vehicle cabins.
     """
 
-    is_eligible: bool
-    status: RecognitionStatusEnum | None
     vehicles: list[DetectedVehicle] = field(default_factory=list)
-    human_count: int = 0
-
-
-class RecognitionStatusEnum(str, Enum):
-    """Enumeration of possible pre-screening policy evaluations and recognition outcomes."""
-
-    SUCCESS = "success"
-    REJECTED_NO_FOUR_WHEELER = "rejected_no_four_wheeler"
-    REJECTED_HUMAN_DETECTED = "rejected_human_detected"
-    REJECTED_MULTIPLE_VEHICLES = "rejected_multiple_vehicles"
-    NO_PLATE_DETECTED = "no_plate_detected"
+    humans_outside: int = 0
+    humans_inside: int = 0
 
 
 class PlateResult(BaseModel):
-    """Schema representing an extracted and verified Indian license plate."""
+    """Schema representing an extracted license plate or vehicle detection without plate."""
 
-    plate: str = Field(
-        description="Normalized Indian vehicle registration number (e.g., RJ09GA0165)", examples=["RJ09GA0165"]
+    plate: str | None = Field(
+        None,
+        description="Normalized Indian vehicle registration number (e.g., RJ09GA0165), or None if unread",
+        examples=["RJ09GA0165"],
     )
     vehicle_type: str | None = Field(
         None,
-        description="Specific type of 4-wheeler vehicle detected (e.g., 'car', 'bus', 'truck')",
+        description="Specific type of 4-wheeler vehicle detected (e.g., 'car', 'bus', 'truck'), or None if full-frame",
         examples=["car"],
     )
     state: str | None = Field(
@@ -128,21 +117,14 @@ class PlateResult(BaseModel):
 
 class RecognitionResponse(BaseModel):
     """
-    Top-level API response schema for license plate recognition requests.
+    Factual API response schema for license plate recognition requests.
 
-    Provides end-to-end details of both Stage 1 (YOLO detection) and Stage 2 (OCR recognition).
+    Returns extracted plates, vehicle categories, and human counts for client policy evaluation.
     """
 
-    success: bool = Field(description="Status of the recognition request")
-    rejected: bool = Field(
-        False,
-        description="Whether the image was rejected during pre-screening",
-    )
-    status: RecognitionStatusEnum = Field(
-        description="Detailed status enum for pre-screening and recognition outcome"
-    )
-    human_count: int = Field(0, description="Total number of humans detected in the frame")
     filename: str = Field(description="Name of the processed image file")
+    humans_outside: int = Field(0, description="Total number of humans detected outside vehicles")
+    humans_inside: int = Field(0, description="Total number of humans detected inside vehicle cabins")
     results: list[PlateResult] = Field(default_factory=list, description="Extracted license plate details")
     execution_time_ms: float | None = Field(None, description="Processing duration in milliseconds")
 

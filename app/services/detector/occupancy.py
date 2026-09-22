@@ -1,31 +1,18 @@
-"""Weighbridge occupancy business rule evaluation."""
+"""Human spatial occupancy classification (inside cabin vs outside vehicle)."""
 
-from app.core.config import settings
-from app.core.logging import logger
-from app.schemas import RecognitionStatusEnum
-from app.services.detector.geometry import BoundingBox
+from app.services.detector.geometry import BoundingBox, is_contained
 
 
-def evaluate_occupancy(
-    human_count: int,
+def partition_humans(
+    human_candidates: list[BoundingBox],
     vehicles: list[tuple[str, BoundingBox]],
-) -> tuple[bool, RecognitionStatusEnum | None]:
-    """Evaluate weighbridge occupancy policies based on detection counts and thresholds."""
-    vehicle_count = len(vehicles)
-    human_limit = settings.MAX_ALLOWED_HUMANS
-    vehicle_max = settings.MAX_ALLOWED_VEHICLES
-    vehicle_min = settings.MIN_ALLOWED_VEHICLES
+) -> tuple[int, int]:
+    """Classify humans into (outside_count, inside_count) based on cabin containment."""
+    if not human_candidates:
+        return 0, 0
+    if not vehicles:
+        return len(human_candidates), 0
 
-    if human_limit is not None and human_count > human_limit:
-        logger.warning(f"Rejected frame: Human count ({human_count}) exceeded limit ({human_limit}).")
-        return False, RecognitionStatusEnum.REJECTED_HUMAN_DETECTED
+    inside = sum(1 for hb in human_candidates if any(is_contained(hb, vb) for _, vb in vehicles))
+    return len(human_candidates) - inside, inside
 
-    if vehicle_max is not None and vehicle_count > vehicle_max:
-        types_str = ", ".join(v[0] for v in vehicles)
-        logger.warning(f"Rejected frame: {vehicle_count} vehicles detected ({types_str}).")
-        return False, RecognitionStatusEnum.REJECTED_MULTIPLE_VEHICLES
-
-    if vehicle_count < vehicle_min:
-        return False, RecognitionStatusEnum.REJECTED_NO_FOUR_WHEELER
-
-    return True, None

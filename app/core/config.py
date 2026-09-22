@@ -37,17 +37,12 @@ class Settings(BaseSettings):
     MAX_IMAGE_EDGE_PX: int = 1920  # Downscale longest image edge to this before inference
     IMAGE_RESAMPLE_FILTER: str = "BILINEAR"  # Downsampling filter: BILINEAR (fast on ARM), BICUBIC, or LANCZOS
 
-    # Pre-screening Rejection Policies & Thresholds (e.g., Weighbridge occupancy rules)
-    MAX_ALLOWED_HUMANS: int | None = 0  # Max humans permitted on scale (0 = strict rejection, 1 = allow driver, None = disable)
-    ALLOW_CAB_OCCUPANTS: bool = True  # Ignore humans/artwork fully enclosed within vehicle boundaries
-    MAX_ALLOWED_VEHICLES: int | None = 1  # Max 4-wheelers allowed on scale platform (None = disable multiple vehicle rejection)
-    MIN_ALLOWED_VEHICLES: int = 1  # Minimum 4-wheelers required on scale platform (0 = allow crop-only / disable check)
+    # Human Cabin Occupancy & Spatial Filtering Settings
     MIN_HUMAN_BOX_AREA_RATIO: float = 0.005  # Ignore background pedestrians smaller than 0.5% frame area
     MIN_VEHICLE_BOX_AREA_RATIO: float = 0.01  # Ignore distant background vehicles smaller than 1.0% frame area
     VEHICLE_IOU_THRESH: float = 0.50  # Suppress duplicate vehicle bounding boxes with IoU above this
     DEFAULT_YOLO_IMGSZ: int = 640  # Inference resolution for YOLO detector
     YOLO_AGNOSTIC_NMS: bool = True  # Suppress cross-class overlapping bounding boxes in YOLO
-    FALLBACK_OCR_ON_NO_VEHICLE: bool = True  # Attempt full-frame OCR when YOLO misses vehicle (e.g. half-in-frame / close-up)
 
     # Concurrency & Engine Settings
     MAX_CONCURRENT_INFERENCES: int = 4  # Maximum concurrent requests processed in threadpool

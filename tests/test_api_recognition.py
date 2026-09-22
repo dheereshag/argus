@@ -1,7 +1,7 @@
 import os
 from unittest.mock import patch
 
-from app.schemas import RecognitionResponse, RecognitionStatusEnum
+from app.schemas import RecognitionResponse
 
 
 def test_recognize_empty_file(client):
@@ -48,25 +48,10 @@ def test_recognize_sample_image(client, sample_image_bytes):
     data = response.json()
     validated = RecognitionResponse.model_validate(data)
     assert validated.filename == "test.jpg"
-    # Plain red box has no 4-wheeler vehicle, default policy rejects
-    assert validated.status == RecognitionStatusEnum.REJECTED_NO_FOUR_WHEELER
-    assert validated.rejected is True
-    assert validated.success is False
-
-
-def test_recognize_sample_image_allowed_when_policy_disabled(client, sample_image_bytes):
-    with patch("app.services.detector.settings.MIN_ALLOWED_VEHICLES", 0):
-        response = client.post(
-            "/recognize",
-            files={"file": ("test.jpg", sample_image_bytes, "image/jpeg")},
-        )
-        assert response.status_code == 200
-        data = response.json()
-        validated = RecognitionResponse.model_validate(data)
-        assert validated.filename == "test.jpg"
-        assert validated.status == RecognitionStatusEnum.NO_PLATE_DETECTED
-        assert validated.rejected is False
-        assert validated.success is False
+    # Plain red box has no vehicle and no plate
+    assert validated.results == []
+    assert validated.humans_outside == 0
+    assert validated.humans_inside == 0
 
 
 def test_recognize_real_image_if_present(client):
@@ -85,7 +70,9 @@ def test_recognize_real_image_if_present(client):
     data = response.json()
     validated = RecognitionResponse.model_validate(data)
     assert validated.filename == "1.jpg"
-    assert isinstance(validated.rejected, bool)
+    assert isinstance(validated.humans_outside, int)
+    assert isinstance(validated.humans_inside, int)
+    assert isinstance(validated.results, list)
     assert validated.execution_time_ms is not None
 
 
