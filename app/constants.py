@@ -38,9 +38,15 @@ ALLOWED_IMAGE_MIME_TYPES: frozenset[str] = frozenset(
 # Standard COCO dataset class index for 'person'
 PERSON_CLASS_ID = 0
 
-# Mapping of COCO class indices to 4-wheeler vehicle category names
-# 2: car, 5: bus, 7: truck
-FOUR_WHEELER_CLASS_NAMES: dict[int, str] = {2: "car", 5: "bus", 7: "truck"}
+# Mapping of COCO class indices to vehicle category names for plate-bearing vehicles.
+# COCO IDs: 1=bicycle, 2=car, 3=motorcycle, 5=bus, 7=truck
+VEHICLE_CLASS_NAMES: dict[int, str] = {
+    1: "bicycle",
+    2: "car",
+    3: "motorcycle",
+    5: "bus",
+    7: "truck",
+}
 
 # Upper bound cap on raw detections evaluated per frame to prevent DoS from noisy inputs
 MAX_DETECTIONS = 100

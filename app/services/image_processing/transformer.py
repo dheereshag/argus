@@ -1,32 +1,21 @@
-"""In-memory image downscaling and boundary validation."""
+"""Image validation, decoding, and decompression bomb guard."""
 
 from PIL import Image
 
 from app.core.config import settings
-from app.core.contracts import ensure, require
+from app.core.contracts import ensure
 from app.core.exceptions import PayloadTooLargeError
 from app.services.image_processing.loader import load_rgb
 from app.services.image_processing.security import probe_image
 
 
-def decode_and_downscale(image_bytes: bytes, max_edge: int | None = None) -> Image.Image:
-    """Validate an uploaded image and return downscaled in-memory PIL Image bounded by max_edge."""
-    max_edge = max_edge or settings.MAX_IMAGE_EDGE_PX
-    require(max_edge > 0, f"max_edge must be positive, got {max_edge}")
-
+def decode_image(image_bytes: bytes) -> Image.Image:
+    """Validate an uploaded image and decode it to a full-resolution RGB PIL Image."""
     _, width, height = probe_image(image_bytes)
     if width * height > settings.MAX_IMAGE_PIXELS:
-        limit = settings.MAX_IMAGE_PIXELS
         raise PayloadTooLargeError(
-            f"Image is {width}x{height} ({width * height} pixels); limit is {limit} pixels."
+            f"Image is {width}x{height} ({width * height} pixels); limit is {settings.MAX_IMAGE_PIXELS} pixels."
         )
-
     pil_img = load_rgb(image_bytes)
-    if max(pil_img.size) > max_edge:
-        resample = getattr(Image.Resampling, settings.IMAGE_RESAMPLE_FILTER, Image.Resampling.BILINEAR)
-        pil_img.thumbnail((max_edge, max_edge), resample)
-
-    ensure(min(pil_img.size) > 0, "downscaled image collapsed to zero size")
-    ensure(max(pil_img.size) <= max_edge, f"downscale failed to bound edge to {max_edge}")
+    ensure(min(pil_img.size) > 0, "decoded image has zero-size dimension")
     return pil_img
-

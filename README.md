@@ -84,7 +84,7 @@ curl -X POST "http://localhost:8000/recognize" \
 
 - `humans_outside`: Count of pedestrians detected outside vehicle bounds.
 - `humans_inside`: Count of human occupants detected inside vehicle cabins.
-- `results`: Plate OCR results for each detected vehicle and multi-plate combinations (e.g. trailers/carriers). If a vehicle is detected but no plate is found, `plate: null` is returned alongside `vehicle_type`. When no vehicle body is detected (0 vehicles), full-frame OCR fallback runs with Spatial Non-Maximum Suppression (NMS) to extract all visible non-overlapping license plates with `vehicle_type: null`; if no plate is found, `results` is `[]`.
+- `results`: Dual-pass OCR results. Pass A executes crop OCR on each detected vehicle (`car`, `truck`, `bus`, `motorcycle`, `bicycle`); Pass B executes full-frame OCR and spatially associates plates to vehicle boxes. Plates within a vehicle box are attributed with that vehicle's `vehicle_type`. Unlocalized plates outside any vehicle box receive `vehicle_type: null`. Vehicles with no readable plate are represented with `plate: null`. When zero vehicles are detected, full-frame fallback returns all valid plates with `vehicle_type: null`; if no plate is found, `results` is `[]`.
 
 ---
 
@@ -117,7 +117,7 @@ Operational thresholds and model settings are configured via environment variabl
 | `YOLO_MODEL_NAME` | `str` | `yolo26n.pt` | Path or name of YOLO26 model weights. |
 | `YOLO_CONFIG_DIR` | `str` | `.cache/ultralytics` | Ultralytics cache directory for model downloads. |
 | `HUMAN_CONF_THRESH` | `float` | `0.30` | Minimum confidence threshold for pedestrian detection. |
-| `VEHICLE_CONF_THRESH` | `float` | `0.35` | Minimum confidence threshold for 4-wheeler detection. |
+| `VEHICLE_CONF_THRESH` | `float` | `0.35` | Minimum confidence threshold for vehicle detection (car, truck, bus, motorcycle, bicycle). |
 | `MIN_HUMAN_BOX_AREA_RATIO` | `float` | `0.005` | Minimum bbox area ratio to filter background pedestrian noise. |
 | `MIN_VEHICLE_BOX_AREA_RATIO` | `float` | `0.01` | Minimum bbox area ratio to filter distant background vehicles. |
 | `VEHICLE_IOU_THRESH` | `float` | `0.50` | Maximum IoU before suppressing duplicate overlapping vehicle bounding boxes. |
@@ -125,9 +125,7 @@ Operational thresholds and model settings are configured via environment variabl
 | `YOLO_AGNOSTIC_NMS` | `bool` | `true` | Class-agnostic NMS to suppress cross-class vehicle duplicates (bus/truck). |
 | `MAX_CONCURRENT_INFERENCES` | `int` | `4` | Semaphore concurrency limit for model execution. |
 | `ONNX_NUM_THREADS` | `int` | `4` | Intra-op thread count for ONNX Runtime (Cortex-A76 quad-core). |
-| `IMAGE_RESAMPLE_FILTER` | `str` | `BILINEAR` | Downsampling filter (`BILINEAR` for fast ARM SIMD, `BICUBIC`, `LANCZOS`). |
 | `MAX_UPLOAD_BYTES` | `int` | `8388608` | Max HTTP upload payload size (8 MB). |
-| `MAX_IMAGE_EDGE_PX` | `int` | `1920` | Max dimension before automatic downscaling. |
 | `MAX_IMAGE_PIXELS` | `int` | `50000000` | Max pixel threshold for decompression bomb protection. |
 | `SERVER_HOST` | `str` | `127.0.0.1` | Server bind host interface. |
 | `SERVER_PORT` | `int` | `8000` | Server HTTP listening port. |

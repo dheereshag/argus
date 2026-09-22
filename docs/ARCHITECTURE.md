@@ -10,16 +10,19 @@ Argus executes a two-stage artificial intelligence flow delivering factual detec
 
 ```mermaid
 flowchart TD
-    A[Input Image / HTTP Upload] --> B[Input Ingestion & Downscaling<br/><code>app/services/image_processing/</code>]
+    A[Input Image / HTTP Upload] --> B[Input Ingestion & Validation<br/><code>app/services/image_processing/</code>]
     B --> C[Stage 1: YOLO26 Detection<br/><code>app/services/detector/</code>]
     
     C --> H1[Human Spatial Partitioning<br/><code>humans_outside</code> & <code>humans_inside</code>]
     
-    C -- Vehicles Detected --> D[Per-Vehicle Crop & OCR Loop<br/><code>app/services/ocr/</code>]
+    C -- Vehicles Detected --> D[Pass A: Per-Vehicle Crop OCR<br/><code>app/services/pipeline/stages.py</code>]
+    C -- Vehicles Detected --> E1[Pass B: Full-Frame OCR<br/><code>app/services/pipeline/stages.py</code>]
     C -- 0 Vehicles Detected --> E2[Full-Frame OCR Fallback<br/><code>app/services/pipeline/fallback.py</code>]
     
-    D --> F[2D Spatial Clustering & Multi-Line Pairing<br/><code>app/services/ocr/</code>]
-    E2 --> F
+    D --> S[Spatial Association & Dedup<br/><code>app/services/pipeline/association.py</code>]
+    E1 --> S
+    E2 --> F[2D Spatial Clustering & Pairing<br/><code>app/services/ocr/</code>]
+    S --> F
     
     F --> G[Domain Normalization & State Validation<br/><code>app/services/plate_rules/</code>]
     G --> H[Factual Response Serialization<br/><code>app/schemas.py</code>]
@@ -31,17 +34,19 @@ flowchart TD
 ## 2. Pipeline Execution Stages
 
 1. **Input Ingestion & Safety Validation** ([`app/services/image_processing/`](../app/services/image_processing/)):
-   - Verifies payload size and image dimensions against configured bounds (`MAX_UPLOAD_BYTES`, `MAX_IMAGE_EDGE_PX`, `MAX_IMAGE_PIXELS`).
-   - Normalizes EXIF orientation and downscales large images while preserving aspect ratio.
+   - Verifies payload size and pixel limits against configured bounds (`MAX_UPLOAD_BYTES`, `MAX_IMAGE_PIXELS`).
+   - Normalizes EXIF orientation and decodes the image at full camera resolution without downscaling (camera is 1080p, preserving full character fidelity for weighbridge accuracy).
 
 2. **Stage 1: Vehicle Detection & Human Partitioning** ([`app/services/detector/`](../app/services/detector/)):
-   - Runs Ultralytics YOLO26 (`yolo26n.pt`) inference to identify `car`, `bus`, `truck`, and `person`.
+   - Runs Ultralytics YOLO26 (`yolo26n.pt`) inference to identify `car`, `bus`, `truck`, `motorcycle`, `bicycle`, and `person`.
    - Human detections geometrically contained inside vehicle bounding boxes are classified as `humans_inside` (cabin occupants), while external pedestrians are counted as `humans_outside`.
-   - Extracts bounding box crops and labels for all qualified 4-wheelers.
+   - Extracts bounding box crops and labels for all qualified vehicles.
 
-3. **Stage 2: Optical Character Recognition (OCR)** ([`app/services/ocr/`](../app/services/ocr/), [`app/services/pipeline/`](../app/services/pipeline/)):
-   - For each detected vehicle, runs RapidOCR (ONNX Runtime) over the vehicle crop with Spatial Non-Maximum Suppression (NMS) to extract all distinct non-overlapping plates within the vehicle crop (e.g. trailer/carrier combinations). If OCR yields no valid plate on a detected vehicle, a `PlateResult` with `plate=None` and the detected `vehicle_type` is returned.
-   - **Zero-Vehicle Fallback**: When YOLO detects no 4-wheelers (e.g. bumper close-up, partial vehicle frame, or multiple distant vehicles), full-frame OCR is automatically attempted. All valid, non-overlapping plates identified across the entire image are returned with `vehicle_type=None` via Spatial NMS; if no plate is found, `results: []` is returned.
+3. **Stage 2: Dual-Pass Optical Character Recognition (OCR)** ([`app/services/ocr/`](../app/services/ocr/), [`app/services/pipeline/`](../app/services/pipeline/)):
+   - **Pass A (Crop OCR)**: For each detected vehicle, runs RapidOCR (ONNX Runtime) over the vehicle crop for maximum character clarity. Coordinates are translated back to full-frame space.
+   - **Pass B (Full-Frame OCR)**: Always scans the full original image to capture foreground or unlocalized plates (e.g. background vehicles detected while true foreground plate is outside vehicle bounds).
+   - **Spatial Association**: Plates from Pass B overlapping a vehicle bounding box ($\ge 50\%$ containment) are attributed to that vehicle's `vehicle_type`. Plates outside all vehicles are emitted with `vehicle_type=None`. Duplicate plates across passes are deduplicated. Vehicles with no detected plates receive `plate=None`.
+   - **Zero-Vehicle Fallback**: When YOLO detects no vehicles (e.g. bumper close-up, partial vehicle frame), full-frame OCR fallback runs directly via [`fallback.py`](../app/services/pipeline/fallback.py), returning all valid non-overlapping plates with `vehicle_type=None`.
    - Applies CLAHE (Contrast Limited Adaptive Histogram Equalization) if low-contrast text is encountered.
 
 4. **2D Spatial Clustering & Multi-Line Pairing** ([`app/services/ocr/`](../app/services/ocr/)):
@@ -63,9 +68,9 @@ All service domains in `app/services/` strictly follow **NASA JPL Rule 4** (Holz
 | Component | Subpackage Path | Key Modules & Responsibility |
 | :--- | :--- | :--- |
 | **REST Server** | [`app/server.py`](../app/server.py) | FastAPI routes (`GET /`, `POST /recognize`), request timing middleware, lifespan model warmup. |
-| **Pipeline Orchestrator** | [`app/services/pipeline/`](../app/services/pipeline/) | `orchestrator.py`, `stages.py`, `fallback.py`, `helpers.py`, `response.py`: Coordinates detection, OCR passes, fallbacks, coordinate adjustments, and response packaging. |
+| **Pipeline Orchestrator** | [`app/services/pipeline/`](../app/services/pipeline/) | `orchestrator.py`, `stages.py`, `association.py`, `fallback.py`, `helpers.py`, `response.py`: Coordinates detection, dual-pass OCR, spatial association, fallbacks, coordinate adjustments, and response packaging. |
 | **Vehicle Detector** | [`app/services/detector/`](../app/services/detector/) | `detector.py`, `geometry.py`, `occupancy.py`, `parser.py`: YOLO26 model singleton, coordinate clamping/containment, and human spatial partitioning. |
-| **Image Processing** | [`app/services/image_processing/`](../app/services/image_processing/) | `loader.py`, `security.py`, `transformer.py`: Polymorphic image decoding, EXIF orientation, decompression bomb defense, and zero-copy in-memory downscaling. |
+| **Image Processing** | [`app/services/image_processing/`](../app/services/image_processing/) | `loader.py`, `security.py`, `transformer.py`: Polymorphic image decoding, EXIF orientation, and decompression bomb defense. |
 | **Plate Recognizer** | [`app/services/ocr/`](../app/services/ocr/) | `recognizer.py`, `engine.py`, `enhancer.py`, `extractor.py`, `geometry.py`, `pairing.py`, `spatial.py`, `tokens.py`, `candidates.py`, `suppression.py`: RapidOCR ONNX inference, CLAHE enhancement, 2D token pairing, Spatial NMS, and candidate selection. |
 | **Plate Rules** | [`app/services/plate_rules/`](../app/services/plate_rules/) | `parser.py`, `normalizers.py`, `expander.py`, `filters.py`, `bh_series.py`, `char_maps.py`: Indian registration plate validation, positional OCR character substitution, decal filtering, and BH-series parsing. |
 | **Data Models** | [`app/schemas.py`](../app/schemas.py) | Pydantic V2 domain models: [`RecognitionResponse`](../app/schemas.py), [`PlateResult`](../app/schemas.py), [`DetectionResult`](../app/schemas.py). |

@@ -33,12 +33,11 @@ This guide details edge acceleration techniques, operating system optimizations,
 In constrained edge environments, memory allocation and intermediate image compression generate major CPU bottlenecks.
 
 1. **Direct `Image.Image` In-Memory Flow**:
-   - Camera frames ingested via `POST /recognize` or Python SDK are decoded and dimension-bounded once via `decode_and_downscale`.
+   - Camera frames ingested via `POST /recognize` or Python SDK are decoded once via `decode_image`.
    - The resulting in-memory PIL `Image.Image` is retained across Stage 1 (YOLO detection) and Stage 2 (RapidOCR) without re-encoding to JPEG.
    - Eliminates redundant JPEG compression and decompression cycles, saving 25–40 ms per frame on Cortex-A76.
-2. **SIMD-Accelerated Resampling (`IMAGE_RESAMPLE_FILTER`)**:
-   - Default high-order 8-tap Lanczos filtering is computationally expensive for large camera frames (4K/1080p).
-   - Set `IMAGE_RESAMPLE_FILTER="BILINEAR"` in `.env` for 3x faster downscaling using ARM NEON vector instructions with zero loss in vehicle detection accuracy.
+2. **Preserving 1080p Full Resolution**:
+   - Camera feeds at 1080p are preserved unscaled, maximizing character pixel density and recognition accuracy on distant or low-contrast plates without extra memory churn.
 
 ---
 

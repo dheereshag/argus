@@ -60,7 +60,7 @@ class DetectedVehicle:
     Stage 1 detected vehicle entity.
 
     Attributes:
-        vehicle_type: Category of 4-wheeler ('car', 'bus', 'truck').
+        vehicle_type: Category of vehicle ('car', 'bus', 'truck', 'motorcycle', 'bicycle').
         box: Clamped (x1, y1, x2, y2) bounding box in original image space.
         crop: Cropped PIL RGB Image containing only this vehicle area, or None.
         crop_box: Padded (x1, y1, x2, y2) bounding box used for crop, or None.
@@ -98,7 +98,7 @@ class PlateResult(BaseModel):
     )
     vehicle_type: str | None = Field(
         None,
-        description="Specific type of 4-wheeler vehicle detected (e.g., 'car', 'bus', 'truck'), or None if full-frame",
+        description="Vehicle category ('car', 'bus', 'truck', 'motorcycle', 'bicycle'), or None if unlocalized",
         examples=["car"],
     )
     state: str | None = Field(

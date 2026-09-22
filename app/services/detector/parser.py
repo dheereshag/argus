@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from app.constants import FOUR_WHEELER_CLASS_NAMES, MAX_DETECTIONS, PERSON_CLASS_ID
+from app.constants import MAX_DETECTIONS, PERSON_CLASS_ID, VEHICLE_CLASS_NAMES
 from app.core.config import settings
 from app.core.contracts import bounded
 from app.services.detector.geometry import BoundingBox, box_iou, clamp_box, is_contained
@@ -46,8 +46,8 @@ def parse_detections(
 
         if cls_id == PERSON_CLASS_ID and conf >= human_conf_thresh and area >= min_h_area:
             human_candidates.append(box)
-        elif cls_id in FOUR_WHEELER_CLASS_NAMES and conf >= vehicle_conf_thresh and area >= min_v_area:
-            vehicle_candidates.append((float(conf), area, FOUR_WHEELER_CLASS_NAMES[cls_id], box))
+        elif cls_id in VEHICLE_CLASS_NAMES and conf >= vehicle_conf_thresh and area >= min_v_area:
+            vehicle_candidates.append((float(conf), area, VEHICLE_CLASS_NAMES[cls_id], box))
 
     vehicles = _dedup_vehicles(vehicle_candidates)
     return human_candidates, vehicles

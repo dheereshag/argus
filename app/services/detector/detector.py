@@ -51,7 +51,7 @@ class VehicleDetector:
         return [DetectedVehicle(vehicle_type=vt, box=b, crop=img.crop(pad_box(b, img.width, img.height)), crop_box=pad_box(b, img.width, img.height)) for vt, b in vehicles]
 
     def detect(self, image_input: ImageInput) -> DetectionResult:
-        """Detect 4-wheeler vehicles, partition humans (inside/outside), and extract crops."""
+        """Detect vehicles (car, bus, truck, motorcycle, bicycle), partition humans, and extract crops."""
         pil_img = load_rgb(image_input)
         humans, vehicles = self._run_detection(pil_img, settings.HUMAN_CONF_THRESH, settings.VEHICLE_CONF_THRESH)
         h_out, h_in = partition_humans(humans, vehicles)

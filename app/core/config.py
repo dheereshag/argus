@@ -29,13 +29,11 @@ class Settings(BaseSettings):
     YOLO_MODEL_NAME: str = "yolo26n.pt"  # Pre-trained YOLO26 weights file or model identifier
     YOLO_CONFIG_DIR: str = ".cache/ultralytics"  # Local storage directory for Ultralytics cache
     HUMAN_CONF_THRESH: float = 0.30  # Minimum confidence to flag a person presence
-    VEHICLE_CONF_THRESH: float = 0.35  # Minimum confidence to recognize a 4-wheeler (car, bus, truck)
+    VEHICLE_CONF_THRESH: float = 0.35  # Minimum confidence to recognize a vehicle (car, bus, truck, motorcycle, bicycle)
 
     # Image payload & upload security limits
     MAX_UPLOAD_BYTES: int = 8 * 1024 * 1024  # Reject incoming request body larger than 8 MB
     MAX_IMAGE_PIXELS: int = 50_000_000  # Guard against decompression bomb attacks (w * h)
-    MAX_IMAGE_EDGE_PX: int = 1920  # Downscale longest image edge to this before inference
-    IMAGE_RESAMPLE_FILTER: str = "BILINEAR"  # Downsampling filter: BILINEAR (fast on ARM), BICUBIC, or LANCZOS
 
     # Human Cabin Occupancy & Spatial Filtering Settings
     MIN_HUMAN_BOX_AREA_RATIO: float = 0.005  # Ignore background pedestrians smaller than 0.5% frame area

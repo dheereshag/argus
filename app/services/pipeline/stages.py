@@ -1,4 +1,4 @@
-"""Stage 2 OCR execution and per-vehicle cropping."""
+"""Stage 2 OCR execution: per-vehicle crop pass + full-frame spatial association pass."""
 
 from typing import Any
 
@@ -6,6 +6,7 @@ from app.core.exceptions import ANPRServiceError
 from app.core.logging import logger
 from app.schemas import DetectedVehicle, DetectionResult, PlateResult
 from app.services.image_processing import ImageInput
+from app.services.pipeline.association import associate_fullframe_plates
 from app.services.pipeline.fallback import run_full_frame_fallback
 from app.services.pipeline.helpers import (
     _adjust_crop_coordinates,
@@ -16,26 +17,19 @@ from app.services.pipeline.helpers import (
 def _ocr_single_vehicle(
     recognizer: Any,
     vehicle: DetectedVehicle,
-    image_input: ImageInput,
     filename: str,
-    allow_fallback: bool = False,
 ) -> list[PlateResult]:
-    """Execute RapidOCR on a single vehicle crop with coordinate translation and fallback."""
-    target = vehicle.crop if vehicle.crop is not None else image_input
-    raw = recognizer.recognize(target, filename=filename)
-
-    if vehicle.crop is not None:
-        if any(r.get("plate") and r.get("plate") != "N/A" for r in raw):
-            raw = _adjust_crop_coordinates(raw, vehicle.crop_box)
-        elif allow_fallback:
-            raw = recognizer.recognize(image_input, filename=filename)
-
-    valid_plates = validate_plate_results(raw, vehicle_type=vehicle.vehicle_type)
-    return valid_plates if valid_plates else [PlateResult(plate=None, vehicle_type=vehicle.vehicle_type)]
+    """Execute RapidOCR on a single vehicle crop with coordinate translation back to frame space."""
+    if vehicle.crop is None:
+        return []
+    raw = recognizer.recognize(vehicle.crop, filename=filename)
+    if any(r.get("plate") and r.get("plate") != "N/A" for r in raw):
+        raw = _adjust_crop_coordinates(raw, vehicle.crop_box)
+    return validate_plate_results(raw, vehicle_type=vehicle.vehicle_type)
 
 
 def _run_stage2_ocr(detection: DetectionResult, image_input: ImageInput, filename: str) -> list[PlateResult]:
-    """Execute RapidOCR across detected vehicles, or across the full frame if no vehicle."""
+    """Execute per-vehicle crop OCR then full-frame spatial association to capture all plates."""
     logger.info(f"Running OCR on '{filename}'")
     try:
         import app.services.pipeline as pl
@@ -44,17 +38,16 @@ def _run_stage2_ocr(detection: DetectionResult, image_input: ImageInput, filenam
         if not detection.vehicles:
             return run_full_frame_fallback(recognizer, image_input, filename)
 
-        results: list[PlateResult] = []
-        allow_fallback = len(detection.vehicles) == 1
+        crop_results: list[PlateResult] = []
+        plated: set[int] = set()
         for vehicle in detection.vehicles:
-            results.extend(_ocr_single_vehicle(recognizer, vehicle, image_input, filename, allow_fallback))
+            plates = _ocr_single_vehicle(recognizer, vehicle, filename)
+            if plates:
+                crop_results.extend(plates)
+                plated.add(id(vehicle))
 
-        dedup: list[PlateResult] = []
-        for p in results:
-            if p.plate is None or not any(p.plate == e.plate and p.box and e.box and max(abs(p.box[0] - e.box[0]), abs(p.box[1] - e.box[1])) < 30 for e in dedup):
-                dedup.append(p)
-        return dedup
+        full_frame_raw = recognizer.recognize(image_input, filename=filename)
+        return associate_fullframe_plates(full_frame_raw, detection.vehicles, crop_results, plated)
     except (ANPRServiceError, ValueError, RuntimeError, OSError, KeyError, AttributeError) as exc:
         logger.error(f"OCR failed on '{filename}': {exc}")
         return []
-

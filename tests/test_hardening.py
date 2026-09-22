@@ -224,6 +224,7 @@ _EXPECTED_ACTIVE_FILES = {
     "services/ocr/suppression.py",
     "services/ocr/tokens.py",
     "services/pipeline/__init__.py",
+    "services/pipeline/association.py",
     "services/pipeline/fallback.py",
     "services/pipeline/helpers.py",
     "services/pipeline/orchestrator.py",
