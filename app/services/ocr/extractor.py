@@ -8,6 +8,7 @@ from app.services.ocr.candidates import collect_candidates
 from app.services.ocr.engine import run_ocr_inference
 from app.services.ocr.pairing import build_spatial_pairs
 from app.services.ocr.spatial import cluster_horizontal_lines
+from app.services.ocr.suppression import suppress_overlapping_candidates
 from app.services.ocr.tokens import clean_and_filter_tokens
 
 
@@ -22,5 +23,8 @@ def extract_plates(img_pil: Image.Image, engine_getter: Any, parse_fn: Any) -> l
     candidates = collect_candidates(clean_tokens, lines, pairs, raw_summary, parse_fn)
     if candidates:
         candidates.sort(key=lambda c: (len(c.info.get("plate", "")) >= 10, -c.rank, len(c.info.get("plate", "")), c.confidence, c.y_pos), reverse=True)
-        return [candidates[0].info]
+        suppressed = suppress_overlapping_candidates(candidates)
+        if suppressed:
+            return [c.info for c in suppressed]
     return [{"plate": "N/A", "state": "N/A", "raw_text": raw_summary, "confidence": None, "box": None}]
+

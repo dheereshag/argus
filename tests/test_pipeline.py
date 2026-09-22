@@ -229,3 +229,60 @@ def test_unread_vehicle_plate_is_none(mock_yolo, mock_ocr_cls, sample_image_byte
     assert resp.results[0].plate is None
     assert resp.results[0].vehicle_type == "car"
 
+
+@patch("app.services.pipeline.PlateRecognizer")
+@patch("app.services.pipeline.VehicleDetector.detect")
+def test_recognize_no_vehicle_detected_multiple_plates_fallback(mock_yolo, mock_ocr_cls, sample_image_bytes):
+    mock_yolo.return_value = DetectionResult(
+        vehicles=[],
+        humans_outside=0,
+        humans_inside=0,
+    )
+
+    mock_ocr = MagicMock()
+    mock_ocr.recognize.return_value = [
+        {"plate": "DL01AB1234", "state": "Delhi", "box": (10, 10, 50, 30)},
+        {"plate": "MH12AB1234", "state": "Maharashtra", "box": (100, 100, 150, 130)},
+        {"plate": "RJ09GA0165", "state": "Rajasthan", "box": (200, 200, 260, 230)},
+    ]
+    mock_ocr_cls.return_value = mock_ocr
+
+    response = recognize_plate_image(sample_image_bytes, filename="multiple_plates_fallback.jpg")
+    assert len(response.results) == 3
+    assert [r.plate for r in response.results] == ["DL01AB1234", "MH12AB1234", "RJ09GA0165"]
+    assert all(r.vehicle_type is None for r in response.results)
+
+
+@patch("app.services.pipeline.PlateRecognizer")
+@patch("app.services.pipeline.VehicleDetector.detect")
+def test_recognize_single_vehicle_multiple_plates(mock_yolo, mock_ocr_cls, sample_image_bytes):
+    dummy_crop = Image.new("RGB", (100, 100))
+    detection = DetectionResult(
+        vehicles=[
+            DetectedVehicle(
+                vehicle_type="truck",
+                box=(10, 10, 100, 100),
+                crop=dummy_crop,
+                crop_box=(10, 10, 100, 100),
+            )
+        ],
+        humans_outside=0,
+        humans_inside=0,
+    )
+    mock_yolo.return_value = detection
+
+    mock_ocr = MagicMock()
+    mock_ocr.recognize.return_value = [
+        {"plate": "MH12AB1234", "state": "Maharashtra", "box": (5, 5, 45, 25)},
+        {"plate": "MH12CD5678", "state": "Maharashtra", "box": (5, 50, 45, 70)},
+    ]
+    mock_ocr_cls.return_value = mock_ocr
+
+    resp = recognize_plate_image(sample_image_bytes, filename="truck_multi_plate.jpg")
+    assert len(resp.results) == 2
+    assert [r.plate for r in resp.results] == ["MH12AB1234", "MH12CD5678"]
+    assert all(r.vehicle_type == "truck" for r in resp.results)
+    assert resp.results[0].box == (15, 15, 55, 35)
+    assert resp.results[1].box == (15, 60, 55, 80)
+
+

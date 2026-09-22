@@ -84,7 +84,7 @@ curl -X POST "http://localhost:8000/recognize" \
 
 - `humans_outside`: Count of pedestrians detected outside vehicle bounds.
 - `humans_inside`: Count of human occupants detected inside vehicle cabins.
-- `results`: Plate OCR results for each detected vehicle. If a vehicle is detected but no plate is found, `plate: null` is returned alongside `vehicle_type`. When no vehicle body is detected, full-frame OCR is run as fallback; if no plate is found, `results` is `[]`.
+- `results`: Plate OCR results for each detected vehicle and multi-plate combinations (e.g. trailers/carriers). If a vehicle is detected but no plate is found, `plate: null` is returned alongside `vehicle_type`. When no vehicle body is detected (0 vehicles), full-frame OCR fallback runs with Spatial Non-Maximum Suppression (NMS) to extract all visible non-overlapping license plates with `vehicle_type: null`; if no plate is found, `results` is `[]`.
 
 ---
 

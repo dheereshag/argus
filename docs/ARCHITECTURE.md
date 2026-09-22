@@ -40,8 +40,8 @@ flowchart TD
    - Extracts bounding box crops and labels for all qualified 4-wheelers.
 
 3. **Stage 2: Optical Character Recognition (OCR)** ([`app/services/ocr/`](../app/services/ocr/), [`app/services/pipeline/`](../app/services/pipeline/)):
-   - For each detected vehicle, runs RapidOCR (ONNX Runtime) over the vehicle crop. If OCR yields no valid plate on a detected vehicle, a `PlateResult` with `plate=None` and the detected `vehicle_type` is returned.
-   - **Zero-Vehicle Fallback**: When YOLO detects no 4-wheelers (e.g. bumper close-up or partial vehicle frame), full-frame OCR is automatically attempted. If a valid plate is identified, it is returned with `vehicle_type=None`; if no plate is found, `results: []` is returned.
+   - For each detected vehicle, runs RapidOCR (ONNX Runtime) over the vehicle crop with Spatial Non-Maximum Suppression (NMS) to extract all distinct non-overlapping plates within the vehicle crop (e.g. trailer/carrier combinations). If OCR yields no valid plate on a detected vehicle, a `PlateResult` with `plate=None` and the detected `vehicle_type` is returned.
+   - **Zero-Vehicle Fallback**: When YOLO detects no 4-wheelers (e.g. bumper close-up, partial vehicle frame, or multiple distant vehicles), full-frame OCR is automatically attempted. All valid, non-overlapping plates identified across the entire image are returned with `vehicle_type=None` via Spatial NMS; if no plate is found, `results: []` is returned.
    - Applies CLAHE (Contrast Limited Adaptive Histogram Equalization) if low-contrast text is encountered.
 
 4. **2D Spatial Clustering & Multi-Line Pairing** ([`app/services/ocr/`](../app/services/ocr/)):
@@ -66,7 +66,7 @@ All service domains in `app/services/` strictly follow **NASA JPL Rule 4** (Holz
 | **Pipeline Orchestrator** | [`app/services/pipeline/`](../app/services/pipeline/) | `orchestrator.py`, `stages.py`, `fallback.py`, `helpers.py`, `response.py`: Coordinates detection, OCR passes, fallbacks, coordinate adjustments, and response packaging. |
 | **Vehicle Detector** | [`app/services/detector/`](../app/services/detector/) | `detector.py`, `geometry.py`, `occupancy.py`, `parser.py`: YOLO26 model singleton, coordinate clamping/containment, and human spatial partitioning. |
 | **Image Processing** | [`app/services/image_processing/`](../app/services/image_processing/) | `loader.py`, `security.py`, `transformer.py`: Polymorphic image decoding, EXIF orientation, decompression bomb defense, and zero-copy in-memory downscaling. |
-| **Plate Recognizer** | [`app/services/ocr/`](../app/services/ocr/) | `recognizer.py`, `engine.py`, `enhancer.py`, `extractor.py`, `geometry.py`, `pairing.py`, `spatial.py`, `tokens.py`, `candidates.py`: RapidOCR ONNX inference, CLAHE enhancement, 2D token pairing, and candidate selection. |
+| **Plate Recognizer** | [`app/services/ocr/`](../app/services/ocr/) | `recognizer.py`, `engine.py`, `enhancer.py`, `extractor.py`, `geometry.py`, `pairing.py`, `spatial.py`, `tokens.py`, `candidates.py`, `suppression.py`: RapidOCR ONNX inference, CLAHE enhancement, 2D token pairing, Spatial NMS, and candidate selection. |
 | **Plate Rules** | [`app/services/plate_rules/`](../app/services/plate_rules/) | `parser.py`, `normalizers.py`, `expander.py`, `filters.py`, `bh_series.py`, `char_maps.py`: Indian registration plate validation, positional OCR character substitution, decal filtering, and BH-series parsing. |
 | **Data Models** | [`app/schemas.py`](../app/schemas.py) | Pydantic V2 domain models: [`RecognitionResponse`](../app/schemas.py), [`PlateResult`](../app/schemas.py), [`DetectionResult`](../app/schemas.py). |
 | **Configuration** | [`app/core/config.py`](../app/core/config.py) | Strongly-typed environment configuration via `pydantic-settings`. |

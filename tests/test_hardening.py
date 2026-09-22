@@ -221,6 +221,7 @@ _EXPECTED_ACTIVE_FILES = {
     "services/ocr/pairing.py",
     "services/ocr/recognizer.py",
     "services/ocr/spatial.py",
+    "services/ocr/suppression.py",
     "services/ocr/tokens.py",
     "services/pipeline/__init__.py",
     "services/pipeline/fallback.py",

@@ -183,3 +183,58 @@ def test_recognize_two_pass_enhancement_both_na(mock_extract, mock_enhance, samp
     result = recognizer.recognize(sample_image_bytes)
     assert result[0]["plate"] == "N/A"
 
+
+@patch("app.services.ocr.PlateRecognizer.get_engine")
+def test_extract_multiple_distinct_plates(mock_get_engine, sample_image_bytes):
+    mock_get_engine.return_value = _mock_engine(
+        txts=["RJ09GA0165", "DL01AB1234"],
+        scores=[0.95, 0.92],
+        boxes=[[0, 0, 100, 30], [200, 200, 300, 230]],
+    )
+    recognizer = PlateRecognizer()
+    results = recognizer._extract_plates_from_image_array(load_rgb(sample_image_bytes))
+
+    assert len(results) == 2
+    plates = [r["plate"] for r in results]
+    assert "RJ09GA0165" in plates
+    assert "DL01AB1234" in plates
+
+
+def test_suppress_overlapping_candidates():
+    from app.schemas import PlateCandidate
+    from app.services.ocr.suppression import suppress_overlapping_candidates
+
+    cand1 = PlateCandidate(
+        y_pos=10.0,
+        rank=0,
+        info={"plate": "RJ09GA0165", "state": "Rajasthan"},
+        confidence=0.95,
+        box=(0, 0, 100, 30),
+    )
+    cand2 = PlateCandidate(
+        y_pos=12.0,
+        rank=1,
+        info={"plate": "RJ09GA0168", "state": "Rajasthan"},
+        confidence=0.80,
+        box=(5, 2, 98, 28),
+    )
+    cand3 = PlateCandidate(
+        y_pos=200.0,
+        rank=0,
+        info={"plate": "DL01AB1234", "state": "Delhi"},
+        confidence=0.90,
+        box=(200, 200, 300, 230),
+    )
+    cand4 = PlateCandidate(
+        y_pos=400.0,
+        rank=0,
+        info={"plate": "RJ09GA0165", "state": "Rajasthan"},
+        confidence=0.85,
+        box=(400, 400, 500, 430),
+    )
+
+    selected = suppress_overlapping_candidates([cand1, cand2, cand3, cand4])
+    assert len(selected) == 2
+    assert [c.info["plate"] for c in selected] == ["RJ09GA0165", "DL01AB1234"]
+
+
