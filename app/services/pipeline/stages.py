@@ -47,7 +47,8 @@ def _run_stage2_ocr(detection: DetectionResult, image_input: ImageInput, filenam
                 crop_results.extend(plates)
                 plated.add(id(vehicle))
 
-        raw_ff = recognizer.recognize(image_input, filename=filename) if settings.ENABLE_FULL_FRAME_OCR else []
+        run_ff = settings.ENABLE_FULL_FRAME_OCR or not crop_results
+        raw_ff = recognizer.recognize(image_input, filename=filename) if run_ff else []
         return associate_fullframe_plates(raw_ff, detection.vehicles, crop_results, plated)
     except (ANPRServiceError, ValueError, RuntimeError, OSError, KeyError, AttributeError) as exc:
         logger.error(f"OCR failed on '{filename}': {exc}")

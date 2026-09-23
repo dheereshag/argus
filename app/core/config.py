@@ -47,7 +47,7 @@ class Settings(BaseSettings):
     ONNX_NUM_THREADS: int = 4  # Intra-op thread count for ONNX Runtime (tuned for Cortex-A76 quad-core)
 
     # OCR Pipeline Settings
-    ENABLE_FULL_FRAME_OCR: bool = False  # If False, full-frame OCR only runs if no vehicles were detected
+    ENABLE_FULL_FRAME_OCR: bool = False  # If False, full-frame OCR only runs when zero vehicles detected or no crop plates found
 
     # Server & CORS Settings
     SERVER_HOST: str = "127.0.0.1"  # Loopback interface (isolates to localhost/co-located services)

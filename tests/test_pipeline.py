@@ -248,6 +248,7 @@ def test_unread_vehicle_plate_is_none(mock_yolo, mock_ocr_cls, sample_image_byte
     mock_ocr_cls.return_value = mock_ocr
 
     resp = recognize_plate_image(sample_image_bytes, filename="no_plate.jpg")
+    assert mock_ocr.recognize.call_count == 2
     assert len(resp.results) == 1
     assert resp.results[0].plate is None
     assert resp.results[0].vehicle_type == "car"
@@ -512,6 +513,81 @@ def test_full_frame_ocr_disabled_still_runs_zero_vehicle_fallback(mock_yolo, moc
     assert len(resp.results) == 1
     assert resp.results[0].plate == "KA01AB1234"
     assert resp.results[0].vehicle_type is None
+
+
+@patch("app.services.pipeline.PlateRecognizer")
+@patch("app.services.pipeline.VehicleDetector.detect")
+def test_vehicles_detected_none_plated_triggers_full_frame_fallback(mock_yolo, mock_ocr_cls, sample_image_bytes):
+    """When vehicles are detected and none have plates on crop, full-frame OCR fallback triggers."""
+    dummy_crop = Image.new("RGB", (60, 60))
+    mock_yolo.return_value = DetectionResult(
+        vehicles=[
+            DetectedVehicle(
+                vehicle_type="truck",
+                box=(10, 10, 80, 80),
+                crop=dummy_crop,
+                crop_box=(10, 10, 80, 80),
+            )
+        ],
+        humans_outside=0,
+        humans_inside=0,
+    )
+    mock_ocr = MagicMock()
+    # Call 1 (crop): no plate found; Call 2 (full-frame fallback): plate found
+    mock_ocr.recognize.side_effect = [
+        [],
+        [{"plate": "DL01AB1234", "state": "Delhi", "box": (20, 20, 70, 40)}],
+    ]
+    mock_ocr_cls.return_value = mock_ocr
+
+    resp = recognize_plate_image(sample_image_bytes, filename="truck_fallback.jpg")
+    assert mock_ocr.recognize.call_count == 2
+    assert len(resp.results) == 1
+    assert resp.results[0].plate == "DL01AB1234"
+    assert resp.results[0].vehicle_type == "truck"
+    assert resp.results[0].state == "Delhi"
+
+
+@patch("app.services.pipeline.PlateRecognizer")
+@patch("app.services.pipeline.VehicleDetector.detect")
+def test_vehicles_detected_one_plated_skips_full_frame(mock_yolo, mock_ocr_cls, sample_image_bytes):
+    """When multiple vehicles are detected and at least one has a plate, full-frame OCR is skipped."""
+    dummy_crop = Image.new("RGB", (50, 50))
+    mock_yolo.return_value = DetectionResult(
+        vehicles=[
+            DetectedVehicle(
+                vehicle_type="truck",
+                box=(0, 0, 50, 50),
+                crop=dummy_crop,
+                crop_box=(0, 0, 50, 50),
+            ),
+            DetectedVehicle(
+                vehicle_type="car",
+                box=(50, 50, 100, 100),
+                crop=dummy_crop,
+                crop_box=(50, 50, 100, 100),
+            ),
+        ],
+        humans_outside=0,
+        humans_inside=0,
+    )
+    mock_ocr = MagicMock()
+    # Call 1 (truck crop): plate found; Call 2 (car crop): no plate found
+    mock_ocr.recognize.side_effect = [
+        [{"plate": "DL01AB1234", "state": "Delhi", "box": (5, 5, 45, 25)}],
+        [],
+    ]
+    mock_ocr_cls.return_value = mock_ocr
+
+    resp = recognize_plate_image(sample_image_bytes, filename="two_vehicles.jpg")
+    # Exactly 2 calls: one per vehicle crop, full-frame is NOT triggered
+    assert mock_ocr.recognize.call_count == 2
+    assert len(resp.results) == 2
+    assert resp.results[0].plate == "DL01AB1234"
+    assert resp.results[0].vehicle_type == "truck"
+    assert resp.results[1].plate is None
+    assert resp.results[1].vehicle_type == "car"
+
 
 
 

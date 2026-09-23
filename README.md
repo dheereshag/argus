@@ -84,7 +84,7 @@ curl -X POST "http://localhost:8000/recognize" \
 
 - `humans_outside`: Count of pedestrians detected outside vehicle bounds.
 - `humans_inside`: Count of human occupants detected inside vehicle cabins.
-- `results`: ANPR detection results. When vehicles are detected, per-vehicle crop OCR extracts plates directly attached to each vehicle (`car`, `truck`, `bus`, `motorcycle`, `bicycle`). If `ENABLE_FULL_FRAME_OCR=true`, a secondary full-frame pass also executes to capture and spatially associate unlocalized plates. Vehicles with no readable plate are represented with `plate: null`. When zero vehicles are detected, full-frame fallback returns all valid plates with `vehicle_type: null`; if no plate is found, `results` is `[]`.
+- `results`: ANPR detection results. When vehicles are detected, per-vehicle crop OCR extracts plates directly attached to each vehicle (`car`, `truck`, `bus`, `motorcycle`, `bicycle`). If any vehicle has a recognized plate and `ENABLE_FULL_FRAME_OCR=false`, full-frame OCR is skipped. If vehicles are detected but none yield a readable plate, full-frame OCR automatically executes as a fallback. When `ENABLE_FULL_FRAME_OCR=true`, secondary full-frame OCR runs unconditionally to capture and spatially associate unlocalized plates. Vehicles with no readable plate are represented with `plate: null`. When zero vehicles are detected, full-frame fallback returns all valid plates with `vehicle_type: null`; if no plate is found, `results` is `[]`.
 
 ---
 
