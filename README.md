@@ -84,7 +84,7 @@ curl -X POST "http://localhost:8000/recognize" \
 
 - `humans_outside`: Count of pedestrians detected outside vehicle bounds.
 - `humans_inside`: Count of human occupants detected inside vehicle cabins.
-- `results`: Dual-pass OCR results. Pass A executes crop OCR on each detected vehicle (`car`, `truck`, `bus`, `motorcycle`, `bicycle`); Pass B executes full-frame OCR and spatially associates plates to vehicle boxes. Plates within a vehicle box are attributed with that vehicle's `vehicle_type`. Unlocalized plates outside any vehicle box receive `vehicle_type: null`. Vehicles with no readable plate are represented with `plate: null`. When zero vehicles are detected, full-frame fallback returns all valid plates with `vehicle_type: null`; if no plate is found, `results` is `[]`.
+- `results`: ANPR detection results. When vehicles are detected, per-vehicle crop OCR extracts plates directly attached to each vehicle (`car`, `truck`, `bus`, `motorcycle`, `bicycle`). If `ENABLE_FULL_FRAME_OCR=true`, a secondary full-frame pass also executes to capture and spatially associate unlocalized plates. Vehicles with no readable plate are represented with `plate: null`. When zero vehicles are detected, full-frame fallback returns all valid plates with `vehicle_type: null`; if no plate is found, `results` is `[]`.
 
 ---
 
@@ -125,6 +125,7 @@ Operational thresholds and model settings are configured via environment variabl
 | `YOLO_AGNOSTIC_NMS` | `bool` | `true` | Class-agnostic NMS to suppress cross-class vehicle duplicates (bus/truck). |
 | `MAX_CONCURRENT_INFERENCES` | `int` | `4` | Semaphore concurrency limit for model execution. |
 | `ONNX_NUM_THREADS` | `int` | `4` | Intra-op thread count for ONNX Runtime (Cortex-A76 quad-core). |
+| `ENABLE_FULL_FRAME_OCR` | `bool` | `false` | Enable secondary full-frame OCR pass when vehicles are detected (spatial association). Fallback always runs if 0 vehicles detected. |
 | `MAX_UPLOAD_BYTES` | `int` | `8388608` | Max HTTP upload payload size (8 MB). |
 | `MAX_IMAGE_PIXELS` | `int` | `50000000` | Max pixel threshold for decompression bomb protection. |
 | `SERVER_HOST` | `str` | `127.0.0.1` | Server bind host interface. |

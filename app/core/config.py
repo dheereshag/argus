@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     MAX_CONCURRENT_INFERENCES: int = 4  # Maximum concurrent requests processed in threadpool
     ONNX_NUM_THREADS: int = 4  # Intra-op thread count for ONNX Runtime (tuned for Cortex-A76 quad-core)
 
+    # OCR Pipeline Settings
+    ENABLE_FULL_FRAME_OCR: bool = False  # If False, full-frame OCR only runs if no vehicles were detected
+
     # Server & CORS Settings
     SERVER_HOST: str = "127.0.0.1"  # Loopback interface (isolates to localhost/co-located services)
     SERVER_PORT: int = 8000

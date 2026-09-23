@@ -2,6 +2,7 @@
 
 from typing import Any
 
+from app.core.config import settings
 from app.core.exceptions import ANPRServiceError
 from app.core.logging import logger
 from app.schemas import DetectedVehicle, DetectionResult, PlateResult
@@ -46,8 +47,8 @@ def _run_stage2_ocr(detection: DetectionResult, image_input: ImageInput, filenam
                 crop_results.extend(plates)
                 plated.add(id(vehicle))
 
-        full_frame_raw = recognizer.recognize(image_input, filename=filename)
-        return associate_fullframe_plates(full_frame_raw, detection.vehicles, crop_results, plated)
+        raw_ff = recognizer.recognize(image_input, filename=filename) if settings.ENABLE_FULL_FRAME_OCR else []
+        return associate_fullframe_plates(raw_ff, detection.vehicles, crop_results, plated)
     except (ANPRServiceError, ValueError, RuntimeError, OSError, KeyError, AttributeError) as exc:
         logger.error(f"OCR failed on '{filename}': {exc}")
         return []

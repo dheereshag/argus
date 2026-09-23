@@ -16,7 +16,7 @@ flowchart TD
     C --> H1[Human Spatial Partitioning<br/><code>humans_outside</code> & <code>humans_inside</code>]
     
     C -- Vehicles Detected --> D[Pass A: Per-Vehicle Crop OCR<br/><code>app/services/pipeline/stages.py</code>]
-    C -- Vehicles Detected --> E1[Pass B: Full-Frame OCR<br/><code>app/services/pipeline/stages.py</code>]
+    C -- Vehicles Detected & ENABLE_FULL_FRAME_OCR --> E1[Pass B: Full-Frame OCR<br/><code>app/services/pipeline/stages.py</code>]
     C -- 0 Vehicles Detected --> E2[Full-Frame OCR Fallback<br/><code>app/services/pipeline/fallback.py</code>]
     
     D --> S[Spatial Association & Dedup<br/><code>app/services/pipeline/association.py</code>]
@@ -42,11 +42,11 @@ flowchart TD
    - Human detections geometrically contained inside vehicle bounding boxes are classified as `humans_inside` (cabin occupants), while external pedestrians are counted as `humans_outside`.
    - Extracts bounding box crops and labels for all qualified vehicles.
 
-3. **Stage 2: Dual-Pass Optical Character Recognition (OCR)** ([`app/services/ocr/`](../app/services/ocr/), [`app/services/pipeline/`](../app/services/pipeline/)):
+3. **Stage 2: Optical Character Recognition (OCR)** ([`app/services/ocr/`](../app/services/ocr/), [`app/services/pipeline/`](../app/services/pipeline/)):
    - **Pass A (Crop OCR)**: For each detected vehicle, runs RapidOCR (ONNX Runtime) over the vehicle crop for maximum character clarity. Coordinates are translated back to full-frame space.
-   - **Pass B (Full-Frame OCR)**: Always scans the full original image to capture foreground or unlocalized plates (e.g. background vehicles detected while true foreground plate is outside vehicle bounds).
-   - **Spatial Association**: Plates from Pass B overlapping a vehicle bounding box ($\ge 50\%$ containment) are attributed to that vehicle's `vehicle_type`. Plates outside all vehicles are emitted with `vehicle_type=None`. Duplicate plates across passes are deduplicated. Vehicles with no detected plates receive `plate=None`.
-   - **Zero-Vehicle Fallback**: When YOLO detects no vehicles (e.g. bumper close-up, partial vehicle frame), full-frame OCR fallback runs directly via [`fallback.py`](../app/services/pipeline/fallback.py), returning all valid non-overlapping plates with `vehicle_type=None`.
+   - **Pass B (Full-Frame OCR, Configurable)**: Governed by `ENABLE_FULL_FRAME_OCR` (default: `false`). When `true`, scans the full original image to capture foreground or unlocalized plates and spatially associates them to vehicles. When `false`, OCR is strictly confined to localized vehicle crops when vehicles are present.
+   - **Spatial Association**: When Pass B is enabled, plates overlapping a vehicle bounding box ($\ge 50\%$ containment or bumper alignment) are attributed to that vehicle's `vehicle_type`. Plates outside all vehicles are emitted with `vehicle_type=None`. Duplicate plates across passes are deduplicated. Vehicles with no detected plates receive `plate=None`.
+   - **Zero-Vehicle Fallback**: When YOLO detects no vehicles (e.g. bumper close-up, partial vehicle frame), full-frame OCR fallback always runs directly via [`fallback.py`](../app/services/pipeline/fallback.py), returning all valid non-overlapping plates with `vehicle_type=None`.
    - Applies CLAHE (Contrast Limited Adaptive Histogram Equalization) if low-contrast text is encountered.
 
 4. **2D Spatial Clustering & Multi-Line Pairing** ([`app/services/ocr/`](../app/services/ocr/)):
