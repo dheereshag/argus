@@ -4,7 +4,7 @@ Tests for payload budgets, pixel caps, and image decode validation.
 
 import pytest
 
-from app.core.config import settings
+from app.core.constants import MAX_UPLOAD_BYTES
 from app.core.exceptions import InvalidImageError, PayloadTooLargeError
 from app.services.image_processing import decode_image
 from app.services.pipeline import recognize_plate_image
@@ -16,7 +16,7 @@ from tests.conftest import create_test_jpeg as _jpeg
 
 
 def test_oversized_upload_is_rejected():
-    oversized = b"\xff\xd8\xff\xe0" + b"\x00" * (settings.MAX_UPLOAD_BYTES + 1024)
+    oversized = b"\xff\xd8\xff\xe0" + b"\x00" * (MAX_UPLOAD_BYTES + 1024)
     with pytest.raises(PayloadTooLargeError):
         recognize_plate_image(oversized, filename="huge.jpg")
 
@@ -36,7 +36,7 @@ def test_pixel_budget_is_enforced(monkeypatch):
     A small file can declare enormous dimensions. Guard on the pixel count from
     the header, before the full decode allocates anything.
     """
-    monkeypatch.setattr(settings, "MAX_IMAGE_PIXELS", 1000)
+    monkeypatch.setattr("app.services.image_processing.transformer.MAX_IMAGE_PIXELS", 1000)
     with pytest.raises(PayloadTooLargeError):
         decode_image(_jpeg(200, 200))
 

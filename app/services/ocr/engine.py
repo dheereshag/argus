@@ -23,9 +23,9 @@ def get_engine() -> RapidOCR:
     """Return singleton RapidOCR engine instance, creating it on first access."""
     global _engine
     if _engine is None:
-        from app.core.config import settings
+        from app.core.constants import ONNX_NUM_THREADS
 
-        params = {"EngineConfig.onnxruntime.intra_op_num_threads": settings.ONNX_NUM_THREADS}
+        params = {"EngineConfig.onnxruntime.intra_op_num_threads": ONNX_NUM_THREADS}
         _engine = RapidOCR(params=params)
     return _engine
 

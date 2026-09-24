@@ -84,7 +84,7 @@ curl -X POST "http://localhost:8000/recognize" \
 
 - `humans_outside`: Count of pedestrians detected outside vehicle bounds.
 - `humans_inside`: Count of human occupants detected inside vehicle cabins.
-- `results`: ANPR detection results. When vehicles are detected, per-vehicle crop OCR extracts plates directly attached to each vehicle (`car`, `truck`, `bus`, `motorcycle`, `bicycle`). If any vehicle has a recognized plate and `ENABLE_FULL_FRAME_OCR=false`, full-frame OCR is skipped. If vehicles are detected but none yield a readable plate, full-frame OCR automatically executes as a fallback. When `ENABLE_FULL_FRAME_OCR=true`, secondary full-frame OCR runs unconditionally to capture and spatially associate unlocalized plates. Vehicles with no readable plate are represented with `plate: null`. When zero vehicles are detected, full-frame fallback returns all valid plates with `vehicle_type: null`; if no plate is found, `results` is `[]`.
+- `results`: ANPR detection results. When vehicles are detected, per-vehicle crop OCR extracts plates directly attached to each vehicle (`car`, `truck`, `bus`, `motorcycle`, `bicycle`). If any vehicle has a recognized plate and `ENABLE_FULL_FRAME_OCR=false`, full-frame OCR is skipped. If vehicles are detected but none yield a readable plate, full-frame OCR automatically executes as a fallback. When `ENABLE_FULL_FRAME_OCR=true`, secondary full-frame OCR runs unconditionally to capture and spatially associate unlocalized plates. By default (`INCLUDE_UNIDENTIFIED_VEHICLES=false`), `results` contains only entries with detected license plates; when `INCLUDE_UNIDENTIFIED_VEHICLES=true`, unplated vehicles are preserved with `plate: null`. When zero vehicles are detected, full-frame fallback returns all valid plates with `vehicle_type: null`; if no plate is found, `results` is `[]`.
 
 ---
 
@@ -110,26 +110,14 @@ for res in response.results:
 
 ## Configuration (`.env`)
 
-Operational thresholds and model settings are configured via environment variables or `.env` (see [`.env.example`](.env.example)):
+The service exposes two operational pipeline booleans configurable via environment variables or `.env` (see [`.env.example`](.env.example)):
 
 | Variable | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `YOLO_MODEL_NAME` | `str` | `yolo26n.pt` | Path or name of YOLO26 model weights. |
-| `YOLO_CONFIG_DIR` | `str` | `.cache/ultralytics` | Ultralytics cache directory for model downloads. |
-| `HUMAN_CONF_THRESH` | `float` | `0.30` | Minimum confidence threshold for pedestrian detection. |
-| `VEHICLE_CONF_THRESH` | `float` | `0.35` | Minimum confidence threshold for vehicle detection (car, truck, bus, motorcycle, bicycle). |
-| `MIN_HUMAN_BOX_AREA_RATIO` | `float` | `0.005` | Minimum bbox area ratio to filter background pedestrian noise. |
-| `MIN_VEHICLE_BOX_AREA_RATIO` | `float` | `0.01` | Minimum bbox area ratio to filter distant background vehicles. |
-| `VEHICLE_IOU_THRESH` | `float` | `0.50` | Maximum IoU before suppressing duplicate overlapping vehicle bounding boxes. |
-| `DEFAULT_YOLO_IMGSZ` | `int` | `640` | YOLO inference image size. |
-| `YOLO_AGNOSTIC_NMS` | `bool` | `true` | Class-agnostic NMS to suppress cross-class vehicle duplicates (bus/truck). |
-| `MAX_CONCURRENT_INFERENCES` | `int` | `4` | Semaphore concurrency limit for model execution. |
-| `ONNX_NUM_THREADS` | `int` | `4` | Intra-op thread count for ONNX Runtime (Cortex-A76 quad-core). |
-| `ENABLE_FULL_FRAME_OCR` | `bool` | `false` | Enable secondary full-frame OCR pass when vehicles are detected (spatial association). Fallback always runs if 0 vehicles detected. |
-| `MAX_UPLOAD_BYTES` | `int` | `8388608` | Max HTTP upload payload size (8 MB). |
-| `MAX_IMAGE_PIXELS` | `int` | `50000000` | Max pixel threshold for decompression bomb protection. |
-| `SERVER_HOST` | `str` | `127.0.0.1` | Server bind host interface. |
-| `SERVER_PORT` | `int` | `8000` | Server HTTP listening port. |
+| `ENABLE_FULL_FRAME_OCR` | `bool` | `false` | Enable secondary full-frame OCR pass when vehicles are detected. If false, full-frame OCR only runs as fallback when zero plates are recognized from crops. |
+| `INCLUDE_UNIDENTIFIED_VEHICLES` | `bool` | `false` | If false, `results` only contains entries with detected license plates. If true, vehicles without recognized plates are included as `plate: null`. |
+
+All other operational parameters (model weights, detection confidence thresholds, image upload limits, NMS thresholds, threadpool counts) are fixed internal constants defined in [`app/core/config.py`](app/core/config.py).
 
 ---
 

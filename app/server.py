@@ -20,7 +20,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.core.config import settings
+from app.core import constants
 from app.core.contracts import ContractViolation
 from app.core.exceptions import ANPRServiceError
 from app.core.logging import logger
@@ -37,7 +37,7 @@ def _get_semaphore() -> asyncio.Semaphore:
     """Return singleton asyncio semaphore limiting concurrent AI pipeline executions."""
     global _inference_semaphore
     if _inference_semaphore is None:
-        _inference_semaphore = asyncio.Semaphore(settings.MAX_CONCURRENT_INFERENCES)
+        _inference_semaphore = asyncio.Semaphore(constants.MAX_CONCURRENT_INFERENCES)
     return _inference_semaphore
 
 
@@ -73,7 +73,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     Pre-loading model weights during startup ensures the initial inference request
     does not incur cold-start latency spikes.
     """
-    logger.info(f"Starting {settings.PROJECT_NAME} v{settings.VERSION}...")
+    logger.info(f"Starting {constants.PROJECT_NAME} v{constants.VERSION}...")
     try:
         # Pre-warm YOLO26 model weights and verify RapidOCR engine
         VehicleDetector.get_model()
@@ -83,17 +83,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         logger.warning(f"Non-fatal warning warming models during startup: {exc}")
 
     yield
-    logger.info(f"Shutting down {settings.PROJECT_NAME}...")
+    logger.info(f"Shutting down {constants.PROJECT_NAME}...")
 
 
 def _register_middleware(app: FastAPI) -> None:
     """Register CORS and request timing middleware."""
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.CORS_ORIGINS,
-        allow_credentials=settings.CORS_ALLOW_CREDENTIALS,
-        allow_methods=settings.CORS_ALLOW_METHODS,
-        allow_headers=settings.CORS_ALLOW_HEADERS,
+        allow_origins=constants.CORS_ORIGINS,
+        allow_credentials=constants.CORS_ALLOW_CREDENTIALS,
+        allow_methods=constants.CORS_ALLOW_METHODS,
+        allow_headers=constants.CORS_ALLOW_HEADERS,
     )
 
     @app.middleware("http")
@@ -131,8 +131,8 @@ def _register_routes(app: FastAPI) -> None:
     async def root() -> dict[str, str]:
         """Return microservice name, version, status, and link to interactive documentation."""
         return {
-            "name": settings.PROJECT_NAME,
-            "version": settings.VERSION,
+            "name": constants.PROJECT_NAME,
+            "version": constants.VERSION,
             "status": "running",
             "docs": "/docs",
         }
@@ -165,11 +165,11 @@ def create_app() -> FastAPI:
         FastAPI: Configured FastAPI application instance.
     """
     app = FastAPI(
-        title=settings.PROJECT_NAME,
-        version=settings.VERSION,
+        title=constants.PROJECT_NAME,
+        version=constants.VERSION,
         description="Enterprise Automatic Number Plate Recognition (ANPR) Microservice.",
-        docs_url=settings.DOCS_URL,
-        redoc_url=settings.REDOC_URL,
+        docs_url=constants.DOCS_URL,
+        redoc_url=constants.REDOC_URL,
         lifespan=lifespan,
     )
     _register_middleware(app)
@@ -185,4 +185,4 @@ app = create_app()
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("app.server:app", host=settings.SERVER_HOST, port=settings.SERVER_PORT, reload=True)
+    uvicorn.run("app.server:app", host=constants.SERVER_HOST, port=constants.SERVER_PORT, reload=True)

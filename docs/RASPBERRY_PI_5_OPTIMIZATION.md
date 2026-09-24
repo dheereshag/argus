@@ -46,10 +46,10 @@ In constrained edge environments, memory allocation and intermediate image compr
 RapidOCR and YOLO leverage ONNX Runtime for CPU execution.
 
 1. **Intra-Op Thread Binding**:
-   - Configure `ONNX_NUM_THREADS=4` in `.env` to bind tensor operations across all 4 Cortex-A76 cores.
+   - `ONNX_NUM_THREADS = 4` in `app/core/constants.py` binds tensor operations across all 4 Cortex-A76 cores.
    - Argus automatically initializes RapidOCR's ONNX Runtime session with:
      ```python
-     params = {"EngineConfig.onnxruntime.intra_op_num_threads": settings.ONNX_NUM_THREADS}
+     params = {"EngineConfig.onnxruntime.intra_op_num_threads": ONNX_NUM_THREADS}
      ```
 2. **OpenMP Environment Variables**:
    Set OpenMP affinity variables in `/etc/environment` or your systemd service file:

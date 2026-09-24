@@ -4,7 +4,13 @@ import numpy as np
 from PIL import Image
 from ultralytics import YOLO
 
-from app.core.config import settings
+from app.core.constants import (
+    DEFAULT_YOLO_IMGSZ,
+    HUMAN_CONF_THRESH,
+    VEHICLE_CONF_THRESH,
+    YOLO_AGNOSTIC_NMS,
+    YOLO_MODEL_NAME,
+)
 from app.core.contracts import ensure, require
 from app.schemas import DetectedVehicle, DetectionResult
 from app.services.detector.geometry import BoundingBox, clamp_box, is_contained, pad_box
@@ -30,14 +36,14 @@ class VehicleDetector:
         if cls._model is None:
             import app.services.detector as yf
 
-            cls._model = yf.YOLO(settings.YOLO_MODEL_NAME or "yolo26n.pt")
+            cls._model = yf.YOLO(YOLO_MODEL_NAME or "yolo26n.pt")
         ensure(cls._model is not None, "YOLO model failed to initialise")
         return cls._model
 
     def _run_detection(self, img: Image.Image, h_conf: float, v_conf: float) -> tuple[list[BoundingBox], list[tuple[str, BoundingBox]]]:
         require(img is not None, "_run_detection called with no image")
         w, h = img.size
-        res = next(iter(self.get_model()(img, imgsz=settings.DEFAULT_YOLO_IMGSZ, agnostic_nms=settings.YOLO_AGNOSTIC_NMS, verbose=False)))
+        res = next(iter(self.get_model()(img, imgsz=DEFAULT_YOLO_IMGSZ, agnostic_nms=YOLO_AGNOSTIC_NMS, verbose=False)))
         boxes = getattr(res, "boxes", None)
         if boxes is None or len(boxes) == 0 or not hasattr(boxes, "cls"):
             return [], []
@@ -53,7 +59,7 @@ class VehicleDetector:
     def detect(self, image_input: ImageInput) -> DetectionResult:
         """Detect vehicles (car, bus, truck, motorcycle, bicycle), partition humans, and extract crops."""
         pil_img = load_rgb(image_input)
-        humans, vehicles = self._run_detection(pil_img, settings.HUMAN_CONF_THRESH, settings.VEHICLE_CONF_THRESH)
+        humans, vehicles = self._run_detection(pil_img, HUMAN_CONF_THRESH, VEHICLE_CONF_THRESH)
         h_out, h_in = partition_humans(humans, vehicles)
         return DetectionResult(self._build_detected_vehicles(vehicles, pil_img), h_out, h_in)
 

@@ -3,7 +3,11 @@
 import numpy as np
 
 from app.constants import MAX_DETECTIONS, PERSON_CLASS_ID, VEHICLE_CLASS_NAMES
-from app.core.config import settings
+from app.core.constants import (
+    MIN_HUMAN_BOX_AREA_RATIO,
+    MIN_VEHICLE_BOX_AREA_RATIO,
+    VEHICLE_IOU_THRESH,
+)
 from app.core.contracts import bounded
 from app.services.detector.geometry import BoundingBox, box_iou, clamp_box, is_contained
 
@@ -12,7 +16,7 @@ def _dedup_vehicles(candidates: list[tuple[float, int, str, BoundingBox]]) -> li
     """Deduplicate overlapping vehicles by confidence and spatial IoU."""
     candidates.sort(key=lambda item: item[0], reverse=True)
     deduped: list[tuple[str, BoundingBox]] = []
-    thresh = settings.VEHICLE_IOU_THRESH
+    thresh = VEHICLE_IOU_THRESH
     for _, _, v_type, b in candidates:
         if not any(box_iou(b, eb) > thresh or is_contained(b, eb, 0.70) or is_contained(eb, b, 0.70) for _, eb in deduped):
             deduped.append((v_type, b))
@@ -33,8 +37,8 @@ def parse_detections(
     human_candidates: list[BoundingBox] = []
     vehicle_candidates: list[tuple[float, int, str, BoundingBox]] = []
     total_area = width * height
-    min_h_area = settings.MIN_HUMAN_BOX_AREA_RATIO * total_area
-    min_v_area = settings.MIN_VEHICLE_BOX_AREA_RATIO * total_area
+    min_h_area = MIN_HUMAN_BOX_AREA_RATIO * total_area
+    min_v_area = MIN_VEHICLE_BOX_AREA_RATIO * total_area
 
     for idx, (raw_cls, conf) in enumerate(bounded(list(zip(cls_ids, confs, strict=False)), MAX_DETECTIONS, "detections")):
         cls_id = int(raw_cls)

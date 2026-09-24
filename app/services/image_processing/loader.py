@@ -6,12 +6,12 @@ import cv2
 import numpy as np
 from PIL import Image, ImageFile, ImageOps
 
-from app.core.config import settings
+from app.core.constants import MAX_IMAGE_PIXELS
 from app.core.exceptions import InvalidImageError, PayloadTooLargeError
 
 type ImageInput = str | bytes | Image.Image | np.ndarray
 
-Image.MAX_IMAGE_PIXELS = settings.MAX_IMAGE_PIXELS
+Image.MAX_IMAGE_PIXELS = MAX_IMAGE_PIXELS
 object.__setattr__(ImageFile, "LOAD_TRUNCATED_IMAGES", True)
 
 

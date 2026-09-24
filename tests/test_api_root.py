@@ -1,12 +1,12 @@
-from app.core.config import settings
+from app.core.constants import PROJECT_NAME, VERSION
 
 
 def test_root_endpoint(client):
     response = client.get("/")
     assert response.status_code == 200
     data = response.json()
-    assert data["name"] == settings.PROJECT_NAME
-    assert data["version"] == settings.VERSION
+    assert data["name"] == PROJECT_NAME
+    assert data["version"] == VERSION
     assert data["status"] == "running"
     assert data["docs"] == "/docs"
 

@@ -199,6 +199,7 @@ _EXPECTED_ACTIVE_FILES = {
     "server.py",
     "core/__init__.py",
     "core/config.py",
+    "core/constants.py",
     "core/contracts.py",
     "core/exceptions.py",
     "core/logging.py",

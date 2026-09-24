@@ -27,7 +27,7 @@ def test_recognize_invalid_image_bytes(client):
 
 def test_recognize_payload_too_large(client):
     # Simulate a file larger than MAX_UPLOAD_BYTES
-    with patch("app.core.config.settings.MAX_UPLOAD_BYTES", 100):
+    with patch("app.services.image_processing.security.MAX_UPLOAD_BYTES", 100):
         large_bytes = b"X" * 200
         response = client.post(
             "/recognize",

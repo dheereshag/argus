@@ -45,7 +45,7 @@ flowchart TD
 3. **Stage 2: Optical Character Recognition (OCR)** ([`app/services/ocr/`](../app/services/ocr/), [`app/services/pipeline/`](../app/services/pipeline/)):
    - **Pass A (Crop OCR)**: For each detected vehicle, runs RapidOCR (ONNX Runtime) over the vehicle crop for maximum character clarity. Coordinates are translated back to full-frame space.
    - **Pass B (Full-Frame OCR, Configurable)**: Governed by `ENABLE_FULL_FRAME_OCR` (default: `false`). When `true`, scans the full original image to capture foreground or unlocalized plates and spatially associates them to vehicles. When `false`, full-frame OCR is skipped if any vehicle crop yields a recognized plate, but automatically triggers as a fallback if all vehicle crops lack recognized plates.
-   - **Spatial Association**: When Pass B is enabled, plates overlapping a vehicle bounding box ($\ge 50\%$ containment or bumper alignment) are attributed to that vehicle's `vehicle_type`. Plates outside all vehicles are emitted with `vehicle_type=None`. Duplicate plates across passes are deduplicated. Vehicles with no detected plates receive `plate=None`.
+   - **Spatial Association**: When Pass B is enabled, plates overlapping a vehicle bounding box ($\ge 50\%$ containment or bumper alignment) are attributed to that vehicle's `vehicle_type`. Plates outside all vehicles are emitted with `vehicle_type=None`. Duplicate plates across passes are deduplicated. When `INCLUDE_UNIDENTIFIED_VEHICLES=true`, vehicles with no detected plates receive `plate=None`; by default (`false`), only detected plates are emitted.
    - **Zero-Vehicle Fallback**: When YOLO detects no vehicles (e.g. bumper close-up, partial vehicle frame), full-frame OCR fallback always runs directly via [`fallback.py`](../app/services/pipeline/fallback.py), returning all valid non-overlapping plates with `vehicle_type=None`.
    - Applies CLAHE (Contrast Limited Adaptive Histogram Equalization) if low-contrast text is encountered.
 
@@ -75,6 +75,7 @@ All service domains in `app/services/` strictly follow **NASA JPL Rule 4** (Holz
 | **Plate Rules** | [`app/services/plate_rules/`](../app/services/plate_rules/) | `parser.py`, `normalizers.py`, `expander.py`, `filters.py`, `bh_series.py`, `char_maps.py`: Indian registration plate validation, positional OCR character substitution, decal filtering, and BH-series parsing. |
 | **Data Models** | [`app/schemas.py`](../app/schemas.py) | Pydantic V2 domain models: [`RecognitionResponse`](../app/schemas.py), [`PlateResult`](../app/schemas.py), [`DetectionResult`](../app/schemas.py). |
 | **Configuration** | [`app/core/config.py`](../app/core/config.py) | Strongly-typed environment configuration via `pydantic-settings`. |
+| **System Constants** | [`app/core/constants.py`](../app/core/constants.py) | Fixed operational thresholds, detector parameters, upload security limits, and server defaults. |
 | **Runtime Contracts** | [`app/core/contracts.py`](../app/core/contracts.py) | Defensive programming assertions (`require`, `ensure`, `bounded`). |
 
 ---

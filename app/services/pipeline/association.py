@@ -1,5 +1,6 @@
 """Spatial association of full-frame OCR plates to detected vehicle bounding boxes."""
 
+from app.core.config import settings
 from app.schemas import DetectedVehicle, PlateResult
 from app.services.detector.geometry import is_contained
 from app.services.pipeline.helpers import validate_plate_results
@@ -8,10 +9,8 @@ from app.services.pipeline.helpers import validate_plate_results
 def _bumper_match(b: tuple, v: DetectedVehicle) -> tuple[int, int] | None:
     vx1, vy1, vx2, vy2 = v.box
     ix = max(0, min(b[2], vx2) - max(b[0], vx1))
-    if (ix / max(1, b[2] - b[0])) >= 0.50 and b[1] >= vy1:
-        dy = max(0, b[1] - vy2)
-        if dy <= 0.80 * max(1, vy2 - vy1):
-            return (dy, -ix)
+    if (ix / max(1, b[2] - b[0])) >= 0.50 and b[1] >= vy1 and (dy := max(0, b[1] - vy2)) <= 0.80 * max(1, vy2 - vy1):
+        return (dy, -ix)
     return None
 
 
@@ -53,5 +52,6 @@ def associate_fullframe_plates(
             extra.extend(res)
 
     combined = _dedup(list(crop_results) + extra)
-    combined.extend(PlateResult(plate=None, vehicle_type=v.vehicle_type) for v in vehicles if id(v) not in plated_ids)
+    if settings.INCLUDE_UNIDENTIFIED_VEHICLES:
+        combined.extend(PlateResult(plate=None, vehicle_type=v.vehicle_type) for v in vehicles if id(v) not in plated_ids)
     return combined
