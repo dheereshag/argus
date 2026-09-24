@@ -6,6 +6,8 @@ from PIL import Image
 
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+os.environ["ENABLE_FULL_FRAME_OCR"] = "false"
+os.environ["INCLUDE_UNIDENTIFIED_VEHICLES"] = "false"
 
 try:
     import torch
@@ -47,6 +49,18 @@ def client():
 
     with TestClient(app) as test_client:
         yield test_client
+
+
+@pytest.fixture(autouse=True)
+def _reset_test_settings():
+    """Ensure runtime settings remain strictly at their test baseline across test runs."""
+    from app.core.config import settings
+
+    settings.ENABLE_FULL_FRAME_OCR = False
+    settings.INCLUDE_UNIDENTIFIED_VEHICLES = False
+    yield
+    settings.ENABLE_FULL_FRAME_OCR = False
+    settings.INCLUDE_UNIDENTIFIED_VEHICLES = False
 
 
 _session_exitstatus = 0
