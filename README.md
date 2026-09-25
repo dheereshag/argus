@@ -32,21 +32,20 @@ Interactive API documentation is available at [http://localhost:8000/docs](http:
 
 ## REST API Reference
 
-### Health Check
+### Service Info & Health Checks
 
-`GET /`
+`GET /` (Service Info) or `GET /health` (Liveness / Readiness Probe)
 
 ```bash
-curl -s http://localhost:8000/
+curl -s http://localhost:8000/health
 ```
 
 **Response (`200 OK`):**
 ```json
 {
-  "name": "Argus ANPR Engine",
-  "version": "0.1.0",
-  "status": "running",
-  "docs": "/docs"
+  "status": "healthy",
+  "service": "Argus ANPR Microservice",
+  "version": "0.1.0"
 }
 ```
 

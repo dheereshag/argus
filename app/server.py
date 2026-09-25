@@ -137,6 +137,15 @@ def _register_routes(app: FastAPI) -> None:
             "docs": "/docs",
         }
 
+    @app.get("/health", summary="Health Check", tags=["Info"])
+    async def health() -> dict[str, str]:
+        """Return microservice health status confirmation for orchestrators and clients."""
+        return {
+            "status": "healthy",
+            "service": constants.PROJECT_NAME,
+            "version": constants.VERSION,
+        }
+
     @app.post("/recognize", summary="Recognize Vehicle License Plate", tags=["Recognition"])
     async def recognize_plate(
         file: Annotated[UploadFile, File(description="Image file (JPEG, PNG, WebP, BMP)")],

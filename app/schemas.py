@@ -4,7 +4,7 @@ Domain models, internal dataclasses, and API response schemas for Argus ANPR.
 This module defines:
   - Slotted dataclasses for internal pipeline stages (OCR tokens, candidate ranking, detection).
   - Pydantic models for REST API request validation and response serialisation.
-  - Enumerations for pre-screening and recognition status outcomes.
+  - Factual spatial partitioning response models (vehicles, plates, human counts).
 """
 
 from dataclasses import dataclass, field
