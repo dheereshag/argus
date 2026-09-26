@@ -204,6 +204,8 @@ _EXPECTED_ACTIVE_FILES = {
     "core/exceptions.py",
     "core/logging.py",
     "services/__init__.py",
+    "services/debug/__init__.py",
+    "services/debug/saver.py",
     "services/detector/__init__.py",
     "services/detector/detector.py",
     "services/detector/geometry.py",

@@ -8,6 +8,8 @@ class Settings(BaseSettings):
 
     ENABLE_FULL_FRAME_OCR: bool = False
     INCLUDE_UNIDENTIFIED_VEHICLES: bool = False
+    DEBUG_SAVE_CROPS: bool = False
+    DEBUG_CROPS_DIR: str = "debug_crops"
 
     model_config = SettingsConfigDict(
         env_file=".env",

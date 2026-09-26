@@ -6,6 +6,7 @@ from app.core.config import settings
 from app.core.exceptions import ANPRServiceError
 from app.core.logging import logger
 from app.schemas import DetectedVehicle, DetectionResult, PlateResult
+from app.services.debug import save_debug_crop
 from app.services.image_processing import ImageInput
 from app.services.pipeline.association import associate_fullframe_plates
 from app.services.pipeline.fallback import run_full_frame_fallback
@@ -19,11 +20,13 @@ def _ocr_single_vehicle(
     recognizer: Any,
     vehicle: DetectedVehicle,
     filename: str,
+    idx: int = 0,
 ) -> list[PlateResult]:
     """Execute RapidOCR on a single vehicle crop with coordinate translation back to frame space."""
     if vehicle.crop is None:
         return []
-    raw = recognizer.recognize(vehicle.crop, filename=filename)
+    save_debug_crop(vehicle.crop, "raw", filename, idx)
+    raw = recognizer.recognize(vehicle.crop, filename=filename, vehicle_idx=idx)
     if any(r.get("plate") and r.get("plate") != "N/A" for r in raw):
         raw = _adjust_crop_coordinates(raw, vehicle.crop_box)
     return validate_plate_results(raw, vehicle_type=vehicle.vehicle_type)
@@ -41,8 +44,8 @@ def _run_stage2_ocr(detection: DetectionResult, image_input: ImageInput, filenam
 
         crop_results: list[PlateResult] = []
         plated: set[int] = set()
-        for vehicle in detection.vehicles:
-            plates = _ocr_single_vehicle(recognizer, vehicle, filename)
+        for idx, vehicle in enumerate(detection.vehicles):
+            plates = _ocr_single_vehicle(recognizer, vehicle, filename, idx)
             if plates:
                 crop_results.extend(plates)
                 plated.add(id(vehicle))

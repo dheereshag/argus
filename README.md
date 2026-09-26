@@ -109,14 +109,16 @@ for res in response.results:
 
 ## Configuration (`.env`)
 
-The service exposes two operational pipeline booleans configurable via environment variables or `.env` (see [`.env.example`](.env.example)):
+The service exposes runtime configuration options via environment variables or `.env` (see [`.env.example`](.env.example)):
 
 | Variable | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
 | `ENABLE_FULL_FRAME_OCR` | `bool` | `false` | Enable secondary full-frame OCR pass when vehicles are detected. If false, full-frame OCR only runs as fallback when zero plates are recognized from crops. |
 | `INCLUDE_UNIDENTIFIED_VEHICLES` | `bool` | `false` | If false, `results` only contains entries with detected license plates. If true, vehicles without recognized plates are included as `plate: null`. |
+| `DEBUG_SAVE_CROPS` | `bool` | `false` | If true, dumps intermediate vehicle crops (`_raw.jpg`) and contrast-enhanced images (`_enhanced.jpg`) to disk for visual debugging. |
+| `DEBUG_CROPS_DIR` | `str` | `debug_crops` | Destination folder path for debug crop dumps when `DEBUG_SAVE_CROPS` is enabled. |
 
-All other operational parameters (model weights, detection confidence thresholds, image upload limits, NMS thresholds, threadpool counts) are fixed internal constants defined in [`app/core/config.py`](app/core/config.py).
+All other operational parameters (model weights, detection confidence thresholds, image upload limits, NMS thresholds, threadpool counts) are fixed internal constants defined in [`app/core/constants.py`](app/core/constants.py).
 
 ---
 

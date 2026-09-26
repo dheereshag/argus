@@ -7,6 +7,7 @@ import numpy as np
 from PIL import Image
 
 from app.core.logging import logger
+from app.services.debug import save_debug_crop
 
 
 def enhance_contrast(img: Image.Image) -> Image.Image:
@@ -25,12 +26,20 @@ def enhance_contrast(img: Image.Image) -> Image.Image:
     return Image.fromarray(enhanced_rgb)
 
 
-def retry_contrast(recognizer: Any, img: Image.Image) -> list[dict[str, Any]] | None:
+def retry_contrast(
+    recognizer: Any,
+    img: Image.Image,
+    filename: str = "image.jpg",
+    vehicle_idx: int = 0,
+) -> list[dict[str, Any]] | None:
     """Attempt contrast-enhanced OCR pass when initial extraction yields no plate."""
     try:
-        enh = recognizer._extract_plates_from_image_array(recognizer._enhance_contrast(img))
+        enhanced = recognizer._enhance_contrast(img)
+        save_debug_crop(enhanced, "enhanced", filename, vehicle_idx)
+        enh = recognizer._extract_plates_from_image_array(enhanced)
         if any(r.get("plate") and r.get("plate") != "N/A" for r in enh) or enh:
             return enh
     except (cv2.error, ValueError, RuntimeError, OSError, TypeError) as e:
         logger.debug(f"Contrast fallback skipped: {e}")
     return None
+

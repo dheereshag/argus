@@ -58,9 +58,13 @@ def _reset_test_settings():
 
     settings.ENABLE_FULL_FRAME_OCR = False
     settings.INCLUDE_UNIDENTIFIED_VEHICLES = False
+    settings.DEBUG_SAVE_CROPS = False
+    settings.DEBUG_CROPS_DIR = "debug_crops"
     yield
     settings.ENABLE_FULL_FRAME_OCR = False
     settings.INCLUDE_UNIDENTIFIED_VEHICLES = False
+    settings.DEBUG_SAVE_CROPS = False
+    settings.DEBUG_CROPS_DIR = "debug_crops"
 
 
 _session_exitstatus = 0
