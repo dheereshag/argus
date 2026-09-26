@@ -15,6 +15,8 @@ def build_spatial_pairs(clean_tokens: list[OCRToken]) -> list[tuple[float, str, 
             tok_b = clean_tokens[j]
             if tok_a.cx is not None and tok_a.cy is not None and tok_b.cx is not None and tok_b.cy is not None:
                 dist = math.hypot(tok_a.cx - tok_b.cx, tok_a.cy - tok_b.cy)
+                if dist > 150.0 or abs(tok_a.cx - tok_b.cx) > 90.0:
+                    continue
                 y_mean = float((tok_a.cy + tok_b.cy) / 2.0)
                 top_tok, bot_tok = (tok_a, tok_b) if tok_a.cy <= tok_b.cy else (tok_b, tok_a)
             else:

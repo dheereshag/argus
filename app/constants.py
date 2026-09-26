@@ -286,6 +286,11 @@ NON_PLATE_WORDS: frozenset[str] = frozenset(
         "VOLVO",
         "SCANIA",
         "POWER",
+        "CABLE",
+        "CABLES",
+        "WIRE",
+        "LOGISTICS",
+        "ROADWAYS",
     }
 )
 

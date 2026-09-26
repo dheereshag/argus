@@ -43,8 +43,6 @@ def collect_candidates(
             _eval("".join(t.text for t in line), line, line[0].cy or 0.0)
     for i in range(len(lines) - 1):
         _eval("".join(t.text for t in lines[i]) + "".join(t.text for t in lines[i + 1]), lines[i] + lines[i + 1], lines[i][0].cy or 0.0)
-        if i + 2 < len(lines) and ((lines[i + 2][0].cy or 0.0) - (lines[i][0].cy or 0.0)) < 120.0:
-            _eval("".join(t.text for t in lines[i]) + "".join(t.text for t in lines[i + 2]), lines[i] + lines[i + 2], lines[i][0].cy or 0.0)
     for _, p_text, y, p_toks in pairs:
         _eval(p_text, p_toks, y)
     return candidates
