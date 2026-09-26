@@ -292,3 +292,30 @@ def test_commercial_bus_raw_text_extracts_hr69d4793_over_antil(mock_get_engine, 
     assert results[0]["state"] == "Haryana"
 
 
+def test_digit_confusion_e_to_six_mapping():
+    """Verify that 'E' in district numeric positions is corrected to '6'."""
+    from app.services.plate_rules import normalize_candidate_strings
+
+    cands = normalize_candidate_strings("HRE9D4793")
+    assert "HR69D4793" in cands
+
+    info = parse_plate_info("HR69D4793")
+    assert info is not None
+    assert info["plate"] == "HR69D4793"
+    assert info["state"] == "Haryana"
+
+
+def test_enhance_contrast_blackhat_and_unsharp():
+    """Verify enhanced contrast produces valid RGB output and preserves dimensions."""
+    from PIL import Image
+
+    from app.services.ocr.enhancer import enhance_contrast
+
+    img = Image.new("RGB", (200, 400), color=(200, 180, 50))
+    enhanced = enhance_contrast(img)
+    assert enhanced.mode == "RGB"
+    # Should upscale since min(w, h) < 300
+    assert enhanced.size[0] > 200
+
+
+

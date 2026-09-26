@@ -47,7 +47,7 @@ flowchart TD
    - **Pass B (Full-Frame OCR, Configurable)**: Governed by `ENABLE_FULL_FRAME_OCR` (default: `false`). When `true`, scans the full original image to capture foreground or unlocalized plates and spatially associates them to vehicles. When `false`, full-frame OCR is skipped if any vehicle crop yields a recognized plate, but automatically triggers as a fallback if all vehicle crops lack recognized plates.
    - **Spatial Association**: When Pass B is enabled, plates overlapping a vehicle bounding box ($\ge 50\%$ containment or bumper alignment) are attributed to that vehicle's `vehicle_type`. Plates outside all vehicles are emitted with `vehicle_type=None`. Duplicate plates across passes are deduplicated. When `INCLUDE_UNIDENTIFIED_VEHICLES=true`, vehicles with no detected plates receive `plate=None`; by default (`false`), only detected plates are emitted.
    - **Zero-Vehicle Fallback**: When YOLO detects no vehicles (e.g. bumper close-up, partial vehicle frame), full-frame OCR fallback always runs directly via [`fallback.py`](../app/services/pipeline/fallback.py), returning all valid non-overlapping plates with `vehicle_type=None`.
-   - Applies CLAHE (Contrast Limited Adaptive Histogram Equalization) if low-contrast text is encountered.
+   - Applies multi-stage enhancement (Bicubic upscaling, symmetric CLAHE, morphological Black-Hat character pop, and unsharp masking) if low-contrast text is encountered.
 
 4. **2D Spatial Clustering & Multi-Line Pairing** ([`app/services/ocr/`](../app/services/ocr/)):
    - Groups horizontally aligned OCR tokens into lines using vertical overlap analysis.
