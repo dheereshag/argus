@@ -116,7 +116,7 @@ The service exposes two operational pipeline booleans configurable via environme
 | `ENABLE_FULL_FRAME_OCR` | `bool` | `false` | Enable secondary full-frame OCR pass when vehicles are detected. If false, full-frame OCR only runs as fallback when zero plates are recognized from crops. |
 | `INCLUDE_UNIDENTIFIED_VEHICLES` | `bool` | `false` | If false, `results` only contains entries with detected license plates. If true, vehicles without recognized plates are included as `plate: null`. |
 
-All other operational parameters (model weights, detection confidence thresholds, image upload limits, NMS thresholds, threadpool counts) are fixed internal constants defined in [`app/core/config.py`](app/core/config.py).
+All other operational parameters (model weights, detection confidence thresholds, image upload limits, NMS thresholds, threadpool counts) are fixed internal constants defined in [`app/core/constants.py`](app/core/constants.py).
 
 ---
 
