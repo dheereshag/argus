@@ -267,3 +267,28 @@ def test_vehicle_detector_pad_box():
     padded_edge = VehicleDetector._pad_box(edge_box, 100, 100, padding_ratio=0.10)
     assert padded_edge == (0, 0, 100, 100)
 
+
+@patch("app.services.ocr.PlateRecognizer.get_engine")
+def test_commercial_bus_raw_text_extracts_hr69d4793_over_antil(mock_get_engine, sample_image_bytes):
+    """Real 2-line plate HR69 / D4793 must be selected over coerced body decals like ANTIL."""
+    mock_get_engine.return_value = _mock_ocr_engine(
+        txts=["POLYCORE WIRE & CABLES", "ANTIL", "mahindra", "auD", "HR69", "D4793", "SPEED"],
+        scores=[0.90, 0.88, 0.85, 0.70, 0.95, 0.94, 0.92],
+        boxes=[
+            [[10.0, 20.0], [250.0, 20.0], [250.0, 45.0], [10.0, 45.0]],
+            [[50.0, 80.0], [140.0, 80.0], [140.0, 105.0], [50.0, 105.0]],
+            [[160.0, 80.0], [240.0, 80.0], [240.0, 105.0], [160.0, 105.0]],
+            [[250.0, 80.0], [290.0, 80.0], [290.0, 105.0], [250.0, 105.0]],
+            [[120.0, 150.0], [180.0, 150.0], [180.0, 175.0], [120.0, 175.0]],
+            [[110.0, 180.0], [190.0, 180.0], [190.0, 205.0], [110.0, 205.0]],
+            [[10.0, 230.0], [70.0, 230.0], [70.0, 255.0], [10.0, 255.0]],
+        ],
+    )
+    recognizer = PlateRecognizer()
+    results = recognizer._extract_plates_from_image_array(load_rgb(sample_image_bytes))
+
+    assert len(results) >= 1
+    assert results[0]["plate"] == "HR69D4793"
+    assert results[0]["state"] == "Haryana"
+
+
