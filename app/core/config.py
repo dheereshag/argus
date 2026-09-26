@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     """Runtime environment configuration loaded from .env or environment variables."""
 
     ENABLE_FULL_FRAME_OCR: bool = False
+    ENABLE_MULTI_VEHICLE_OCR: bool = False
     INCLUDE_UNIDENTIFIED_VEHICLES: bool = False
 
     model_config = SettingsConfigDict(

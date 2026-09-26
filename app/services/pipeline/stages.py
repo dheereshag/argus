@@ -15,11 +15,7 @@ from app.services.pipeline.helpers import (
 )
 
 
-def _ocr_single_vehicle(
-    recognizer: Any,
-    vehicle: DetectedVehicle,
-    filename: str,
-) -> list[PlateResult]:
+def _ocr_single_vehicle(recognizer: Any, vehicle: DetectedVehicle, filename: str) -> list[PlateResult]:
     """Execute RapidOCR on a single vehicle crop with coordinate translation back to frame space."""
     if vehicle.crop is None:
         return []
@@ -27,6 +23,19 @@ def _ocr_single_vehicle(
     if any(r.get("plate") and r.get("plate") != "N/A" for r in raw):
         raw = _adjust_crop_coordinates(raw, vehicle.crop_box)
     return validate_plate_results(raw, vehicle_type=vehicle.vehicle_type)
+
+
+def _scan_crops(rec: Any, vehs: list[DetectedVehicle], fn: str) -> tuple[list[PlateResult], set[int]]:
+    """Scan vehicle crops, early-exiting on the closest valid plate unless multi-vehicle OCR is on."""
+    results: list[PlateResult] = []
+    plated: set[int] = set()
+    for v in vehs:
+        if plates := _ocr_single_vehicle(rec, v, fn):
+            results.extend(plates)
+            plated.add(id(v))
+            if not settings.ENABLE_MULTI_VEHICLE_OCR:
+                break
+    return results, plated
 
 
 def _run_stage2_ocr(detection: DetectionResult, image_input: ImageInput, filename: str) -> list[PlateResult]:
@@ -38,18 +47,13 @@ def _run_stage2_ocr(detection: DetectionResult, image_input: ImageInput, filenam
         recognizer = pl.PlateRecognizer()
         if not detection.vehicles:
             return run_full_frame_fallback(recognizer, image_input, filename)
-
-        crop_results: list[PlateResult] = []
-        plated: set[int] = set()
-        for vehicle in detection.vehicles:
-            plates = _ocr_single_vehicle(recognizer, vehicle, filename)
-            if plates:
-                crop_results.extend(plates)
-                plated.add(id(vehicle))
-
+        crop_results, plated = _scan_crops(recognizer, detection.vehicles, filename)
+        if not settings.ENABLE_MULTI_VEHICLE_OCR and crop_results and not settings.ENABLE_FULL_FRAME_OCR:
+            return crop_results
         run_ff = settings.ENABLE_FULL_FRAME_OCR or not crop_results
         raw_ff = recognizer.recognize(image_input, filename=filename) if run_ff else []
-        return associate_fullframe_plates(raw_ff, detection.vehicles, crop_results, plated)
+        vehs = detection.vehicles if settings.ENABLE_MULTI_VEHICLE_OCR else detection.vehicles[:1]
+        return associate_fullframe_plates(raw_ff, vehs, crop_results, plated)
     except (ANPRServiceError, ValueError, RuntimeError, OSError, KeyError, AttributeError) as exc:
         logger.error(f"OCR failed on '{filename}': {exc}")
         return []

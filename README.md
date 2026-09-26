@@ -83,7 +83,7 @@ curl -X POST "http://localhost:8000/recognize" \
 
 - `humans_outside`: Count of pedestrians detected outside vehicle bounds.
 - `humans_inside`: Count of human occupants detected inside vehicle cabins.
-- `results`: ANPR detection results. When vehicles are detected, per-vehicle crop OCR extracts plates directly attached to each vehicle (`car`, `truck`, `bus`, `motorcycle`, `bicycle`). If any vehicle has a recognized plate and `ENABLE_FULL_FRAME_OCR=false`, full-frame OCR is skipped. If vehicles are detected but none yield a readable plate, full-frame OCR automatically executes as a fallback. When `ENABLE_FULL_FRAME_OCR=true`, secondary full-frame OCR runs unconditionally to capture and spatially associate unlocalized plates. By default (`INCLUDE_UNIDENTIFIED_VEHICLES=false`), `results` contains only entries with detected license plates; when `INCLUDE_UNIDENTIFIED_VEHICLES=true`, unplated vehicles are preserved with `plate: null`. When zero vehicles are detected, full-frame fallback returns all valid plates with `vehicle_type: null`; if no plate is found, `results` is `[]`.
+- `results`: ANPR detection results. When vehicles are detected, per-vehicle crop OCR extracts plates directly attached to each vehicle (`car`, `truck`, `bus`, `motorcycle`, `bicycle`). By default (`ENABLE_MULTI_VEHICLE_OCR=false`), Argus evaluates the closest vehicle first (largest bounding box) and returns early upon finding a valid plate; if unreadable, it falls through to subsequent vehicles. When `ENABLE_MULTI_VEHICLE_OCR=true`, all detected vehicles are scanned. If any vehicle has a recognized plate and `ENABLE_FULL_FRAME_OCR=false`, full-frame OCR is skipped. If vehicles are detected but none yield a readable plate, full-frame OCR automatically executes as a fallback. When `ENABLE_FULL_FRAME_OCR=true`, secondary full-frame OCR runs unconditionally to capture and spatially associate unlocalized plates. By default (`INCLUDE_UNIDENTIFIED_VEHICLES=false`), `results` contains only entries with detected license plates; when `INCLUDE_UNIDENTIFIED_VEHICLES=true`, unplated vehicles are preserved with `plate: null`. When zero vehicles are detected, full-frame fallback returns all valid plates with `vehicle_type: null`; if no plate is found, `results` is `[]`.
 
 ---
 
@@ -109,10 +109,11 @@ for res in response.results:
 
 ## Configuration (`.env`)
 
-The service exposes two operational pipeline booleans configurable via environment variables or `.env` (see [`.env.example`](.env.example)):
+The service exposes three operational pipeline booleans configurable via environment variables or `.env` (see [`.env.example`](.env.example)):
 
 | Variable | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
+| `ENABLE_MULTI_VEHICLE_OCR` | `bool` | `false` | If false, evaluates the closest vehicle (largest bounding box area) first and early-exits upon finding a valid plate, falling through sequentially to next closest vehicles only if unreadable. If true, scans all detected vehicles. |
 | `ENABLE_FULL_FRAME_OCR` | `bool` | `false` | Enable secondary full-frame OCR pass when vehicles are detected. If false, full-frame OCR only runs as fallback when zero plates are recognized from crops. |
 | `INCLUDE_UNIDENTIFIED_VEHICLES` | `bool` | `false` | If false, `results` only contains entries with detected license plates. If true, vehicles without recognized plates are included as `plate: null`. |
 

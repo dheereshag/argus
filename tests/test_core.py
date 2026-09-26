@@ -10,6 +10,7 @@ from app.core.exceptions import (
 
 def test_settings_default_values():
     assert settings.ENABLE_FULL_FRAME_OCR is False
+    assert settings.ENABLE_MULTI_VEHICLE_OCR is False
     assert settings.INCLUDE_UNIDENTIFIED_VEHICLES is False
 
 
@@ -26,10 +27,12 @@ def test_settings_env_loading(monkeypatch):
     from app.core.config import Settings
 
     monkeypatch.setenv("ENABLE_FULL_FRAME_OCR", "true")
+    monkeypatch.setenv("ENABLE_MULTI_VEHICLE_OCR", "true")
     monkeypatch.setenv("INCLUDE_UNIDENTIFIED_VEHICLES", "true")
 
     custom_settings = Settings()
     assert custom_settings.ENABLE_FULL_FRAME_OCR is True
+    assert custom_settings.ENABLE_MULTI_VEHICLE_OCR is True
     assert custom_settings.INCLUDE_UNIDENTIFIED_VEHICLES is True
 
 
