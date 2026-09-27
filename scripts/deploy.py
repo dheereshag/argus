@@ -43,9 +43,9 @@ def deploy_remote(host: str) -> None:
 
     log(f"[Deploy] 1. Preparing {TARGET} on {host}...")
     prep = (
-        f"sudo mkdir -p {TARGET} && sudo chown -R d:d {TARGET}; "
+        f"sudo mkdir -p {TARGET} && sudo chown -R $USER:$USER {TARGET}; "
         f"command -v ccache >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y -qq ccache) || true; "
-        f'export PATH="/Users/d/.local/bin:/Users/d/.local/bin:/Users/d/.gemini/antigravity-ide/bin:/Users/d/Library/pnpm/bin:/opt/homebrew/opt/python@3.14/libexec/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/Users/d/.antigravity-ide/antigravity-ide/bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/pkg/env/global/bin:/opt/podman/bin:/Users/d/.local/bin"; command -v uv >/dev/null || curl -LsSf https://astral.sh/uv/install.sh | sh'
+        f'export PATH="$HOME/.local/bin:$PATH"; command -v uv >/dev/null || curl -LsSf https://astral.sh/uv/install.sh | sh'
     )
     run_cmd(["ssh", "-t", host, prep])
 
