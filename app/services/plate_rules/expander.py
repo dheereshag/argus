@@ -46,6 +46,11 @@ def normalize_candidate_strings(raw_str: str) -> list[str]:
         if pos + 2 < len(cleaned) and cleaned[pos : pos + 2] in STATE_CODES and cleaned[pos + 2].isdigit():
             cands.append(cleaned[pos:])
 
+    for base in list(cands):
+        if len(base) > 10 and base[:2] in STATE_CODES and base[2:4].isdigit() and base[-4:].isdigit() and len(base[4:-4]) > 2:
+            for slen in (2, 1):
+                cands.append(base[:4] + base[4:-4][-slen:] + base[-4:])
+
     for pfx, repl in STATE_PREFIX_CORRECTIONS.items():
         for base in list(cands):
             if base.startswith(pfx):
