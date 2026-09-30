@@ -2,7 +2,7 @@
 
 import re
 
-from app.constants import HSRP_PREFIXES, STATE_PREFIX_CORRECTIONS
+from app.constants import HSRP_PREFIXES, STATE_CODES, STATE_PREFIX_CORRECTIONS
 from app.services.plate_rules.bh_series import normalize_bh_series
 from app.services.plate_rules.normalizers import (
     normalize_8_char,
@@ -21,8 +21,7 @@ def _expand(cand: str, results: list[str]) -> None:
         if len(cand) == t_len:
             gen.extend(norm(cand, st))
             break
-    bh = normalize_bh_series(cand)
-    if bh:
+    if bh := normalize_bh_series(cand):
         gen.append(bh)
     for item in gen:
         if item not in results:
@@ -42,6 +41,10 @@ def normalize_candidate_strings(raw_str: str) -> list[str]:
 
     if len(cleaned) in (10, 11) and cleaned[0].isalpha() and cleaned[1:3].isdigit() and cleaned[3].isalpha():
         cands.append(cleaned[1:])
+
+    for pos in (1, 2):
+        if pos + 2 < len(cleaned) and cleaned[pos : pos + 2] in STATE_CODES and cleaned[pos + 2].isdigit():
+            cands.append(cleaned[pos:])
 
     for pfx, repl in STATE_PREFIX_CORRECTIONS.items():
         for base in list(cands):

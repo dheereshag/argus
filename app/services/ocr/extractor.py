@@ -22,7 +22,7 @@ def extract_plates(img_pil: Image.Image, engine_getter: Any, parse_fn: Any) -> l
     pairs = build_spatial_pairs(clean_tokens)
     candidates = collect_candidates(clean_tokens, lines, pairs, raw_summary, parse_fn)
     if candidates:
-        candidates.sort(key=lambda c: (-c.rank, len(c.info.get("plate", "")), c.confidence, c.y_pos), reverse=True)
+        candidates.sort(key=lambda c: (round(c.confidence, 2), len(c.info.get("plate", "")), -c.rank, c.y_pos), reverse=True)
         suppressed = suppress_overlapping_candidates(candidates)
         if suppressed:
             return [c.info for c in suppressed]
