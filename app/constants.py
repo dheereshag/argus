@@ -114,7 +114,7 @@ STATE_PREFIX_PATTERN = "|".join(sorted([k for k in STATE_CODES if k != "BH"], ke
 # Compiled regular expression for Indian vehicle registration plates.
 # Matches four primary structures:
 # 1. Standard State Format:
-#    (State Code) + (1-2 digit District RTO) + (0-3 letter Series) + (3-4 digit unique number)
+#    (State Code) + (1-2 digit District RTO) + (0-3 letter Series) + (4-digit unique number)
 #    Examples: MH12AB1234, DL01A5678, KA03MB100, RJ09GA0165, DL011234
 # 2. Bharat (BH) Series Format:
 #    (2-digit Year) + BH + (4-digit number) + (1-2 letter Series)
@@ -127,7 +127,7 @@ STATE_PREFIX_PATTERN = "|".join(sorted([k for k in STATE_CODES if k != "BH"], ke
 #    Examples: 77CD01, 12CC34, 01UN12
 INDIAN_PLATE_REGEX: re.Pattern[str] = re.compile(
     r"(?:"
-    rf"({STATE_PREFIX_PATTERN})[\s.-]?(?:0[1-9]|[1-9]\d|[1-9])[\s.-]?([A-HJ-NP-Za-hj-np-z]{{1,3}})[\s.-]?(\d{{3,4}})"
+    rf"({STATE_PREFIX_PATTERN})[\s.-]?(?:0[1-9]|[1-9]\d|[1-9])[\s.-]?([A-HJ-NP-Za-hj-np-z]{{1,3}})[\s.-]?(\d{{4}})"
     r"|"
     r"(\d{2})[\s.-]?(BH)[\s.-]?(\d{4})[\s.-]?([A-HJ-NP-Za-hj-np-z]{1,2})"
     r"|"

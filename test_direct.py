@@ -39,6 +39,39 @@ def natural_key(filename: str) -> int:
     return int(digits[0]) if digits else 999999
 
 
+def serialize_images(directory: str = TESTS_DIR) -> list[str]:
+    """Ensure images in directory are consecutively numbered 1.jpg .. N.jpg."""
+    if not os.path.exists(directory):
+        return []
+    valid_exts = (".jpg", ".jpeg", ".png")
+    filenames = sorted(
+        [f for f in os.listdir(directory) if f.lower().endswith(valid_exts)],
+        key=natural_key,
+    )
+    if not filenames:
+        return []
+
+    expected = [f"{i}.jpg" for i in range(1, len(filenames) + 1)]
+    if filenames == expected:
+        return [os.path.join(directory, f) for f in filenames]
+
+    print(f"Serializing {len(filenames)} images in '{directory}'...")
+    staged: list[tuple[str, str]] = []
+    for i, fname in enumerate(filenames, start=1):
+        src = os.path.join(directory, fname)
+        temp_name = os.path.join(directory, f"_staging_ser_{i}.tmp")
+        os.rename(src, temp_name)
+        staged.append((temp_name, os.path.join(directory, f"{i}.jpg")))
+
+    final_paths: list[str] = []
+    for temp_path, target_path in staged:
+        os.rename(temp_path, target_path)
+        final_paths.append(target_path)
+
+    print(f"Serialized {len(final_paths)} images (1.jpg to {len(final_paths)}.jpg).\n")
+    return final_paths
+
+
 def _build_summary_markdown(
     stats: dict[str, Any],
     tier_counts: dict[str, int],
@@ -137,13 +170,14 @@ def generate_report(records: list[dict[str, Any]], total_wall: float) -> str:
 
 
 def test_models() -> list[RecognitionResponse]:
-    """Preload models, run ANPR pipeline, and generate benchmark performance report."""
+    """Preload models, serialize test images, run ANPR pipeline, and generate benchmark performance report."""
+    image_paths = serialize_images(TESTS_DIR)
+    if not image_paths:
+        print(f"No test images found in '{TESTS_DIR}'.")
+        return []
+
     preload_models()
 
-    image_paths = sorted(
-        (os.path.join(TESTS_DIR, f) for f in os.listdir(TESTS_DIR) if f.lower().endswith((".jpg", ".jpeg", ".png"))),
-        key=natural_key,
-    )
     responses: list[RecognitionResponse] = []
     records: list[dict[str, Any]] = []
 
