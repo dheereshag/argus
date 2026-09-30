@@ -75,9 +75,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     """
     logger.info(f"Starting {constants.PROJECT_NAME} v{constants.VERSION}...")
     try:
-        # Pre-warm YOLO26 model weights and verify RapidOCR engine
+        # Pre-warm AI engines: YOLO26, RapidOCR, and Fast-ALPR
+        from app.services.ocr.fast_alpr_engine import check_fast_alpr_engine
+
         VehicleDetector.get_model()
         PlateRecognizer.check_engine()
+        check_fast_alpr_engine()
         logger.info("AI models initialized and verified successfully.")
     except (RuntimeError, ValueError, OSError, AttributeError, ImportError) as exc:
         logger.warning(f"Non-fatal warning warming models during startup: {exc}")
@@ -151,11 +154,10 @@ def _register_routes(app: FastAPI) -> None:
         file: Annotated[UploadFile, File(description="Image file (JPEG, PNG, WebP, BMP)")],
     ) -> RecognitionResponse:
         """
-        Process an uploaded vehicle image through the Two-Stage ANPR Pipeline.
+        Process an uploaded vehicle image through the 4-Tier Cascaded ANPR Pipeline.
 
-        Validates MIME type and dimensions, runs YOLO vehicle detection and weighbridge
-        occupancy gatekeeping, performs RapidOCR plate recognition, and returns
-        extracted plate numbers and state registrations.
+        Validates MIME type and dimensions, runs Fast-ALPR primary pass with
+        cascaded RapidOCR fallback, and returns thin validated registration results.
         """
         image_bytes = await file.read()
         validate_image_upload(image_bytes, content_type=file.content_type)

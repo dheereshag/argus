@@ -1,6 +1,5 @@
 """Spatial association of full-frame OCR plates to detected vehicle bounding boxes."""
 
-from app.core.config import settings
 from app.schemas import DetectedVehicle, PlateResult
 from app.services.detector.geometry import is_contained
 from app.services.pipeline.helpers import validate_plate_results
@@ -28,9 +27,8 @@ def _dedup(results: list[PlateResult]) -> list[PlateResult]:
     seen: set[str] = set()
     out: list[PlateResult] = []
     for r in results:
-        if r.plate is None or r.plate not in seen:
-            if r.plate:
-                seen.add(r.plate)
+        if r.plate not in seen:
+            seen.add(r.plate)
             out.append(r)
     return out
 
@@ -42,16 +40,8 @@ def associate_fullframe_plates(
     plated: set[int] | None = None,
 ) -> list[PlateResult]:
     """Merge full-frame OCR results with per-vehicle crop results via spatial association."""
-    plated_ids = set(plated) if plated is not None else {id(v) for r in crop_results if r.plate for v in vehicles if r.vehicle_type == v.vehicle_type}
     extra: list[PlateResult] = []
     for raw in full_frame_raw:
-        veh = _owner_vehicle(raw.get("box"), vehicles)
-        if res := validate_plate_results([raw], veh.vehicle_type if veh else None):
-            if veh:
-                plated_ids.add(id(veh))
+        if res := validate_plate_results([raw]):
             extra.extend(res)
-
-    combined = _dedup(list(crop_results) + extra)
-    if settings.INCLUDE_UNIDENTIFIED_VEHICLES:
-        combined.extend(PlateResult(plate=None, vehicle_type=v.vehicle_type) for v in vehicles if id(v) not in plated_ids)
-    return combined
+    return _dedup(list(crop_results) + extra)

@@ -34,7 +34,7 @@ def test_dedup_overlapping_bus_and_truck():
 
 def test_detect_image_4_trucks_without_bus():
     detector = VehicleDetector()
-    result = detector.detect("tests/4.jpg")
+    result = detector.detect("tests/images/4.jpg")
 
     # Image 4 has two trucks side by side on scale; bus duplicates must be suppressed
     assert len(result.vehicles) == 2

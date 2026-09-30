@@ -45,8 +45,6 @@ def test_yolo_filter_detection_flow(mock_get_model, sample_image_bytes):
     mock_get_model.return_value = mock_model
 
     result = VehicleDetector().detect(sample_image_bytes)
-    assert result.humans_outside == 0
-    assert result.humans_inside == 0
     assert len(result.vehicles) == 1
     assert result.vehicles[0].vehicle_type == "car"
     assert result.vehicles[0].box == (10, 10, 50, 50)
@@ -69,8 +67,6 @@ def test_yolo_detector_human_outside(mock_get_model, sample_image_bytes):
     mock_get_model.return_value = mock_model
 
     res = VehicleDetector().detect(sample_image_bytes)
-    assert res.humans_outside == 1
-    assert res.humans_inside == 0
     assert len(res.vehicles) == 1
 
 
@@ -90,8 +86,6 @@ def test_yolo_detector_no_vehicles(mock_get_model, sample_image_bytes):
 
     res = VehicleDetector().detect(sample_image_bytes)
     assert len(res.vehicles) == 0
-    assert res.humans_outside == 0
-    assert res.humans_inside == 0
 
 
 @patch("app.services.detector.VehicleDetector.get_model")

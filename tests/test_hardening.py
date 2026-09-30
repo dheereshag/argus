@@ -214,6 +214,9 @@ _EXPECTED_ACTIVE_FILES = {
     "services/image_processing/security.py",
     "services/image_processing/transformer.py",
     "services/ocr/__init__.py",
+    "services/ocr/fast_alpr_engine.py",
+    "services/ocr/fast_alpr_padding.py",
+    "services/ocr/fast_alpr_runner.py",
     "services/ocr/candidates.py",
     "services/ocr/engine.py",
     "services/ocr/enhancer.py",
@@ -238,6 +241,7 @@ _EXPECTED_ACTIVE_FILES = {
     "services/plate_rules/filters.py",
     "services/plate_rules/normalizers.py",
     "services/plate_rules/parser.py",
+    "services/plate_rules/resolver.py",
 }
 
 

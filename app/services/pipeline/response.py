@@ -1,21 +1,18 @@
-"""Response construction and timing benchmark formatting."""
+"""Response construction for thin ANPR results."""
 
 import time
 
-from app.schemas import DetectionResult, PlateResult, RecognitionResponse
+from app.schemas import PlateResult, RecognitionResponse
 
 
 def _build_response(
-    detection: DetectionResult,
-    filename: str,
+    plates: list[str],
     start_time: float,
-    results: list[PlateResult] | None = None,
 ) -> RecognitionResponse:
-    """Assemble factual RecognitionResponse model with calculated latency."""
+    """Assemble thin RecognitionResponse containing plate results with execution latency."""
+    elapsed = round((time.time() - start_time) * 1000, 2)
+    results = [PlateResult(plate=p, execution_time_ms=elapsed) for p in plates]
     return RecognitionResponse(
-        filename=filename,
-        humans_outside=detection.humans_outside,
-        humans_inside=detection.humans_inside,
-        results=results or [],
-        execution_time_ms=round((time.time() - start_time) * 1000, 2),
+        results=results,
+        execution_time_ms=elapsed,
     )

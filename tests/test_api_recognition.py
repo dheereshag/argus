@@ -47,15 +47,13 @@ def test_recognize_sample_image(client, sample_image_bytes):
     assert response.status_code == 200
     data = response.json()
     validated = RecognitionResponse.model_validate(data)
-    assert validated.filename == "test.jpg"
     # Plain red box has no vehicle and no plate
     assert validated.results == []
-    assert validated.humans_outside == 0
-    assert validated.humans_inside == 0
+    assert validated.execution_time_ms is not None
 
 
 def test_recognize_real_image_if_present(client):
-    image_path = os.path.join("tests", "1.jpg")
+    image_path = os.path.join("tests", "images", "1.jpg")
     if not os.path.exists(image_path):
         return
 
@@ -69,10 +67,9 @@ def test_recognize_real_image_if_present(client):
     assert response.status_code == 200
     data = response.json()
     validated = RecognitionResponse.model_validate(data)
-    assert validated.filename == "1.jpg"
-    assert isinstance(validated.humans_outside, int)
-    assert isinstance(validated.humans_inside, int)
     assert isinstance(validated.results, list)
+    if validated.results:
+        assert validated.results[0].execution_time_ms > 0
     assert validated.execution_time_ms is not None
 
 
@@ -126,4 +123,5 @@ def test_recognize_accepts_valid_png(client, sample_png_bytes):
     assert response.status_code == 200
     data = response.json()
     validated = RecognitionResponse.model_validate(data)
-    assert validated.filename == "test.png"
+    assert validated.execution_time_ms is not None
+    assert isinstance(validated.results, list)

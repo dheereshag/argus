@@ -1,6 +1,6 @@
 # Argus — ANPR Microservice
 
-Automatic Number Plate Recognition (ANPR) microservice designed for weighbridge gatekeeping. Combines **Ultralytics YOLO** for vehicle localization and **RapidOCR (ONNX Runtime)** for Indian license plate reading.
+Automatic Number Plate Recognition (ANPR) microservice designed for weighbridge gatekeeping. Features a **4-tier cascaded execution pipeline** combining **Fast-ALPR (YOLOv9-s + CCT-XS OCR with margin expansion)** as the primary engine with automatic fallback to **Argus's RapidOCR pipeline**, delivering thin, high-speed response schemas.
 
 ---
 
@@ -33,6 +33,15 @@ uv run python scripts/deploy.py --host gluvok@hermes.local
 
 ---
 
+## ⚡ 4-Tier Cascaded Execution Pipeline
+
+1. **Tier 1 (Fast-ALPR Full-Frame)**: Direct YOLOv9-s plate detector + CCT-XS OCR with margin expansion on input image, normalized & validated against Indian MoRTH rules (`~30–40 ms`). Early exit if valid plate found.
+2. **Tier 2 (Fast-ALPR on Vehicle Crops)**: If Tier 1 produces no plates, YOLO26 vehicle detector extracts vehicle crops $ightarrow$ Fast-ALPR plate detection + OCR on crops (`~50–70 ms`). Early exit if valid plate found.
+3. **Tier 3 (RapidOCR on Vehicle Crops)**: If Tier 2 produces no plates, executes RapidOCR 2D spatial candidate pairing on vehicle crops (`~120–180 ms`). Early exit if valid plate found.
+4. **Tier 4 (RapidOCR Full-Frame Fallback)**: If Tier 3 produces no plates or no vehicle was detected, runs RapidOCR across the full frame (`~220–280 ms`).
+
+---
+
 ## 📡 API Reference: `/recognize`
 
 ### Request (POST)
@@ -42,33 +51,22 @@ Accepts a multipart file upload (`file`, up to 8 MB):
 ```bash
 curl -X POST "http://127.0.0.1:8000/recognize" \
   -H "Accept: application/json" \
-  -F "file=@tests/1.jpg"
+  -F "file=@tests/images/1.jpg"
 ```
 
 ### Response (`200 OK`)
 
 ```json
 {
-  "filename": "1.jpg",
-  "humans_outside": 0,
-  "humans_inside": 1,
   "results": [
     {
       "plate": "RJ09GA0165",
-      "vehicle_type": "car",
-      "state": "Rajasthan",
-      "raw_text": "RJ09 GA 0165",
-      "confidence": 0.98,
-      "box": [412, 530, 624, 592]
+      "execution_time_ms": 31.42
     }
   ],
-  "execution_time_ms": 43.15
+  "execution_time_ms": 31.42
 }
 ```
 
-- **`plate`**: Cleaned and validated plate number string (or `null` if none detected).
-- **`vehicle_type`**: Detected vehicle category (`car`, `truck`, `bus`, `motorcycle`, etc.).
-- **`state`**: State of vehicle registration.
-- **`confidence`**: OCR detection confidence score (0.0 to 1.0).
-- **`box`**: Detected plate bounding box `[ymin, xmin, ymax, xmax]`.
-- **`humans_outside` / `humans_inside`**: Occupancy count around the weighbridge.
+- **`results`**: List of validated plate items, each with `plate` registration number and item `execution_time_ms`.
+- **`execution_time_ms`**: Total end-to-end processing latency in milliseconds.

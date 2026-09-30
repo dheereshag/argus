@@ -24,34 +24,33 @@ from app.services.plate_rules import (
 
 def test_is_contained_geometric_evaluations():
     """Verify BoundingBox containment helper under various geometric configurations."""
-    detector = VehicleDetector()
+    from app.services.detector.geometry import is_contained
 
     # Inner box fully inside outer box
     inner = (30, 30, 50, 50)
     outer = (10, 10, 100, 100)
-    assert detector._is_contained(inner, outer, threshold=0.80) is True
+    assert is_contained(inner, outer, threshold=0.80) is True
 
     # Inner box partially overlapping (around 25% overlap)
-    partial_inner = (5, 5, 25, 25)  # area = 400, overlap with outer (10,10,100,100) is (10,10,25,25) area = 225 -> 56%
-    assert detector._is_contained(partial_inner, outer, threshold=0.80) is False
+    partial_inner = (5, 5, 25, 25)
+    assert is_contained(partial_inner, outer, threshold=0.80) is False
 
     # Non-overlapping boxes
     disjoint_inner = (150, 150, 200, 200)
-    assert detector._is_contained(disjoint_inner, outer, threshold=0.80) is False
+    assert is_contained(disjoint_inner, outer, threshold=0.80) is False
 
     # Degenerate zero-area boxes
     zero_box = (10, 10, 10, 10)
-    assert detector._is_contained(zero_box, outer, threshold=0.80) is False
+    assert is_contained(zero_box, outer, threshold=0.80) is False
 
 
 @patch("app.services.detector.VehicleDetector.get_model")
 def test_cab_occupant_partitioned_as_inside(mock_get_model, sample_image_bytes):
-    """A person box fully inside vehicle is counted as humans_inside."""
+    """Person detections are ignored and only vehicle boxes are retained."""
     mock_box = MagicMock()
     mock_box.__len__.return_value = 2
     mock_box.cls.cpu().numpy.return_value = [0, 7]  # person (0), truck (7)
     mock_box.conf.cpu().numpy.return_value = [0.85, 0.90]
-    # Person (30..50, 30..50) is fully inside truck (10..90, 10..90)
     mock_box.xyxy.cpu().numpy.return_value = [[30, 30, 50, 50], [10, 10, 90, 90]]
 
     mock_res = MagicMock()
@@ -63,19 +62,17 @@ def test_cab_occupant_partitioned_as_inside(mock_get_model, sample_image_bytes):
     detector = VehicleDetector()
     res = detector.detect(sample_image_bytes)
 
-    assert res.humans_outside == 0
-    assert res.humans_inside == 1
     assert len(res.vehicles) == 1
+    assert res.vehicles[0].vehicle_type == "truck"
 
 
 @patch("app.services.detector.VehicleDetector.get_model")
 def test_pedestrian_partitioned_as_outside(mock_get_model, sample_image_bytes):
-    """A person box outside any vehicle is counted as humans_outside."""
+    """Pedestrian detections are excluded from vehicle results."""
     mock_box = MagicMock()
     mock_box.__len__.return_value = 2
     mock_box.cls.cpu().numpy.return_value = [0, 7]
     mock_box.conf.cpu().numpy.return_value = [0.85, 0.90]
-    # Person (60..80, 60..80) is outside truck (10..50, 10..50) within 100x100 frame
     mock_box.xyxy.cpu().numpy.return_value = [[60, 60, 80, 80], [10, 10, 50, 50]]
 
     mock_res = MagicMock()
@@ -87,9 +84,8 @@ def test_pedestrian_partitioned_as_outside(mock_get_model, sample_image_bytes):
     detector = VehicleDetector()
     res = detector.detect(sample_image_bytes)
 
-    assert res.humans_outside == 1
-    assert res.humans_inside == 0
     assert len(res.vehicles) == 1
+    assert res.vehicles[0].vehicle_type == "truck" 
 
 
 def test_crop_coordinate_adjustment():

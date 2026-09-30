@@ -155,22 +155,14 @@ def test_multi_token_2_line_plate_reconstruction(mock_get_engine, sample_image_b
 
 
 def test_plate_result_metadata_serialization():
-    """Verify that PlateResult correctly serializes confidence score and bounding box."""
-    data = {
-        "plate": "RJ09GA0165",
-        "state": "Rajasthan",
-        "raw_text": "RJ09 GA0165",
-        "confidence": 0.965,
-        "box": (10, 10, 75, 45),
-    }
+    """Verify that PlateResult correctly serializes plate registration number."""
+    data = {"plate": "RJ09GA0165"}
     result = PlateResult.model_validate(data)
     assert result.plate == "RJ09GA0165"
-    assert result.confidence == 0.965
-    assert result.box == (10, 10, 75, 45)
 
     dump = result.model_dump()
-    assert dump["confidence"] == 0.965
-    assert dump["box"] == (10, 10, 75, 45)
+    assert dump["plate"] == "RJ09GA0165"
+    assert dump["execution_time_ms"] == 0.0
 
 
 # ------------------------------------------------------------------------------

@@ -178,12 +178,7 @@ DIGIT_TO_CHAR: dict[str, str] = {
 # Common OCR errors in plate series substrings where letters are misread as digits/similar letters
 SERIES_CORRECTIONS: dict[str, str] = {
     "G3": "GJ",
-    "GT": "GJ",
-    "GI": "GJ",
-    "GB": "GB",
     "D3": "DJ",
-    "DT": "DJ",
-    "DI": "DJ",
 }
 
 # Common OCR errors in 2-character state prefixes (e.g. 'W8' for 'WB', 'D1' for 'DL', '0D' for 'OD')

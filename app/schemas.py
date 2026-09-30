@@ -1,11 +1,4 @@
-"""
-Domain models, internal dataclasses, and API response schemas for Argus ANPR.
-
-This module defines:
-  - Slotted dataclasses for internal pipeline stages (OCR tokens, candidate ranking, detection).
-  - Pydantic models for REST API request validation and response serialisation.
-  - Factual spatial partitioning response models (vehicles, plates, human counts).
-"""
+"""Domain models, internal dataclasses, and thin API response schemas for Argus ANPR."""
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -16,17 +9,6 @@ from pydantic import BaseModel, Field
 
 @dataclass(slots=True, frozen=True)
 class OCRToken:
-    """
-    Slotted, immutable container for a single OCR text element.
-
-    Attributes:
-        text: Extracted raw text string.
-        score: OCR model confidence score in range [0.0, 1.0].
-        cx: Centroid X coordinate in pixel space, if available from bounding quad/box.
-        cy: Centroid Y coordinate in pixel space, if available from bounding quad/box.
-        box: (x1, y1, x2, y2) bounding box in pixel space.
-    """
-
     text: str
     score: float
     cx: float | None = None
@@ -36,17 +18,6 @@ class OCRToken:
 
 @dataclass(slots=True)
 class PlateCandidate:
-    """
-    Scored candidate license plate generated during spatial pairing and OCR analysis.
-
-    Attributes:
-        y_pos: Vertical centroid in pixels (used for positional prioritization).
-        rank: Rule-based score reflecting plate syntax validity (higher is better).
-        info: Structured metadata dictionary parsed from plate string.
-        confidence: Average OCR confidence score for candidate tokens [0.0 - 1.0].
-        box: Bounding box (x1, y1, x2, y2) enclosing the candidate tokens.
-    """
-
     y_pos: float
     rank: int
     info: dict[str, Any]
@@ -56,16 +27,6 @@ class PlateCandidate:
 
 @dataclass(slots=True)
 class DetectedVehicle:
-    """
-    Stage 1 detected vehicle entity.
-
-    Attributes:
-        vehicle_type: Category of vehicle ('car', 'bus', 'truck', 'motorcycle', 'bicycle').
-        box: Clamped (x1, y1, x2, y2) bounding box in original image space.
-        crop: Cropped PIL RGB Image containing only this vehicle area, or None.
-        crop_box: Padded (x1, y1, x2, y2) bounding box used for crop, or None.
-    """
-
     vehicle_type: str
     box: tuple[int, int, int, int]
     crop: Any = None
@@ -74,70 +35,23 @@ class DetectedVehicle:
 
 @dataclass(slots=True)
 class DetectionResult:
-    """
-    Stage 1 Result: YOLO26 vehicle detection and human localization.
-
-    Attributes:
-        vehicles: List of detected 4-wheeler entities meeting confidence/size thresholds.
-        humans_outside: Total number of humans detected outside vehicles.
-        humans_inside: Total number of humans detected inside vehicle cabins.
-    """
-
     vehicles: list[DetectedVehicle] = field(default_factory=list)
-    humans_outside: int = 0
-    humans_inside: int = 0
 
 
 class PlateResult(BaseModel):
-    """Schema representing an extracted license plate or vehicle detection without plate."""
-
-    plate: str | None = Field(
-        None,
-        description="Normalized Indian vehicle registration number (e.g., RJ09GA0165), or None if unread",
-        examples=["RJ09GA0165"],
-    )
-    vehicle_type: str | None = Field(
-        None,
-        description="Vehicle category ('car', 'bus', 'truck', 'motorcycle', 'bicycle'), or None if unlocalized",
-        examples=["car"],
-    )
-    state: str | None = Field(
-        None, description="State or Union Territory full name (e.g., Rajasthan)", examples=["Rajasthan"]
-    )
-    raw_text: str | None = Field(
-        None, description="Raw OCR text extracted from the image frame/crop", examples=["BP1-A2453"]
-    )
-    confidence: float | None = Field(
-        None, description="Average OCR confidence score for plate characters [0.0 - 1.0]", examples=[0.98]
-    )
-    box: tuple[int, int, int, int] | None = Field(
-        None, description="Bounding box (x1, y1, x2, y2) of plate in pixel space", examples=[(100, 200, 300, 250)]
-    )
+    plate: str = Field(description="Normalized Indian vehicle registration number")
+    execution_time_ms: float = Field(default=0.0, description="Processing duration in milliseconds")
 
 
 class RecognitionResponse(BaseModel):
-    """
-    Factual API response schema for license plate recognition requests.
-
-    Returns extracted plates, vehicle categories, and human counts for client policy evaluation.
-    """
-
-    filename: str = Field(description="Name of the processed image file")
-    humans_outside: int = Field(0, description="Total number of humans detected outside vehicles")
-    humans_inside: int = Field(0, description="Total number of humans detected inside vehicle cabins")
-    results: list[PlateResult] = Field(default_factory=list, description="Extracted license plate details")
-    execution_time_ms: float | None = Field(None, description="Processing duration in milliseconds")
+    results: list[PlateResult] = Field(default_factory=list, description="Plate result items")
+    execution_time_ms: float = Field(..., description="Processing duration in milliseconds")
 
 
 class APIErrorResponse(BaseModel):
-    """Standardized error payload returned across all HTTP exception handlers."""
-
-    success: bool = Field(False, description="Always False for error responses")
-    status_code: int = Field(description="HTTP status code")
-    message: str = Field(description="Human-readable error description")
-    error_type: str = Field(description="Exception class or category")
-    details: Any = Field(None, description="Detailed validation or contextual error info")
-    timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(UTC),
-        description="UTC timestamp of the error",
-    )
+    success: bool = Field(False)
+    status_code: int = Field(...)
+    message: str = Field(...)
+    error_type: str = Field(...)
+    details: Any = Field(None)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))

@@ -12,6 +12,7 @@ from app.services.plate_rules.normalizers import (
     normalize_9_char as _normalize_9_char,
 )
 from app.services.plate_rules.parser import parse_plate_info
+from app.services.plate_rules.resolver import resolve_plate_from_text
 
 __all__ = [
     "_normalize_8_char",
@@ -21,4 +22,5 @@ __all__ = [
     "is_phone_number",
     "normalize_candidate_strings",
     "parse_plate_info",
+    "resolve_plate_from_text",
 ]
