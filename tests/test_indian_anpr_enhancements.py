@@ -15,7 +15,6 @@ from types import SimpleNamespace
 from typing import Any
 from unittest.mock import MagicMock, patch
 
-from app.constants import STATE_CODES
 from app.schemas import PlateResult
 from app.services.image_processing import load_rgb
 from app.services.ocr import PlateRecognizer
@@ -25,6 +24,7 @@ from app.services.plate_rules import (
     normalize_candidate_strings,
     parse_plate_info,
 )
+from app.services.plate_rules.states import STATE_CODES
 
 
 def _mock_ocr_engine(txts: list[str], scores: list[float], boxes: Any):

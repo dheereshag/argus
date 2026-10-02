@@ -1,6 +1,4 @@
 """deploy.py — 1-command remote Pi deploy for Argus: compile, systemd, purge source."""
-from __future__ import annotations
-
 import argparse
 import os
 import subprocess

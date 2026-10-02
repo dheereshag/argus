@@ -4,9 +4,12 @@ import io
 
 from PIL import Image
 
-from app.constants import ALLOWED_IMAGE_FORMATS, ALLOWED_IMAGE_MIME_TYPES
 from app.core.constants import MAX_UPLOAD_BYTES
 from app.core.exceptions import InvalidImageError, PayloadTooLargeError
+from app.services.image_processing.constants import (
+    ALLOWED_IMAGE_FORMATS,
+    ALLOWED_IMAGE_MIME_TYPES,
+)
 
 
 def probe_image(image_bytes: bytes) -> tuple[str, int, int]:

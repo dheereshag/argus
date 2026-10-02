@@ -2,8 +2,8 @@
 
 from typing import Any
 
-from app.constants import MIN_CROP_EDGE_PX
 from app.core.contracts import require
+from app.services.detector.constants import MIN_CROP_EDGE_PX
 
 type BoundingBox = tuple[int, int, int, int]
 

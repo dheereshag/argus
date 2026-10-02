@@ -2,13 +2,9 @@
 
 import numpy as np
 
-from app.constants import MAX_DETECTIONS, PERSON_CLASS_ID, VEHICLE_CLASS_NAMES
-from app.core.constants import (
-    MIN_HUMAN_BOX_AREA_RATIO,
-    MIN_VEHICLE_BOX_AREA_RATIO,
-    VEHICLE_IOU_THRESH,
-)
-from app.core.contracts import bounded
+from app.core import constants as cc
+from app.core.bounds import bounded
+from app.services.detector import constants as dc
 from app.services.detector.geometry import BoundingBox, box_iou, clamp_box, is_contained
 
 
@@ -16,9 +12,8 @@ def _dedup_vehicles(candidates: list[tuple[float, int, str, BoundingBox]]) -> li
     """Deduplicate overlapping vehicles by confidence and spatial IoU."""
     candidates.sort(key=lambda item: item[0], reverse=True)
     deduped: list[tuple[str, BoundingBox]] = []
-    thresh = VEHICLE_IOU_THRESH
     for _, _, v_type, b in candidates:
-        if not any(box_iou(b, eb) > thresh or is_contained(b, eb, 0.70) or is_contained(eb, b, 0.70) for _, eb in deduped):
+        if not any(box_iou(b, eb) > cc.VEHICLE_IOU_THRESH or is_contained(b, eb, 0.70) or is_contained(eb, b, 0.70) for _, eb in deduped):
             deduped.append((v_type, b))
     deduped.sort(key=lambda item: (item[1][2] - item[1][0]) * (item[1][3] - item[1][1]), reverse=True)
     return deduped
@@ -37,10 +32,9 @@ def parse_detections(
     human_candidates: list[BoundingBox] = []
     vehicle_candidates: list[tuple[float, int, str, BoundingBox]] = []
     total_area = width * height
-    min_h_area = MIN_HUMAN_BOX_AREA_RATIO * total_area
-    min_v_area = MIN_VEHICLE_BOX_AREA_RATIO * total_area
+    min_h_area, min_v_area = cc.MIN_HUMAN_BOX_AREA_RATIO * total_area, cc.MIN_VEHICLE_BOX_AREA_RATIO * total_area
 
-    for idx, (raw_cls, conf) in enumerate(bounded(list(zip(cls_ids, confs, strict=False)), MAX_DETECTIONS, "detections")):
+    for idx, (raw_cls, conf) in enumerate(bounded(list(zip(cls_ids, confs, strict=False)), dc.MAX_DETECTIONS, "detections")):
         cls_id = int(raw_cls)
         raw_b = (int(xyxy[idx][0]), int(xyxy[idx][1]), int(xyxy[idx][2]), int(xyxy[idx][3])) if xyxy is not None and idx < len(xyxy) and len(xyxy[idx]) >= 4 else None
         box = clamp_box(raw_b, width, height)
@@ -48,11 +42,9 @@ def parse_detections(
             continue
         area = (box[2] - box[0]) * (box[3] - box[1])
 
-        if cls_id == PERSON_CLASS_ID and conf >= human_conf_thresh and area >= min_h_area:
+        if cls_id == dc.PERSON_CLASS_ID and conf >= human_conf_thresh and area >= min_h_area:
             human_candidates.append(box)
-        elif cls_id in VEHICLE_CLASS_NAMES and conf >= vehicle_conf_thresh and area >= min_v_area:
-            vehicle_candidates.append((float(conf), area, VEHICLE_CLASS_NAMES[cls_id], box))
+        elif cls_id in dc.VEHICLE_CLASS_NAMES and conf >= vehicle_conf_thresh and area >= min_v_area:
+            vehicle_candidates.append((float(conf), area, dc.VEHICLE_CLASS_NAMES[cls_id], box))
 
-    vehicles = _dedup_vehicles(vehicle_candidates)
-    return human_candidates, vehicles
-
+    return human_candidates, _dedup_vehicles(vehicle_candidates)

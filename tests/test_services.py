@@ -2,9 +2,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from app.constants import INDIAN_PLATE_REGEX, STATE_CODES
 from app.services.detector import VehicleDetector
 from app.services.plate_rules import normalize_candidate_strings
+from app.services.plate_rules.states import INDIAN_PLATE_REGEX, STATE_CODES
 
 
 def test_indian_plate_regex_and_state_codes():

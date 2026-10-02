@@ -3,12 +3,9 @@
 import re
 from typing import Any
 
-from app.constants import (
-    HSRP_PREFIXES,
-    INDIAN_PLATE_REGEX,
-    STATE_CODES,
-    STATE_PREFIX_CORRECTIONS,
-)
+from app.services.plate_rules.corrections import STATE_PREFIX_CORRECTIONS
+from app.services.plate_rules.decals import HSRP_PREFIXES
+from app.services.plate_rules.states import INDIAN_PLATE_REGEX, STATE_CODES
 
 
 def parse_plate_info(raw_plate: str | None) -> dict[str, Any] | None:

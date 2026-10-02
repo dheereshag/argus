@@ -64,7 +64,8 @@ def test_contracts_require_and_ensure():
 
 
 def test_contracts_bounded():
-    from app.core.contracts import ContractViolation, bounded
+    from app.core.bounds import bounded
+    from app.core.contracts import ContractViolation
 
     assert bounded(None, 5, "empty") == []
     assert bounded([1, 2], 5, "small") == [1, 2]

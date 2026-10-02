@@ -1,7 +1,10 @@
 """Bharat (BH) Series format normalization."""
 
-from app.constants import CHAR_TO_DIGIT, DIGIT_TO_CHAR
-from app.services.plate_rules.char_maps import apply_char_map
+from app.services.plate_rules.char_maps import (
+    CHAR_TO_DIGIT,
+    DIGIT_TO_CHAR,
+    apply_char_map,
+)
 
 
 def normalize_bh_series(cand: str) -> str | None:

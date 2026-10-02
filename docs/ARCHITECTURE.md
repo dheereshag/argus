@@ -91,7 +91,7 @@ flowchart TD
      - Positional OCR confusion disambiguation (`CHAR_TO_DIGIT`: `'O'/'D' -> '0'`, `'I'/'L' -> '1'`, `'E' -> '6'`; `DIGIT_TO_CHAR`: `'0' -> 'O'`, `'1' -> 'I'`, `'8' -> 'B'`).
      - Bharat Series parsing (`YY BH NNNN AA`) via [`bh_series.py`](../app/services/plate_rules/bh_series.py).
    - Corrects common OCR state prefix errors (`W8 -> WB`, `RT -> RJ`, `D1 -> DL`, `0D -> OD`).
-   - Validates state prefix codes against [`app/constants.py`](../app/constants.py).
+    - Validates state prefix codes against [`app/services/plate_rules/states.py`](../app/services/plate_rules/states.py).
 
 6. **Spatial Association, Bumper Alignment, & Dedup** ([`app/services/pipeline/`](../app/services/pipeline/)):
    - Attributes full-frame OCR plates to detected vehicles via:
@@ -106,23 +106,19 @@ flowchart TD
 
 ## 3. Component Responsibilities & Modular Structure (NASA JPL Rule 4)
 
-All service domains in `app/services/` strictly follow **NASA JPL Rule 4** (Holzmann's *Power of 10* coding rules): every single file and function is $\le$ 60 lines, fitting completely on a single printed sheet of standard paper.
+All service domains in `app/` strictly follow **NASA JPL Rule 4** (Holzmann's *Power of 10* coding rules): every single file and function is $\le$ 60 lines, fitting completely on a single printed sheet of standard paper.
 
 | Component | Subpackage Path | Key Modules & Responsibility |
 | :--- | :--- | :--- |
-| **REST Server** | [`app/server.py`](../app/server.py) | FastAPI routes (`GET /`, `GET /health`, `POST /recognize`), OpenAPI docs (`GET /docs`, `GET /redoc`), CORS, request timing middleware (`X-Process-Time-Ms`), exception handlers, and lifespan model warmup. |
+| **REST Server** | [`app/server.py`](../app/server.py) | Application factory assembling modular `lifespan`, `middleware`, `errors`, and `api_router`. |
+| **API Layer** | [`app/api/`](../app/api/) | `router.py`, `routes/info.py`, `routes/recognition.py`, `dependencies.py`, `errors.py`: Thin route handlers, APIRouters, dependency injection, and centralized JSON error responses. |
+| **Core Utilities** | [`app/core/`](../app/core/) | `lifespan.py` (model pre-warming), `middleware.py` (CORS and timing headers), `contracts.py` (`require`, `ensure`), `bounds.py` (`bounded`), `config.py`, `constants.py`, `exceptions.py`, `logging.py`. |
 | **Pipeline Orchestrator** | [`app/services/pipeline/`](../app/services/pipeline/) | `orchestrator.py`, `stages.py`, `association.py`, `fallback.py`, `helpers.py`, `response.py`: Coordinates detection, dual-pass OCR, spatial association, fallbacks, coordinate adjustments, and response packaging. |
-| **Vehicle Detector** | [`app/services/detector/`](../app/services/detector/) | `detector.py`, `geometry.py`, `occupancy.py`, `parser.py`: YOLO26 model singleton, coordinate clamping/containment, and human spatial partitioning. |
-| **Image Processing** | [`app/services/image_processing/`](../app/services/image_processing/) | `loader.py`, `security.py`, `transformer.py`: Polymorphic image decoding, EXIF orientation, and decompression bomb defense. |
+| **Vehicle Detector** | [`app/services/detector/`](../app/services/detector/) | `detector.py`, `geometry.py`, `occupancy.py`, `parser.py`, `constants.py`: YOLO26 model singleton, coordinate clamping/containment, human spatial partitioning, and COCO constants. |
+| **Image Processing** | [`app/services/image_processing/`](../app/services/image_processing/) | `loader.py`, `security.py`, `transformer.py`, `constants.py`: Polymorphic image decoding, EXIF orientation, decompression bomb defense, and permitted MIME/format constants. |
 | **Plate Recognizer** | [`app/services/ocr/`](../app/services/ocr/) | `recognizer.py`, `engine.py`, `enhancer.py`, `extractor.py`, `geometry.py`, `pairing.py`, `spatial.py`, `tokens.py`, `candidates.py`, `suppression.py`: RapidOCR ONNX inference, CLAHE/Black-Hat enhancement, 2D token pairing, Spatial NMS, and candidate selection. |
-| **Plate Rules** | [`app/services/plate_rules/`](../app/services/plate_rules/) | `parser.py`, `resolver.py`, `normalizers.py`, `expander.py`, `filters.py`, `bh_series.py`, `char_maps.py`: Indian registration plate validation, positional OCR character substitution, decal filtering, and BH-series parsing. |
+| **Plate Rules** | [`app/services/plate_rules/`](../app/services/plate_rules/) | `states.py`, `char_maps.py`, `corrections.py`, `decals.py`, `parser.py`, `resolver.py`, `normalizers.py`, `expander.py`, `filters.py`, `bh_series.py`: Indian registration plate validation, positional OCR character substitution, decal filtering, and BH-series parsing. |
 | **Data Models** | [`app/schemas.py`](../app/schemas.py) | Pydantic V2 schemas ([`RecognitionResponse`](../app/schemas.py), [`PlateResult`](../app/schemas.py), [`APIErrorResponse`](../app/schemas.py)) and slotted internal dataclasses ([`OCRToken`](../app/schemas.py), [`PlateCandidate`](../app/schemas.py), [`DetectedVehicle`](../app/schemas.py), [`DetectionResult`](../app/schemas.py)). |
-| **Configuration** | [`app/core/config.py`](../app/core/config.py) | Strongly-typed environment configuration via `pydantic-settings` (`ENABLE_FULL_FRAME_OCR`, `ENABLE_MULTI_VEHICLE_OCR`, `INCLUDE_UNIDENTIFIED_VEHICLES`). |
-| **Domain Constants** | [`app/constants.py`](../app/constants.py) | Indian ANPR regex, state codes, OCR character confusion maps, decal blacklists, and COCO class definitions. |
-| **System Constants** | [`app/core/constants.py`](../app/core/constants.py) | Fixed operational thresholds, YOLO parameters, upload security limits, concurrency bounds, and server defaults. |
-| **Runtime Contracts** | [`app/core/contracts.py`](../app/core/contracts.py) | Defensive programming assertions (`require`, `ensure`, `bounded`). |
-| **Service Exceptions** | [`app/core/exceptions.py`](../app/core/exceptions.py) | Domain exception hierarchy (`ANPRServiceError`, `InvalidImageError`, `PayloadTooLargeError`, `ModelInferenceError`). |
-| **Logging** | [`app/core/logging.py`](../app/core/logging.py) | Centralized structured logger instance. |
 
 ---
 

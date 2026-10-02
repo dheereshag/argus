@@ -36,9 +36,10 @@ import pytest
 async def test_lifespan_warmup_warning():
     from unittest.mock import patch
 
-    from app.server import app, lifespan
+    from app.core.lifespan import lifespan
+    from app.server import app
 
-    with patch("app.server.VehicleDetector.get_model", side_effect=RuntimeError("GPU warmup failure")):
+    with patch("app.core.lifespan.VehicleDetector.get_model", side_effect=RuntimeError("GPU warmup failure")):
         async with lifespan(app):
             pass
 

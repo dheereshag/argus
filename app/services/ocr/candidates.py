@@ -3,11 +3,11 @@
 from collections.abc import Callable
 from typing import Any
 
-from app.constants import INDIAN_PLATE_REGEX
 from app.schemas import OCRToken, PlateCandidate
 from app.services.ocr.spatial import compute_token_bounds
 from app.services.plate_rules import normalize_candidate_strings
 from app.services.plate_rules import parse_plate_info as default_parse
+from app.services.plate_rules.states import INDIAN_PLATE_REGEX
 
 
 def collect_candidates(

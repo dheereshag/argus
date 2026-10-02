@@ -1,7 +1,6 @@
 """Length-specific positional character substitution normalizers for Indian plates."""
 
-from app.constants import CHAR_TO_DIGIT, DIGIT_TO_CHAR, SERIES_CORRECTIONS
-from app.services.plate_rules.char_maps import apply_char_map
+from app.services.plate_rules import char_maps as cm
 
 
 def sanitize_series(ser: str) -> str:
@@ -11,9 +10,8 @@ def sanitize_series(ser: str) -> str:
 
 def normalize_11_char(cand: str, st: str) -> list[str]:
     """Normalize 11-character plate with 3-letter series: SS DD AAA NNNN."""
-    d = apply_char_map(cand[2:4], CHAR_TO_DIGIT)
-    s = apply_char_map(cand[4:7], DIGIT_TO_CHAR)
-    res = [st + d + s + apply_char_map(cand[7:11], CHAR_TO_DIGIT)]
+    d, s = cm.apply_char_map(cand[2:4], cm.CHAR_TO_DIGIT), cm.apply_char_map(cand[4:7], cm.DIGIT_TO_CHAR)
+    res = [st + d + s + cm.apply_char_map(cand[7:11], cm.CHAR_TO_DIGIT)]
     if d.startswith("4"):
         res.append(st + "0" + d[1:] + s + res[0][len(st + d + s) :])
     if "I" in s or "O" in s:
@@ -23,9 +21,9 @@ def normalize_11_char(cand: str, st: str) -> list[str]:
 
 def normalize_10_char(cand: str, st: str) -> list[str]:
     """Normalize standard 10-character plate: SS DD AA NNNN."""
-    d = apply_char_map(cand[2:4], CHAR_TO_DIGIT)
-    s = SERIES_CORRECTIONS.get(cand[4:6], apply_char_map(cand[4:6], DIGIT_TO_CHAR))
-    res = [st + d + s + apply_char_map(cand[6:10], CHAR_TO_DIGIT)]
+    d = cm.apply_char_map(cand[2:4], cm.CHAR_TO_DIGIT)
+    s = cm.SERIES_CORRECTIONS.get(cand[4:6], cm.apply_char_map(cand[4:6], cm.DIGIT_TO_CHAR))
+    res = [st + d + s + cm.apply_char_map(cand[6:10], cm.CHAR_TO_DIGIT)]
     if d.startswith("4"):
         res.append(st + "0" + d[1:] + s + res[0][len(st + d + s) :])
     if "I" in s or "O" in s:
@@ -36,11 +34,11 @@ def normalize_10_char(cand: str, st: str) -> list[str]:
 def normalize_9_char(cand: str, st: str) -> list[str]:
     """Normalize 9-character plate permutations."""
     cfgs = [
-        (cand[2:4], CHAR_TO_DIGIT, cand[4:5], DIGIT_TO_CHAR, cand[5:9], CHAR_TO_DIGIT),
-        (cand[2:3], CHAR_TO_DIGIT, cand[3:5], DIGIT_TO_CHAR, cand[5:9], CHAR_TO_DIGIT),
-        (cand[2:4], CHAR_TO_DIGIT, cand[4:6], DIGIT_TO_CHAR, cand[6:9], CHAR_TO_DIGIT),
+        (cand[2:4], cm.CHAR_TO_DIGIT, cand[4:5], cm.DIGIT_TO_CHAR, cand[5:9], cm.CHAR_TO_DIGIT),
+        (cand[2:3], cm.CHAR_TO_DIGIT, cand[3:5], cm.DIGIT_TO_CHAR, cand[5:9], cm.CHAR_TO_DIGIT),
+        (cand[2:4], cm.CHAR_TO_DIGIT, cand[4:6], cm.DIGIT_TO_CHAR, cand[6:9], cm.CHAR_TO_DIGIT),
     ]
-    res = [st + apply_char_map(d, dm) + apply_char_map(s, sm) + apply_char_map(n, nm) for d, dm, s, sm, n, nm in cfgs]
+    res = [st + cm.apply_char_map(d, dm) + cm.apply_char_map(s, sm) + cm.apply_char_map(n, nm) for d, dm, s, sm, n, nm in cfgs]
     for v in list(res):
         if len(v) == 9 and ("I" in v[4:6] or "O" in v[4:6]):
             res.append(v[:4] + sanitize_series(v[4:6]) + v[6:])
@@ -50,10 +48,10 @@ def normalize_9_char(cand: str, st: str) -> list[str]:
 def normalize_8_char(cand: str, st: str) -> list[str]:
     """Normalize older 8-character plate permutations."""
     cfgs = [
-        (cand[2:3], CHAR_TO_DIGIT, cand[3:4], DIGIT_TO_CHAR, cand[4:8], CHAR_TO_DIGIT),
-        (cand[2:4], CHAR_TO_DIGIT, cand[4:5], DIGIT_TO_CHAR, cand[5:8], CHAR_TO_DIGIT),
-        (cand[2:3], CHAR_TO_DIGIT, cand[3:5], DIGIT_TO_CHAR, cand[5:8], CHAR_TO_DIGIT),
+        (cand[2:3], cm.CHAR_TO_DIGIT, cand[3:4], cm.DIGIT_TO_CHAR, cand[4:8], cm.CHAR_TO_DIGIT),
+        (cand[2:4], cm.CHAR_TO_DIGIT, cand[4:5], cm.DIGIT_TO_CHAR, cand[5:8], cm.CHAR_TO_DIGIT),
+        (cand[2:3], cm.CHAR_TO_DIGIT, cand[3:5], cm.DIGIT_TO_CHAR, cand[5:8], cm.CHAR_TO_DIGIT),
     ]
-    res = [st + apply_char_map(d, dm) + apply_char_map(s, sm) + apply_char_map(n, nm) for d, dm, s, sm, n, nm in cfgs]
-    res.append(st + apply_char_map(cand[2:4], CHAR_TO_DIGIT) + apply_char_map(cand[4:8], CHAR_TO_DIGIT))
+    res = [st + cm.apply_char_map(d, dm) + cm.apply_char_map(s, sm) + cm.apply_char_map(n, nm) for d, dm, s, sm, n, nm in cfgs]
+    res.append(st + cm.apply_char_map(cand[2:4], cm.CHAR_TO_DIGIT) + cm.apply_char_map(cand[4:8], cm.CHAR_TO_DIGIT))
     return res

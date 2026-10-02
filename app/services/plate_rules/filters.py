@@ -2,7 +2,7 @@
 
 import re
 
-from app.constants import COMMERCIAL_DECAL_SUBSTRINGS, NON_PLATE_WORDS
+from app.services.plate_rules.decals import COMMERCIAL_DECAL_SUBSTRINGS, NON_PLATE_WORDS
 
 _CONTACT_PREFIX_PATTERN: re.Pattern[str] = re.compile(
     r"^(?:MOB|MOBILE|PH|PHONE|TEL|CALL|CONTACT)?([6-9]\d{9})$"

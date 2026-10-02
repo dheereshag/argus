@@ -7,7 +7,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from app.core.contracts import ContractViolation, bounded, ensure, require
+from app.core.bounds import bounded
+from app.core.contracts import ContractViolation, ensure, require
 from app.services.pipeline import validate_plate_results
 from tests.conftest import create_test_jpeg
 
@@ -181,7 +182,7 @@ def test_no_bare_image_open_outside_the_helper():
 
 
 _FORBIDDEN_SUBPATHS = [
-    "api",
+    "constants.py",
     "eval",
     "main.py",
     "schemas/error.py",
@@ -194,33 +195,43 @@ _FORBIDDEN_SUBPATHS = [
 
 _EXPECTED_ACTIVE_FILES = {
     "__init__.py",
-    "constants.py",
-    "schemas.py",
-    "server.py",
-    "core/__init__.py",
+    "api/__init__.py",
+    "api/dependencies.py",
+    "api/errors.py",
+    "api/router.py",
+    "api/routes/__init__.py",
+    "api/routes/info.py",
+    "api/routes/recognition.py",
+    "core/bounds.py",
     "core/config.py",
     "core/constants.py",
     "core/contracts.py",
     "core/exceptions.py",
+    "core/lifespan.py",
     "core/logging.py",
+    "core/middleware.py",
+    "schemas.py",
+    "server.py",
     "services/__init__.py",
     "services/detector/__init__.py",
+    "services/detector/constants.py",
     "services/detector/detector.py",
     "services/detector/geometry.py",
     "services/detector/occupancy.py",
     "services/detector/parser.py",
     "services/image_processing/__init__.py",
+    "services/image_processing/constants.py",
     "services/image_processing/loader.py",
     "services/image_processing/security.py",
     "services/image_processing/transformer.py",
     "services/ocr/__init__.py",
-    "services/ocr/fast_alpr_engine.py",
-    "services/ocr/fast_alpr_padding.py",
-    "services/ocr/fast_alpr_runner.py",
     "services/ocr/candidates.py",
     "services/ocr/engine.py",
     "services/ocr/enhancer.py",
     "services/ocr/extractor.py",
+    "services/ocr/fast_alpr_engine.py",
+    "services/ocr/fast_alpr_padding.py",
+    "services/ocr/fast_alpr_runner.py",
     "services/ocr/geometry.py",
     "services/ocr/pairing.py",
     "services/ocr/recognizer.py",
@@ -237,11 +248,14 @@ _EXPECTED_ACTIVE_FILES = {
     "services/plate_rules/__init__.py",
     "services/plate_rules/bh_series.py",
     "services/plate_rules/char_maps.py",
+    "services/plate_rules/corrections.py",
+    "services/plate_rules/decals.py",
     "services/plate_rules/expander.py",
     "services/plate_rules/filters.py",
     "services/plate_rules/normalizers.py",
     "services/plate_rules/parser.py",
     "services/plate_rules/resolver.py",
+    "services/plate_rules/states.py",
 }
 
 

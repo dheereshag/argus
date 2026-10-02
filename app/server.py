@@ -1,180 +1,16 @@
-"""
-FastAPI HTTP REST Microservice for Argus ANPR.
+"""FastAPI HTTP REST microservice for Argus ANPR."""
 
-Exposes REST endpoints for:
-  - Service metadata and health status (GET /).
-  - Vehicle license plate recognition from uploaded images (POST /recognize).
-  - Standardized JSON error envelopes and request execution timing headers.
-"""
+from fastapi import FastAPI
 
-import asyncio
-import time
-from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
-from datetime import UTC, datetime
-from typing import Annotated, Any
-
-from asyncer import asyncify
-from fastapi import FastAPI, File, Request, Response, UploadFile
-from fastapi.exceptions import RequestValidationError
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-
+from app.api.errors import register_exception_handlers
+from app.api.router import api_router
 from app.core import constants
-from app.core.contracts import ContractViolation
-from app.core.exceptions import ANPRServiceError
-from app.core.logging import logger
-from app.schemas import APIErrorResponse, RecognitionResponse
-from app.services.detector import VehicleDetector
-from app.services.image_processing import validate_image_upload
-from app.services.ocr import PlateRecognizer
-from app.services.pipeline import recognize_plate_image
-
-_inference_semaphore: asyncio.Semaphore | None = None
-
-
-def _get_semaphore() -> asyncio.Semaphore:
-    """Return singleton asyncio semaphore limiting concurrent AI pipeline executions."""
-    global _inference_semaphore
-    if _inference_semaphore is None:
-        _inference_semaphore = asyncio.Semaphore(constants.MAX_CONCURRENT_INFERENCES)
-    return _inference_semaphore
-
-
-def _error_response(status_code: int, message: str, error_type: str, details: Any = None) -> JSONResponse:
-    """
-    Construct a standardized JSON error response adhering to APIErrorResponse schema.
-
-    Args:
-        status_code: HTTP status code to return.
-        message: Human-readable error description.
-        error_type: Classification string or exception class name.
-        details: Optional contextual or validation error payload.
-
-    Returns:
-        JSONResponse: FastAPI response with serialized error payload.
-    """
-    payload = APIErrorResponse(
-        success=False,
-        status_code=status_code,
-        message=message,
-        error_type=error_type,
-        details=details,
-        timestamp=datetime.now(UTC),
-    )
-    return JSONResponse(status_code=status_code, content=payload.model_dump(mode="json"))
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
-    """
-    Manage application lifecycle: warm up AI models on startup and log shutdown.
-
-    Pre-loading model weights during startup ensures the initial inference request
-    does not incur cold-start latency spikes.
-    """
-    logger.info(f"Starting {constants.PROJECT_NAME} v{constants.VERSION}...")
-    try:
-        # Pre-warm AI engines: YOLO26, RapidOCR, and Fast-ALPR
-        from app.services.ocr.fast_alpr_engine import check_fast_alpr_engine
-
-        VehicleDetector.get_model()
-        PlateRecognizer.check_engine()
-        check_fast_alpr_engine()
-        logger.info("AI models initialized and verified successfully.")
-    except (RuntimeError, ValueError, OSError, AttributeError, ImportError) as exc:
-        logger.warning(f"Non-fatal warning warming models during startup: {exc}")
-
-    yield
-    logger.info(f"Shutting down {constants.PROJECT_NAME}...")
-
-
-def _register_middleware(app: FastAPI) -> None:
-    """Register CORS and request timing middleware."""
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=constants.CORS_ORIGINS,
-        allow_credentials=constants.CORS_ALLOW_CREDENTIALS,
-        allow_methods=constants.CORS_ALLOW_METHODS,
-        allow_headers=constants.CORS_ALLOW_HEADERS,
-    )
-
-    @app.middleware("http")
-    async def add_process_time_header(request: Request, call_next: Any) -> Response:
-        """Measures total HTTP request roundtrip time and sets X-Process-Time-Ms header."""
-        start_time = time.perf_counter()
-        response: Response = await call_next(request)
-        response.headers["X-Process-Time-Ms"] = f"{(time.perf_counter() - start_time) * 1000:.2f}"
-        return response
-
-
-def _register_exception_handlers(app: FastAPI) -> None:
-    """Register custom exception handlers mapping errors to standardized APIErrorResponse."""
-    @app.exception_handler(ANPRServiceError)
-    async def handle_anpr_error(_: Request, exc: ANPRServiceError) -> JSONResponse:
-        return _error_response(exc.status_code, exc.message, exc.__class__.__name__)
-
-    @app.exception_handler(ContractViolation)
-    async def handle_contract_error(_: Request, exc: ContractViolation) -> JSONResponse:
-        return _error_response(500, "Internal system assertion contract failed.", "ContractViolation", str(exc))
-
-    @app.exception_handler(RequestValidationError)
-    async def handle_val_error(_: Request, exc: RequestValidationError) -> JSONResponse:
-        return _error_response(422, "Request validation error.", "RequestValidationError", exc.errors())
-
-    @app.exception_handler(Exception)
-    async def handle_generic_error(req: Request, exc: Exception) -> JSONResponse:
-        logger.exception(f"Unhandled server error on {req.url.path}: {exc}")
-        return _error_response(500, "An internal server error occurred.", "InternalServerError")
-
-
-def _register_routes(app: FastAPI) -> None:
-    """Register REST API endpoints for service info and license plate recognition."""
-    @app.get("/", summary="Service Information", tags=["Info"])
-    async def root() -> dict[str, str]:
-        """Return microservice name, version, status, and link to interactive documentation."""
-        return {
-            "name": constants.PROJECT_NAME,
-            "version": constants.VERSION,
-            "status": "running",
-            "docs": "/docs",
-        }
-
-    @app.get("/health", summary="Health Check", tags=["Info"])
-    async def health() -> dict[str, str]:
-        """Return microservice health status confirmation for orchestrators and clients."""
-        return {
-            "status": "healthy",
-            "service": constants.PROJECT_NAME,
-            "version": constants.VERSION,
-        }
-
-    @app.post("/recognize", summary="Recognize Vehicle License Plate", tags=["Recognition"])
-    async def recognize_plate(
-        file: Annotated[UploadFile, File(description="Image file (JPEG, PNG, WebP, BMP)")],
-    ) -> RecognitionResponse:
-        """
-        Process an uploaded vehicle image through the 4-Tier Cascaded ANPR Pipeline.
-
-        Validates MIME type and dimensions, runs Fast-ALPR primary pass with
-        cascaded RapidOCR fallback, and returns thin validated registration results.
-        """
-        image_bytes = await file.read()
-        validate_image_upload(image_bytes, content_type=file.content_type)
-        async with _get_semaphore():
-            return await asyncify(recognize_plate_image)(image_bytes, filename=file.filename or "image.jpg")
+from app.core.lifespan import lifespan
+from app.core.middleware import register_middleware
 
 
 def create_app() -> FastAPI:
-    """
-    FastAPI application factory.
-
-    Configures lifespan management for pre-warming, middleware, exception handlers,
-    and REST endpoints.
-
-    Returns:
-        FastAPI: Configured FastAPI application instance.
-    """
+    """FastAPI application factory configuring lifespan, middleware, and routes."""
     app = FastAPI(
         title=constants.PROJECT_NAME,
         version=constants.VERSION,
@@ -183,13 +19,12 @@ def create_app() -> FastAPI:
         redoc_url=constants.REDOC_URL,
         lifespan=lifespan,
     )
-    _register_middleware(app)
-    _register_exception_handlers(app)
-    _register_routes(app)
+    register_middleware(app)
+    register_exception_handlers(app)
+    app.include_router(api_router)
     return app
 
 
-# Default application instance for ASGI servers (e.g. uvicorn)
 app = create_app()
 
 

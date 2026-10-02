@@ -109,6 +109,49 @@ Derived from Gerard J. Holzmann's NASA JPL *Power of 10* safety-critical code ru
 - **Single Cohesive Concern**: Each module must do one thing (e.g. geometry, occupancy policy, enhancement, spatial clustering).
 - **Harmony with Surgical Changes (§3)**: Apply this standard to new or refactored components; do not arbitrarily refactor untouched adjacent code unless requested.
 
+## 10. Python 3.14 Standards & Modern Idioms
+
+**Write native Python 3.14 code. Leverage modern typing and runtime enhancements.**
+
+- **PEP 649 Deferred Evaluation of Annotations**:
+  - Never use string quotes for forward references (e.g. use `def add(node: Node) -> Node:`, not `'Node'`).
+  - Do not use `from __future__ import annotations`.
+- **PEP 695 Type Parameter Syntax**:
+  - Prefer the `type` statement for type aliases (e.g. `type TokenMap = dict[str, str]`).
+  - Use native generic parameter syntax for functions and classes (`class Pipeline[T]:`, `def process[T](item: T) -> T:`).
+- **Modern Collections & Unions**:
+  - Exclusively use built-in collection types (`list`, `dict`, `tuple`, `set`) and pipe unions (`str | None`, `int | float`).
+  - Never import `List`, `Dict`, `Optional`, or `Union` from `typing`.
+
+## 11. Code Modularization Protocol & Master Prompt
+
+**Systematically decompose monolithic code into compact, cohesive modules.**
+
+When breaking down large files, services, or functions:
+1. **Target Single Concerns**: Map responsibilities into dedicated subpackages (e.g., `app/services/<domain>/`).
+2. **Enforce NASA JPL Rule 4**: Every resulting file and function must be strictly ≤ 60 lines.
+3. **FastAPI & Async Conventions**:
+   - Use `Annotated[..., Depends(...)]` for all parameter and dependency declarations.
+   - Attach route prefixes, tags, and shared dependencies directly to `APIRouter(...)`.
+   - Keep route handlers thin; delegate all business logic to service layers.
+   - Use regular `def` for synchronous/CPU-bound tasks, `async def` only for non-blocking I/O, and `asyncer` when bridging.
+4. **Standard Modularization Master Prompt**:
+   Use the following structured prompt for LLMs or subagents performing refactoring:
+
+   ```markdown
+   ### Role & Context
+   Senior Python Architect enforcing Python 3.14, FastAPI conventions, and NASA JPL Rule 4.
+
+   ### Objectives
+   1. Decompose: Break the monolithic code into cohesive, single-responsibility files (≤ 60 lines each).
+   2. Modernize: Apply Python 3.14 native deferred annotations (PEP 649), `type` aliases (PEP 695), and `|` unions.
+   3. Decouple: Separate API endpoints, schemas, dependencies, and business logic.
+   4. No Shims: Never add backwards-compatibility shims or dictionary wrappers.
+
+   ### Verification Criteria
+   Must pass `uv run ruff check --fix`, `uv run ty check`, and `uv run pytest` with 0 errors.
+   ```
+
 ---
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
