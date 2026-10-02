@@ -2,7 +2,6 @@
 
 import re
 
-from app.services.plate_rules.bh_series import normalize_bh_series
 from app.services.plate_rules.corrections import STATE_PREFIX_CORRECTIONS
 from app.services.plate_rules.decals import HSRP_PREFIXES
 from app.services.plate_rules.normalizers import (
@@ -23,8 +22,6 @@ def _expand(cand: str, results: list[str]) -> None:
         if len(cand) == t_len:
             gen.extend(norm(cand, st))
             break
-    if bh := normalize_bh_series(cand):
-        gen.append(bh)
     for item in gen:
         if item not in results:
             results.append(item)

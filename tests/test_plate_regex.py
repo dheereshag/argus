@@ -40,6 +40,9 @@ NON_PLATE_STRINGS = [
     "OD00S5554",  # 00 is not valid district
     "MHABI1065",  # letter in district position
     "ARSS2557",  # letter in district position
+    "22BH1234AA",  # Bharat series prohibited on commercial trucks
+    "^21D123456A",  # Military series not allowed for commercial weighment
+    "77CD01",  # Diplomatic corps not allowed for commercial weighment
 ]
 
 # Strings that must still be accepted. Regressions here mean the fix was too strict.
@@ -55,7 +58,6 @@ REAL_PLATES = [
     "BP2A4904",  # BP series single-digit district
     "BP1A2453",  # BP series single-digit district
     "TN5ASS3555",  # Single-digit district code
-    "22BH1234AA",  # Bharat series
 ]
 
 
@@ -81,10 +83,13 @@ def test_bp_series_is_valid():
     assert INDIAN_PLATE_REGEX.fullmatch("BP1A2453") is not None
 
 
-def test_bh_series_is_retained():
-    """BH (Bharat series) is real and has its own regex branch. Do not remove it."""
-    assert "BH" in STATE_CODES
-    assert INDIAN_PLATE_REGEX.fullmatch("22BH1234AA") is not None
+def test_non_allowed_weighbridge_plates_rejected(recognizer):
+    """BH (Bharat series), Military, and Diplomatic plates are rejected for weighbridges."""
+    assert "BH" not in STATE_CODES
+    assert INDIAN_PLATE_REGEX.fullmatch("22BH1234AA") is None
+    assert recognizer.parse_plate_info("22BH1234AA") is None
+    assert recognizer.parse_plate_info("^21D123456A") is None
+    assert recognizer.parse_plate_info("77CD01") is None
 
 
 def test_parse_returns_none_rather_than_unvalidated_text(recognizer):
@@ -123,20 +128,14 @@ def test_validation_path_uses_fullmatch_not_search():
 
 
 def test_plate_rules_edge_cases():
-    """Verify edge cases in Bharat series normalization and non-alphanumeric cleaning."""
+    """Verify edge cases in candidate normalization and non-alphanumeric cleaning."""
     from app.services.plate_rules import (
-        _normalize_bh_series,
         normalize_candidate_strings,
         parse_plate_info,
     )
 
-    # BH present but too short or invalid index -> line 124 None
-    assert _normalize_bh_series("BH123") is None
-    assert _normalize_bh_series("1BH123") is None
-
     # Only non-alphanumeric characters -> cleaned is empty -> line 203 None
     assert parse_plate_info("---###$$$") is None
-
 
     # 8-character candidate normalization
     eight_char = normalize_candidate_strings("DL1A1234")
@@ -145,8 +144,4 @@ def test_plate_rules_edge_cases():
     # 9-character candidate normalization
     nine_char = normalize_candidate_strings("DL01A1234")
     assert len(nine_char) > 0
-
-    # 6H Bharat series replacement
-    bh_candidates = normalize_candidate_strings("226H1234AA")
-    assert any("BH" in c for c in bh_candidates)
 

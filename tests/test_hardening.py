@@ -246,7 +246,6 @@ _EXPECTED_ACTIVE_FILES = {
     "services/pipeline/response.py",
     "services/pipeline/stages.py",
     "services/plate_rules/__init__.py",
-    "services/plate_rules/bh_series.py",
     "services/plate_rules/char_maps.py",
     "services/plate_rules/corrections.py",
     "services/plate_rules/decals.py",

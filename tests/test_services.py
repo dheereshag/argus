@@ -19,10 +19,8 @@ def test_indian_plate_regex_and_state_codes():
     for plate_str, expected_state in plates_to_test:
         match = INDIAN_PLATE_REGEX.fullmatch(plate_str)
         assert match is not None
-        if match.group(1):
-            assert STATE_CODES.get(match.group(1)) == expected_state
-        elif match.group(5):
-            assert STATE_CODES.get("BH") == expected_state
+        assert match.group(1) is not None
+        assert STATE_CODES.get(match.group(1)) == expected_state
 
     # Invalid patterns
     assert INDIAN_PLATE_REGEX.fullmatch("INVALID123") is None

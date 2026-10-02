@@ -89,7 +89,7 @@ flowchart TD
      - 10-char: `SS DD AA NNNN` (with series corrections `G3/GT -> GJ`, `D3/DT -> DJ`, etc.)
      - 9-char / 8-char: Permutations for legacy formats and 1-letter series.
      - Positional OCR confusion disambiguation (`CHAR_TO_DIGIT`: `'O'/'D' -> '0'`, `'I'/'L' -> '1'`, `'E' -> '6'`; `DIGIT_TO_CHAR`: `'0' -> 'O'`, `'1' -> 'I'`, `'8' -> 'B'`).
-     - Bharat Series parsing (`YY BH NNNN AA`) via [`bh_series.py`](../app/services/plate_rules/bh_series.py).
+     - Enforces strict factory weighbridge commercial vehicle rules: only standard State series registrations (`[State] [District] [Series] [4-digit]` and `[State] [District] [4-digit]`) are accepted; non-commercial and legally prohibited weighbridge formats (Bharat Series `BH`, Military `^`, and Diplomatic `CD/CC/UN`) are rejected.
    - Corrects common OCR state prefix errors (`W8 -> WB`, `RT -> RJ`, `D1 -> DL`, `0D -> OD`).
     - Validates state prefix codes against [`app/services/plate_rules/states.py`](../app/services/plate_rules/states.py).
 

@@ -97,10 +97,9 @@ def test_hsrp_ind_prefix_stripping():
 
 
 def test_bh_series_ocr_confusion_correction():
-    """Bharat series with OCR misread '8H' instead of 'BH' should normalize."""
-    raw = "228H1234AA"
-    normalized = normalize_candidate_strings(raw)
-    assert "22BH1234AA" in normalized
+    """Bharat series is prohibited on commercial trucks and rejected by weighbridge rules."""
+    assert parse_plate_info("228H1234AA") is None
+    assert parse_plate_info("22BH1234AA") is None
 
 
 # ------------------------------------------------------------------------------
@@ -171,31 +170,16 @@ def test_plate_result_metadata_serialization():
 
 
 def test_military_diplomatic_and_vintage_plates():
-    """Verify recognition of Military, Diplomatic, and vintage 0-series registrations."""
-    # Military plate
-    mil = parse_plate_info("21D123456A")
-    assert mil is not None
-    assert mil["plate"] == "21D123456A"
-    assert mil["state"] == "Military / Defence Series"
+    """Verify rejection of non-commercial (Military, Diplomatic) and retention of vintage 0-series."""
+    # Military plate rejected for commercial weighment
+    assert parse_plate_info("21D123456A") is None
+    assert parse_plate_info("^21D123456A") is None
 
-    # Military plate with arrow prefix
-    mil_arrow = parse_plate_info("^21D123456A")
-    assert mil_arrow is not None
-    assert mil_arrow["plate"] == "21D123456A"
-    assert mil_arrow["state"] == "Military / Defence Series"
+    # Diplomatic plates (CD, UN) rejected for commercial weighment
+    assert parse_plate_info("77CD01") is None
+    assert parse_plate_info("01UN12") is None
 
-    # Diplomatic plates (CD, UN)
-    dip = parse_plate_info("77CD01")
-    assert dip is not None
-    assert dip["plate"] == "77CD01"
-    assert dip["state"] == "Diplomatic Corps"
-
-    dip_un = parse_plate_info("01UN12")
-    assert dip_un is not None
-    assert dip_un["plate"] == "01UN12"
-    assert dip_un["state"] == "Diplomatic Corps"
-
-    # Vintage no-series plate
+    # Vintage no-series plate retained
     vin = parse_plate_info("DL011234")
     assert vin is not None
     assert vin["plate"] == "DL011234"

@@ -31,16 +31,6 @@ def parse_plate_info(raw_plate: str | None) -> dict[str, Any] | None:
     if not match:
         return None
 
-    state_name = "Unknown State"
-    if match.group(1):
-        state_name = STATE_CODES.get(match.group(1).upper(), "Unknown State")
-    elif match.group(8):
-        state_name = STATE_CODES.get(match.group(8).upper(), "Unknown State")
-    elif match.group(5) == "BH" or match.group(4):
-        state_name = STATE_CODES.get("BH", "Bharat Series (National)")
-    elif match.group(15):
-        state_name = "Diplomatic Corps"
-    elif match.group(10):
-        state_name = "Military / Defence Series"
-
+    code = match.group(1) or match.group(4)
+    state_name = STATE_CODES.get(code.upper(), "Unknown State") if code else "Unknown State"
     return {"plate": cleaned, "state": state_name}
