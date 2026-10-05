@@ -59,7 +59,7 @@ flowchart TD
    - Normalizes EXIF orientation and decodes the image at full camera resolution without downscaling (camera is 1080p, preserving character fidelity for weighbridge accuracy).
 
 2. **Stage 1: Vehicle Detection & Human Partitioning** ([`app/services/detector/`](../app/services/detector/)):
-   - Runs Ultralytics YOLO26 (`yolo26n.pt`) inference to identify `car`, `bus`, `truck`, `motorcycle`, `bicycle`, and `person`.
+   - Runs Ultralytics YOLO26 inference via ONNX Runtime CPU (`yolo26n.onnx`, falling back to `yolo26n.pt`) to identify `car`, `bus`, `truck`, `motorcycle`, `bicycle`, and `person`.
    - Human detections geometrically contained inside vehicle bounding boxes are classified as `humans_inside` (cabin occupants), while external pedestrians are counted as `humans_outside`.
    - Extracts padded bounding box crops and labels for all qualified vehicles meeting confidence and area thresholds.
 

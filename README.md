@@ -25,9 +25,13 @@ Interactive documentation is available at [http://localhost:8000/docs](http://lo
 
 ### 2. Remote Pi Deployment (1-Command)
 
-Compiles `app` with Nuitka into a native C extension (`app.*.so`), syncs model weights (`yolo26n.pt`), purges all `.py` source files from client hardware, and configures systemd (`argus.service`) bound to `127.0.0.1:8000` with auto-restart on boot:
+Compiles `app` with Nuitka into a native C extension (`app.*.so`), syncs model weights (`yolo26n.onnx` / `yolo26n.pt`), purges all `.py` source files from client hardware, and configures systemd (`argus.service`) bound to `127.0.0.1:8000` with auto-restart on boot:
 
 ```bash
+# Optional: re-export YOLO26 PyTorch weights to ONNX for Pi CPU acceleration
+uv run python scripts/export_yolo_onnx.py
+
+# Deploy to Raspberry Pi 5
 uv run python scripts/deploy.py --host gluvok@hermes.local
 ```
 
@@ -36,7 +40,7 @@ uv run python scripts/deploy.py --host gluvok@hermes.local
 ## ⚡ 4-Tier Cascaded Execution Pipeline
 
 1. **Tier 1 (Fast-ALPR Full-Frame)**: Direct YOLOv9-s plate detector + CCT-XS OCR with margin expansion on input image, normalized & validated against Indian MoRTH rules (`~30–40 ms`). Early exit if valid plate found.
-2. **Tier 2 (Fast-ALPR on Vehicle Crops)**: If Tier 1 produces no plates, YOLO26 vehicle detector extracts vehicle crops $ightarrow$ Fast-ALPR plate detection + OCR on crops (`~50–70 ms`). Early exit if valid plate found.
+2. **Tier 2 (Fast-ALPR on Vehicle Crops)**: If Tier 1 produces no plates, YOLO26 vehicle detector (ONNX Runtime CPU via `yolo26n.onnx`) extracts vehicle crops $\rightarrow$ Fast-ALPR plate detection + OCR on crops (`~50–70 ms`). Early exit if valid plate found.
 3. **Tier 3 (RapidOCR on Vehicle Crops)**: If Tier 2 produces no plates, executes RapidOCR 2D spatial candidate pairing on vehicle crops (`~120–180 ms`). Early exit if valid plate found.
 4. **Tier 4 (RapidOCR Full-Frame Fallback)**: If Tier 3 produces no plates or no vehicle was detected, runs RapidOCR across the full frame (`~220–280 ms`).
 

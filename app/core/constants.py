@@ -19,7 +19,8 @@ CORS_ALLOW_METHODS: list[str] = ["*"]
 CORS_ALLOW_HEADERS: list[str] = ["*"]
 
 # YOLO Detection & Tuning
-YOLO_MODEL_NAME = "yolo26n.pt"
+_ONNX_MODEL, _PT_MODEL = "yolo26n.onnx", "yolo26n.pt"
+YOLO_MODEL_NAME = _ONNX_MODEL if os.path.exists(_ONNX_MODEL) else _PT_MODEL
 YOLO_CONFIG_DIR = ".cache/ultralytics"
 HUMAN_CONF_THRESH = 0.30
 VEHICLE_CONF_THRESH = 0.35
